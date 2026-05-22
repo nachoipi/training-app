@@ -1,0 +1,508 @@
+/* Planification config row */
+.planification-config {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 24px;
+    margin-bottom: 16px;
+}
+
+.planification-config-field { display: flex; flex-direction: column; gap: 6px; }
+
+.planification-label {
+    font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--text-muted);
+}
+
+.planification-input {
+    background: var(--bg-deep); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px 12px;
+    color: var(--text-primary); font-size: 0.9rem;
+    transition: border-color var(--transition);
+    min-width: 115px;
+}
+.planification-input:focus { outline: none; border-color: var(--accent); }
+
+.planification-select {
+    background: var(--bg-deep); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 8px 12px;
+    color: var(--text-primary); font-size: 0.9rem;
+    cursor: pointer; transition: border-color var(--transition);
+}
+.planification-select:focus { outline: none; border-color: var(--accent); }
+
+/* Week container */
+.planification-week {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 24px;
+    margin-bottom: 20px;
+}
+
+.planification-week-header {
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.planification-week-label {
+    font-family: var(--font-display); font-size: 1.1rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-primary);
+}
+
+/* Day card */
+.planification-day {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 24px;
+    margin-bottom: 12px;
+}
+
+.planification-day-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.planification-day-label {
+    font-family: var(--font-display); font-size: 1rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent);
+}
+
+/* Block */
+.planification-block {
+    background: var(--bg-deep); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px 16px;
+    margin-bottom: 10px;
+}
+
+.planification-block-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.planification-block-label {
+    font-family: var(--font-display); font-size: 0.8rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary);
+}
+
+/* Exercise header */
+.planification-exercise-header {
+    display: grid;
+    grid-template-columns: 36px minmax(160px, 1.3fr) 110px 60px 60px 110px 60px 180px 28px;
+    gap: 8px; align-items: center;
+    padding: 0 0 6px 0;
+    font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--text-muted);
+}
+
+/* Exercise row */
+.planification-exercise-row {
+    display: grid;
+    grid-template-columns: 36px minmax(160px, 1.3fr) 110px 60px 60px 110px 60px 180px 28px;
+    gap: 8px; align-items: center;
+    margin-bottom: 6px;
+}
+
+.planification-exercise-position {
+    font-family: var(--font-display); font-size: 0.75rem; font-weight: 700;
+    color: var(--text-muted); text-align: center;
+}
+
+.planification-exercise-select { min-width: 0; width: 100%; }
+
+.planification-num-input { min-width: 0; text-align: center; -moz-appearance: textfield; }
+.planification-num-input::-webkit-outer-spin-button,
+.planification-num-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.planification-reps-input { min-width: 0; }
+
+/* Remove button */
+.planification-remove-btn {
+    background: transparent; border: none;
+    color: var(--text-muted); font-size: 1.1rem; line-height: 1;
+    cursor: pointer; padding: 2px 6px; border-radius: var(--radius-sm);
+    transition: all var(--transition);
+}
+.planification-remove-btn:hover { background: rgba(255,80,80,0.15); color: #ff5050; }
+
+/* Add exercise */
+.planification-add-exercise-btn {
+    background: transparent; border: 1px dashed var(--border);
+    border-radius: var(--radius-sm); padding: 6px 12px;
+    color: var(--text-muted); font-size: 0.8rem;
+    cursor: pointer; width: 100%; margin-top: 4px;
+    transition: all var(--transition);
+}
+.planification-add-exercise-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Footer */
+.planification-footer {
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding: 20px 0 4px;
+}
+
+/* Plan sessions (athlete profile) */
+.plan-sessions-group { margin-bottom: 18px; }
+.plan-sessions-group:last-child { margin-bottom: 0; }
+
+.plan-sessions-group-title {
+    font-family: var(--font-display); font-size: 0.85rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-secondary); margin-bottom: 10px;
+}
+
+.plan-sessions-weeks {
+    display: grid;
+    gap: 12px;
+}
+
+.plan-week-column {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.plan-week-column-title {
+    font-family: var(--font-display); font-size: 0.7rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-muted); margin-bottom: 2px;
+}
+
+.plan-session-card {
+    background: var(--bg-deep); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+    transition: border-color var(--transition);
+}
+.plan-session-card:hover { border-color: var(--accent); }
+
+.plan-session-card-label {
+    font-family: var(--font-display); font-size: 0.85rem; font-weight: 700;
+    color: var(--accent); margin-bottom: 4px;
+}
+
+.plan-session-card-meta {
+    font-size: 0.75rem; color: var(--text-muted);
+}
+
+/* Blocks inside day card */
+.plan-session-card-blocks {
+    display: flex; flex-direction: column; gap: 10px;
+}
+
+.plan-session-block {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 10px;
+}
+
+.session-window-body .plan-session-block {
+    width: fit-content;
+    margin: 0 auto;
+}
+
+.plan-session-block-label {
+    font-family: var(--font-display); font-size: 0.65rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--text-secondary);
+    text-align: center;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Exercise inside block */
+.plan-session-exercise {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 6px 0;
+}
+.plan-session-exercise + .plan-session-exercise {
+    border-top: 1px dashed var(--border);
+    padding-top: 10px;
+}
+
+.plan-session-exercise-header {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 2px;
+    text-align: center;
+}
+
+.plan-session-exercise-position {
+    font-family: var(--font-display); font-size: 0.7rem; font-weight: 700;
+    color: var(--accent); letter-spacing: 0.08em;
+}
+
+.plan-session-exercise-name {
+    font-size: 0.85rem; font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.25;
+}
+
+.plan-session-exercise-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    width: 100%;
+}
+
+.plan-session-exercise-stats .stat {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; gap: 2px;
+}
+
+.plan-session-exercise-stats .stat-label {
+    font-size: 0.55rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-muted);
+}
+
+.plan-session-exercise-stats .stat-value {
+    font-family: var(--font-display); font-size: 0.85rem; font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Session window (AthleteMySession full-screen view) */
+.session-window {
+    position: fixed; inset: 0; z-index: 900;
+    background: var(--bg-surface);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    animation: slideUp 0.22s ease;
+}
+
+.session-window-header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+    background: var(--bg-card); flex-shrink: 0;
+}
+
+.session-window-title {
+    font-family: var(--font-display); font-size: 1rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-primary);
+    flex: 1;
+}
+
+.session-completed-badge {
+    font-family: var(--font-display); font-size: 0.75rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    background: var(--green-bg); color: var(--green);
+    padding: 4px 12px; border-radius: 20px;
+}
+
+.session-window-body {
+    flex: 1; min-height: 0; overflow-y: auto; padding: 28px;
+    width: 100%; box-sizing: border-box;
+}
+
+.session-window-footer {
+    display: flex; justify-content: flex-end; gap: 10px;
+    padding: 16px 24px; border-top: 1px solid var(--border);
+    background: var(--bg-card); flex-shrink: 0;
+}
+
+.session-exercise-inputs {
+    display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap;
+}
+
+.session-exercise-input-group {
+    display: flex; flex-direction: column; gap: 4px;
+}
+
+.session-exercise-input-label {
+    font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-muted);
+}
+
+.session-exercise-input {
+    background: var(--bg-deep); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 6px 10px;
+    color: var(--text-primary); font-size: 0.85rem; width: 130px;
+    transition: border-color var(--transition);
+}
+.session-exercise-input:focus { outline: none; border-color: var(--accent); }
+
+/* Block summary row */
+.session-block-summary {
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    padding: 6px 0 4px;
+    line-height: 1.5;
+}
+
+.session-block-summary-sep {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+.session-block-summary-name {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.session-block-summary-meta {
+    color: var(--text-muted);
+}
+
+/* Serie group */
+.session-serie-group {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: rgba(255,255,255,0.015);
+}
+
+.session-serie-header {
+    font-family: var(--font-display);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Exercise row inside a serie group */
+.session-serie-exercise-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.session-serie-exercise-row + .session-serie-exercise-row {
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+}
+
+.session-serie-exercise-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.session-serie-inputs {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.session-exercise-input-comment {
+    width: 180px;
+}
+
+/* Exercise name row (name + prescription inline) */
+.session-serie-exercise-name-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.session-serie-exercise-link {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+    transition: opacity var(--transition);
+}
+.session-serie-exercise-link:hover { opacity: 0.75; text-decoration: underline; }
+
+.session-serie-exercise-prescription {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+/* Stepper (− input +) */
+.session-stepper {
+    display: flex;
+    align-items: center;
+}
+
+.session-stepper-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1;
+    width: 28px;
+    height: 34px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition);
+    flex-shrink: 0;
+}
+.session-stepper-btn:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); border-right: none; }
+.session-stepper-btn:last-child  { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; border-left: none; }
+.session-stepper-btn:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+
+.session-stepper .session-exercise-input {
+    border-radius: 0;
+    width: 70px;
+    text-align: center;
+}
+
+/* Done checkbox */
+.session-done-group {
+    justify-content: center;
+}
+
+.session-done-check {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--accent);
+    margin-top: 4px;
+}
+
+/* RPE exercise row colors */
+.session-rpe-1 { background: rgba(52, 211, 153, 0.12); border-color: rgba(52, 211, 153, 0.3); border-radius: var(--radius-sm); padding: 6px 8px; }
+.session-rpe-2 { background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.3); border-radius: var(--radius-sm); padding: 6px 8px; }
+.session-rpe-3 { background: rgba(239, 68, 68, 0.12);  border-color: rgba(239, 68, 68, 0.3);  border-radius: var(--radius-sm); padding: 6px 8px; }
+.session-rpe-4 { background: rgba(0, 0, 0, 0.5);        border-color: rgba(255,255,255,0.08);   border-radius: var(--radius-sm); padding: 6px 8px; }
+
+/* Block footer summary */
+.session-block-footer {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.session-block-footer-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.session-block-footer-label {
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    min-width: 120px;
+    padding-bottom: 6px;
+}
+
+.session-rpe-select {
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: border-color var(--transition);
+    min-width: 220px;
+}
+.session-rpe-select:focus { outline: none; border-color: var(--accent); }
