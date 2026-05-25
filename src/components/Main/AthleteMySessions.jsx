@@ -22,7 +22,7 @@ export function AthleteMySessions({ planifications, sessionLogs, onOpenSession }
                         <div className="plan-sessions-group-title">{plan.name}</div>
                         <div className="assigned-routines-list">
                             {Array.from({ length: plan.weeks }, (_, w) => (
-                                plan.days.map(day => {
+                                (plan.weekDays?.[w] ?? plan.days ?? []).map(day => {
                                     const done = isCompleted(plan.id, w + 1, day.dayNumber);
                                     return (
                                         <div

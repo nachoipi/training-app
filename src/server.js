@@ -144,6 +144,7 @@ let exercises = [
 let routines = [];
 let sessions = [];
 let planifications = [];
+let sessionLogs = [];
 
 // Alumnos mock para el trainer (en producción vendría de la DB)
 const MOCK_ATHLETES = [
@@ -285,14 +286,14 @@ app.get('/api/planifications', requireAuth, (req, res) => {
 });
 
 app.post('/api/planifications', requireAuth, requireRole('trainer'), (req, res) => {
-    const { athleteId, name, weeks, days } = req.body;
+    const { athleteId, name, weeks, weekDays } = req.body;
     if (!athleteId || !name) return res.status(400).json({ error: 'athleteId y name son requeridos' });
     const plan = {
         id: uid(),
         athleteId,
         name,
         weeks: weeks ?? 4,
-        days: days ?? [],
+        weekDays: weekDays ?? [],
         createdBy: req.user.userId,
         createdAt: new Date().toISOString(),
     };
@@ -312,6 +313,27 @@ app.delete('/api/planifications/:id', requireAuth, requireRole('trainer'), (req,
     if (idx === -1) return res.status(404).json({ error: 'Planificación no encontrada' });
     planifications.splice(idx, 1);
     res.json({ message: 'Eliminada' });
+});
+
+// ============================================================
+// SESSION LOGS
+// ============================================================
+app.get('/api/session-logs', requireAuth, (req, res) => {
+    const { athleteId } = req.query;
+    let result = req.user.role === 'trainer'
+        ? (athleteId ? sessionLogs.filter(l => l.athleteId === athleteId) : sessionLogs)
+        : sessionLogs.filter(l => l.athleteId === req.user.userId);
+    res.json({ data: result });
+});
+
+app.post('/api/session-logs', requireAuth, requireRole('athlete'), (req, res) => {
+    const log = { ...req.body, athleteId: req.user.userId };
+    const idx = sessionLogs.findIndex(
+        l => l.athleteId === log.athleteId && l.planId === log.planId &&
+             l.week === log.week && l.dayNumber === log.dayNumber
+    );
+    if (idx >= 0) { sessionLogs[idx] = log; } else { sessionLogs.push(log); }
+    res.json(log);
 });
 
 // ============================================================

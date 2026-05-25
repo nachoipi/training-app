@@ -24,7 +24,7 @@ export function AthleteMyPlan({ planifications }) {
                             {Array.from({ length: plan.weeks }, (_, w) => (
                                 <div key={w} className="plan-week-column">
                                     <div className="plan-week-column-title">Semana {w + 1}</div>
-                                    {plan.days.map(day => (
+                                    {(plan.weekDays?.[w] ?? plan.days ?? []).map(day => (
                                         <div key={`${plan.id}-${w}-${day.dayNumber}`} className="plan-session-card">
                                             <div className="plan-session-card-label">Día {day.dayNumber}</div>
                                             <div className="plan-session-card-blocks">

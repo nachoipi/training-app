@@ -2,6 +2,8 @@ import React from 'react';
 import { formatDate, formatCarga } from '../../utils/helpers.js';
 import { StatCard } from '../Common/index.jsx';
 
+const RPE_CLASSES = { '1': 'session-rpe-1', '2': 'session-rpe-2', '3': 'session-rpe-3', '4': 'session-rpe-4' };
+
 export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, onOpenPlanification, onViewPlanification, onDeletePlanification, onShowToast }) {
     const athletePlanIds = new Set(planifications.map(p => p.id));
     const completedLogs = (sessionLogs || [])
@@ -48,7 +50,7 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                                 <div className="assigned-routine-info">
                                     <span className="assigned-routine-name">{p.name}</span>
                                     <span className="assigned-routine-meta">
-                                        {p.weeks} semanas · {p.days.length} días
+                                        {p.weeks} semanas · {(p.weekDays?.[0] ?? p.days ?? []).length} días
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', gap: 8 }}>
@@ -88,29 +90,38 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                                 {Array.from({ length: plan.weeks }, (_, w) => (
                                     <div key={w} className="plan-week-column">
                                         <div className="plan-week-column-title">Semana {w + 1}</div>
-                                        {plan.days.map(day => (
-                                            <div key={`${plan.id}-${w}-${day.dayNumber}`} className="plan-session-card">
-                                                <div className="plan-session-card-label">Día {day.dayNumber}</div>
-                                                <div className="plan-session-card-blocks">
-                                                    {day.blocks.map(block => (
-                                                        <div key={block.label} className="plan-session-block">
-                                                            {block.exercises.map((ex, i) => (
-                                                                <div key={i} className="plan-session-exercise">
-                                                                    <div className="plan-session-exercise-header">
-                                                                        <span className="plan-session-exercise-name">{ex.exerciseName || '—'}</span>
-                                                                    </div>
-                                                                    <div className="plan-session-exercise-stats">
-                                                                        <div className="stat"><span className="stat-label">Series</span><span className="stat-value">{ex.series || '—'}</span></div>
-                                                                        <div className="stat"><span className="stat-label">Reps</span><span className="stat-value">{ex.reps || '—'}</span></div>
-                                                                        <div className="stat"><span className="stat-label">Carga</span><span className="stat-value">{formatCarga(ex)}</span></div>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    ))}
+                                        {(plan.weekDays?.[w] ?? plan.days ?? []).map(day => {
+                                            const log = sessionLogs.find(
+                                                l => l.planId === plan.id && l.week === w + 1 && l.dayNumber === day.dayNumber && l.completed
+                                            );
+                                            return (
+                                                <div key={`${plan.id}-${w}-${day.dayNumber}`} className="plan-session-card">
+                                                    <div className="plan-session-card-label">Día {day.dayNumber}</div>
+                                                    <div className="plan-session-card-blocks">
+                                                        {day.blocks.map(block => (
+                                                            <div key={block.label} className="plan-session-block">
+                                                                {block.exercises.map((ex, i) => {
+                                                                    const rpeKey = log?.exerciseSummaries?.find(s => s.position === ex.position)?.rpe || '';
+                                                                    const rpeClass = RPE_CLASSES[rpeKey] || '';
+                                                                    return (
+                                                                        <div key={i} className={`plan-session-exercise ${rpeClass}`}>
+                                                                            <div className="plan-session-exercise-header">
+                                                                                <span className="plan-session-exercise-name">{ex.exerciseName || '—'}</span>
+                                                                            </div>
+                                                                            <div className="plan-session-exercise-stats">
+                                                                                <div className="stat"><span className="stat-label">Series</span><span className="stat-value">{ex.series || '—'}</span></div>
+                                                                                <div className="stat"><span className="stat-label">Reps</span><span className="stat-value">{ex.reps || '—'}</span></div>
+                                                                                <div className="stat"><span className="stat-label">Carga</span><span className="stat-value">{formatCarga(ex)}</span></div>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 ))}
                             </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function Header({ user, activeSection, onNavigate, onLogout, collapsed, onToggle }) {
+export function Header({ user, activeSection, onNavigate, onLogout, collapsed, onToggle, theme, onToggleTheme }) {
     const isTrainer = user && user.role === 'trainer';
     const isAthlete = user && user.role === 'athlete';
 
@@ -49,6 +49,16 @@ export function Header({ user, activeSection, onNavigate, onLogout, collapsed, o
                         </span>
                     </div>
                 </div>
+                <button
+                    className="btn-theme-toggle"
+                    onClick={onToggleTheme}
+                    title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+                >
+                    <span>{theme === 'dark' ? '☀️' : '🌙'}</span>
+                    <span className="btn-theme-toggle-label">
+                        {theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+                    </span>
+                </button>
                 <button className="btn-logout" onClick={onLogout} title="Cerrar sesión">
                     <span>↩</span>
                     <span className="btn-logout-label">Cerrar sesión</span>

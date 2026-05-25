@@ -38,10 +38,26 @@
 }
 
 .planification-week-header {
+    display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 14px;
     padding-bottom: 12px;
     border-bottom: 1px solid var(--border);
 }
+
+.planification-week-header--collapsed {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.planification-collapse-btn {
+    background: transparent; border: none;
+    color: var(--text-muted);
+    cursor: pointer; padding: 4px 6px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    transition: all var(--transition);
+}
+.planification-collapse-btn:hover { background: var(--bg-deep); color: var(--text-primary); }
 
 .planification-week-label {
     font-family: var(--font-display); font-size: 1.1rem; font-weight: 800;

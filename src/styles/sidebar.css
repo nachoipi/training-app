@@ -169,3 +169,24 @@
 .btn-logout:hover { color: var(--red); border-color: var(--red); background: var(--red-bg); }
 .btn-logout-label { transition: opacity var(--transition); }
 .sidebar.collapsed .btn-logout-label { opacity: 0; width: 0; overflow: hidden; }
+
+.btn-theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    color: var(--text-secondary);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    padding: 7px 10px;
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+    overflow: hidden;
+}
+.btn-theme-toggle:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-glow); }
+.btn-theme-toggle-label { transition: opacity var(--transition); }
+.sidebar.collapsed .btn-theme-toggle-label { opacity: 0; width: 0; overflow: hidden; }

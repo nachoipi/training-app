@@ -37,6 +37,12 @@ function App() {
     const [muscleFilter, setMuscleFilter] = useState('all');
     const [progressPeriod, setProgressPeriod] = useState(30);
     const [toast, setToast]             = useState({ msg: '', type: 'success', show: false });
+    const [theme, setTheme]             = useState(() => localStorage.getItem('fitcore_theme') || 'dark');
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('fitcore_theme', theme);
+    }, [theme]);
 
     const [selectedAthlete, setSelectedAthlete]         = useState(null);
     const [planifications, setPlanifications]           = useState([]);
@@ -69,28 +75,21 @@ function App() {
         setRoutines(data.routines);
         setSessions(data.sessions);
         setExercises(data.exercises);
-        try {
-            const sl = localStorage.getItem(stateKey(userData, 'sessionLogs'));
-            setSessionLogs(sl ? JSON.parse(sl) : []);
-        } catch { setSessionLogs([]); }
-
         if (userData.role === 'athlete') setSection('my-plan');
 
         apiFetch('/api/planifications')
             .then(r => setPlanifications(r.data))
             .catch(err => showToast(err.message, 'error'));
+
+        apiFetch('/api/session-logs')
+            .then(r => setSessionLogs(r.data))
+            .catch(() => setSessionLogs([]));
     }, []);
 
     // Persist data
     useEffect(() => {
         if (user) saveUserData(user, routines, sessions, exercises);
     }, [routines, sessions, exercises, user]);
-
-    useEffect(() => {
-        if (user) {
-            try { localStorage.setItem(stateKey(user, 'sessionLogs'), JSON.stringify(sessionLogs)); } catch {}
-        }
-    }, [sessionLogs, user]);
 
     // ========== Toast Handler ==========
     function showToast(msg, type = 'success') {
@@ -108,11 +107,17 @@ function App() {
     }
 
     // ========== Session Log Handlers ==========
-    function handleSaveSessionLog(log) {
-        setSessionLogs(prev => {
-            const exists = prev.findIndex(l => l.planId === log.planId && l.week === log.week && l.dayNumber === log.dayNumber);
-            return exists >= 0 ? prev.map((l, i) => i === exists ? log : l) : [...prev, log];
-        });
+    async function handleSaveSessionLog(log) {
+        try {
+            const saved = await apiFetch('/api/session-logs', {
+                method: 'POST',
+                body: JSON.stringify(log),
+            });
+            setSessionLogs(prev => {
+                const exists = prev.findIndex(l => l.planId === saved.planId && l.week === saved.week && l.dayNumber === saved.dayNumber);
+                return exists >= 0 ? prev.map((l, i) => i === exists ? saved : l) : [...prev, saved];
+            });
+        } catch (err) { showToast(err.message, 'error'); return; }
         setSelectedSession(null);
         setSection('my-sessions');
     }
@@ -169,6 +174,8 @@ function App() {
                 onLogout={handleLogout}
                 collapsed={collapsed}
                 onToggle={() => setCollapsed(c => !c)}
+                theme={theme}
+                onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
             />
 
             <Main

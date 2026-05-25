@@ -123,7 +123,7 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
         return true;
     }
 
-    function handleSave() { if (validate()) onSave(buildLog(false)); }
+    function handleSave() { if (validate()) onSave(buildLog(completed)); }
     function handleComplete() { if (validate()) onSave(buildLog(true)); }
 
     return (
