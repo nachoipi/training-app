@@ -1,78 +1,61 @@
-# Training App
+# Training App (FitCore)
 
-A Web API training application built with Node.js, Express, HTML, CSS, and JavaScript.
-
-## Features
-
-- Express.js backend API
-- Responsive web interface
-- RESTful API endpoints
-- Modern CSS styling with gradient design
-- Vanilla JavaScript frontend
-
-## Project Structure
+Three-tier app: React frontend, Express + MVC backend, MySQL database.
 
 ```
 training-app/
-├── src/
-│   └── server.js          # Express server and API endpoints
-├── public/
-│   ├── index.html         # Main HTML file
-│   ├── style.css          # CSS styling
-│   └── app.js             # Frontend JavaScript
-├── .github/
-│   └── copilot-instructions.md
-├── package.json
-├── .gitignore
-└── README.md
+├── frontend/   React + Vite (port 5173)
+├── backend/    Node.js + Express + MVC (port 3000)
+└── database/   MySQL schema and seed
 ```
 
-## Getting Started
+## Backend — MVC layout
 
-### Prerequisites
+```
+backend/src/
+├── config/        env, mysql2 pool
+├── models/        in-memory now, MySQL-shaped API
+├── controllers/   request/response handlers
+├── routes/        URL → controller wiring
+├── middlewares/   auth, error
+├── services/      auth/token helpers
+├── app.js         express() + middleware + routes
+└── server.js      app.listen()
+```
 
-- Node.js (v14 or higher)
-- npm (comes with Node.js)
+The models currently keep the legacy in-memory arrays so the app runs without a live database. Each model's public API (`findAll`, `findById`, `create`, `update`, `remove`) matches the MySQL example — swapping in real `db.query(...)` calls later is a body-only change.
 
-### Installation
+## Run locally
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+### 1. Backend
 
-### Running the Application
-
-Start the development server:
 ```bash
-npm start
+cd backend
+cp .env.example .env   # edit DB_* if connecting MySQL later
+npm install
+npm run dev            # listens on :3000
 ```
 
-The application will be available at `http://localhost:3000`
+### 2. Frontend
 
-## API Endpoints
+```bash
+cd frontend
+npm install
+npm run dev            # serves on :5173, proxies /api → :3000
+```
 
-### Status Endpoint
-- **GET** `/api/status`
-- Returns the current status of the API
+Open <http://localhost:5173>. Demo accounts:
 
-### Health Endpoint
-- **GET** `/api/health`
-- Returns server health information
+| Role     | Email                  | Password |
+|----------|------------------------|----------|
+| Trainer  | trainer@fitcore.com    | 123456   |
+| Athlete  | nacho@fitcore.com      | 123456   |
 
-## Development
+### 3. (Optional) MySQL
 
-To modify the API, edit files in the `src/` directory.
+```bash
+mysql -u root -p < database/schema.sql
+mysql -u root -p < database/seed.sql
+```
 
-To modify the frontend, edit files in the `public/` directory:
-- `index.html` - Structure
-- `style.css` - Styling
-- `app.js` - Frontend logic
-
-## License
-
-MIT
-
-## Author
-
-Created as a training application
+Models still use the in-memory arrays — wiring them to `db.query(...)` is the next step.
