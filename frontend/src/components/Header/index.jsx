@@ -15,7 +15,7 @@ export function Header({ user, activeSection, onNavigate, onLogout, collapsed, o
     ];
 
     return (
-        <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+        <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${isAthlete ? 'sidebar--athlete' : ''}`}>
             <div className="sidebar-header">
                 <div className="logo">
                     <span className="logo-icon">⚡</span>
