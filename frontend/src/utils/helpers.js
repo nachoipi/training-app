@@ -1,5 +1,3 @@
-import { DEFAULT_EXERCISES } from './constants.js';
-
 export function uid() {
     return '_' + Math.random().toString(36).slice(2, 10);
 }
@@ -23,34 +21,6 @@ export function getCurrentUser() {
         const raw = localStorage.getItem('fitcore_user');
         return raw ? JSON.parse(raw) : null;
     } catch { return null; }
-}
-
-export function stateKey(user, key) {
-    const userId = user ? user.id : 'guest';
-    return `fitcore_${userId}_${key}`;
-}
-
-export function loadUserData(user) {
-    try {
-        const r = localStorage.getItem(stateKey(user, 'routines'));
-        const s = localStorage.getItem(stateKey(user, 'sessions'));
-        const e = localStorage.getItem(stateKey(user, 'exercises'));
-        return {
-            routines:  r ? JSON.parse(r) : [],
-            sessions:  s ? JSON.parse(s) : [],
-            exercises: e ? JSON.parse(e) : DEFAULT_EXERCISES.slice(),
-        };
-    } catch {
-        return { routines: [], sessions: [], exercises: DEFAULT_EXERCISES.slice() };
-    }
-}
-
-export function saveUserData(user, routines, sessions, exercises) {
-    try {
-        localStorage.setItem(stateKey(user, 'routines'),  JSON.stringify(routines));
-        localStorage.setItem(stateKey(user, 'sessions'),  JSON.stringify(sessions));
-        localStorage.setItem(stateKey(user, 'exercises'), JSON.stringify(exercises));
-    } catch {}
 }
 
 const MEDIDA_UNIT = { Distancia: 'MTS.', Tiempo: '"', Peso: 'KG' };

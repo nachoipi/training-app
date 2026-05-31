@@ -1,10 +1,17 @@
-import mysql from 'mysql2/promise';
-import { DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME } from './env.js';
+import pg from 'pg';
+import { DATABASE_URL, PGSSL } from './env.js';
 
-export const db = mysql.createPool({
-    host:     DB_HOST,
-    port:     DB_PORT,
-    user:     DB_USER,
-    password: DB_PASSWORD,
-    database: DB_NAME,
+// Return Postgres DATE (OID 1082) as a 'YYYY-MM-DD' string instead of a JS Date,
+// so string-based date comparisons in the app layer keep working.
+pg.types.setTypeParser(1082, (val) => val);
+
+export const pool = new pg.Pool({
+    connectionString: DATABASE_URL,
+    ssl: PGSSL ? { rejectUnauthorized: false } : false,
 });
+
+// Thin helper: run a parameterized query and get the rows back.
+export async function query(text, params) {
+    const res = await pool.query(text, params);
+    return res.rows;
+}

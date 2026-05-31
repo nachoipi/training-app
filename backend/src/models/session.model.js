@@ -1,38 +1,65 @@
 import { uid } from '../services/auth.service.js';
+import { query } from '../config/db.js';
 
-let sessions = [];
+const SELECT = `
+    SELECT id,
+           user_id      AS "userId",
+           routine_id   AS "routineId",
+           routine_name AS "routineName",
+           date,
+           duration,
+           notes,
+           intensity,
+           created_at   AS "createdAt"
+      FROM sessions`;
 
 export const SessionModel = {
     findAll: async ({ userId, isTrainer, from, to, filterUserId } = {}) => {
-        let result = isTrainer ? [...sessions] : sessions.filter(s => s.userId === userId);
-        if (from) result = result.filter(s => s.date >= from);
-        if (to)   result = result.filter(s => s.date <= to);
-        if (filterUserId && isTrainer) result = result.filter(s => s.userId === filterUserId);
-        result.sort((a, b) => b.date.localeCompare(a.date));
-        return result;
+        const where = [];
+        const params = [];
+        if (!isTrainer) { params.push(userId); where.push(`user_id = $${params.length}`); }
+        else if (filterUserId) { params.push(filterUserId); where.push(`user_id = $${params.length}`); }
+        if (from) { params.push(from); where.push(`date >= $${params.length}`); }
+        if (to)   { params.push(to);   where.push(`date <= $${params.length}`); }
+
+        const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+        return query(`${SELECT} ${clause} ORDER BY date DESC`, params);
     },
-    findById: async (id) => sessions.find(s => s.id === id) || null,
+
+    findById: async (id) => {
+        const rows = await query(`${SELECT} WHERE id = $1 LIMIT 1`, [id]);
+        return rows[0] || null;
+    },
+
     create: async ({ date, routineId, routineName, duration, notes, intensity, userId }) => {
-        const session = {
-            id: uid(),
-            date,
-            routineId: routineId || null,
-            routineName: routineName || 'Sesión libre',
-            duration: duration ? parseInt(duration) : null,
-            notes: notes || '',
-            intensity: intensity || 2,
-            userId,
-            createdAt: new Date().toISOString(),
-        };
-        sessions.push(session);
-        return session;
+        const rows = await query(
+            `INSERT INTO sessions
+                 (id, user_id, routine_id, routine_name, date, duration, notes, intensity)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             RETURNING id, user_id AS "userId", routine_id AS "routineId",
+                       routine_name AS "routineName", date, duration, notes,
+                       intensity, created_at AS "createdAt"`,
+            [
+                uid(),
+                userId,
+                routineId || null,
+                routineName || 'Sesión libre',
+                date,
+                duration ? parseInt(duration) : null,
+                notes || '',
+                intensity || 2,
+            ]
+        );
+        return rows[0];
     },
+
     remove: async (id) => {
-        const idx = sessions.findIndex(s => s.id === id);
-        if (idx === -1) return false;
-        sessions.splice(idx, 1);
-        return true;
+        const rows = await query(`DELETE FROM sessions WHERE id = $1 RETURNING id`, [id]);
+        return rows.length > 0;
     },
-    allForUser: async (userId, isTrainer) =>
-        isTrainer ? [...sessions] : sessions.filter(s => s.userId === userId),
+
+    allForUser: async (userId, isTrainer) => {
+        if (isTrainer) return query(`${SELECT} ORDER BY date DESC`);
+        return query(`${SELECT} WHERE user_id = $1 ORDER BY date DESC`, [userId]);
+    },
 };

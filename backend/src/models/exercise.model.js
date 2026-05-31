@@ -1,40 +1,38 @@
 import { uid } from '../services/auth.service.js';
-
-let exercises = [
-    { id: 'e1',  name: 'Press de Banca',          muscle: 'pecho',   type: 'fuerza',    desc: 'Ejercicio compuesto para el pecho con barra o mancuernas.' },
-    { id: 'e2',  name: 'Press Inclinado',          muscle: 'pecho',   type: 'fuerza',    desc: 'Variante que enfatiza la parte superior del pecho.' },
-    { id: 'e3',  name: 'Dominadas',                muscle: 'espalda', type: 'fuerza',    desc: 'Ejercicio de tracción con peso corporal.' },
-    { id: 'e4',  name: 'Remo con Barra',           muscle: 'espalda', type: 'fuerza',    desc: 'Movimiento de jalón horizontal para espalda media.' },
-    { id: 'e5',  name: 'Sentadilla',               muscle: 'piernas', type: 'fuerza',    desc: 'El rey de los ejercicios de piernas.' },
-    { id: 'e6',  name: 'Peso Muerto Rumano',       muscle: 'piernas', type: 'fuerza',    desc: 'Isquiotibiales y glúteos.' },
-    { id: 'e7',  name: 'Press Militar',            muscle: 'hombros', type: 'fuerza',    desc: 'Press vertical para el deltoides frontal.' },
-    { id: 'e8',  name: 'Elevaciones Laterales',    muscle: 'hombros', type: 'fuerza',    desc: 'Aislamiento del deltoides medial.' },
-    { id: 'e9',  name: 'Curl de Bíceps',           muscle: 'brazos',  type: 'fuerza',    desc: 'Ejercicio básico de aislamiento para el bíceps.' },
-    { id: 'e10', name: 'Extensión de Tríceps',     muscle: 'brazos',  type: 'fuerza',    desc: 'Aislamiento del tríceps con polea o mancuerna.' },
-    { id: 'e11', name: 'Plancha',                  muscle: 'core',    type: 'fuerza',    desc: 'Ejercicio isométrico para el core completo.' },
-    { id: 'e12', name: 'Abdominales',              muscle: 'core',    type: 'fuerza',    desc: 'Curl abdominal clásico.' },
-    { id: 'e13', name: 'Correr',                   muscle: 'piernas', type: 'cardio',    desc: 'Cardio de bajo a alto impacto.' },
-    { id: 'e14', name: 'Bicicleta',                muscle: 'piernas', type: 'cardio',    desc: 'Cardio de bajo impacto.' },
-    { id: 'e15', name: 'Estiramiento de Cadera',   muscle: 'piernas', type: 'movilidad', desc: 'Mejora la movilidad de cadera.' },
-];
+import { query } from '../config/db.js';
 
 export const ExerciseModel = {
     findAll: async ({ muscle, type, q } = {}) => {
-        let result = [...exercises];
-        if (muscle) result = result.filter(e => e.muscle === muscle);
-        if (type)   result = result.filter(e => e.type === type);
-        if (q)      result = result.filter(e => e.name.toLowerCase().includes(String(q).toLowerCase()));
-        return result;
+        const where = [];
+        const params = [];
+        if (muscle) { params.push(muscle); where.push(`muscle = $${params.length}`); }
+        if (type)   { params.push(type);   where.push(`type = $${params.length}`); }
+        if (q)      { params.push(`%${q}%`); where.push(`name ILIKE $${params.length}`); }
+
+        const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+        return query(
+            `SELECT id, name, muscle, type, description AS desc,
+                    built_in AS "builtIn", created_at AS "createdAt"
+               FROM exercises
+               ${clause}
+              ORDER BY name`,
+            params
+        );
     },
+
     create: async ({ name, muscle, type, desc }) => {
-        const ex = { id: uid(), name, muscle, type, desc: desc || '', createdAt: new Date().toISOString() };
-        exercises.push(ex);
-        return ex;
+        const rows = await query(
+            `INSERT INTO exercises (id, name, muscle, type, description, built_in)
+             VALUES ($1, $2, $3, $4, $5, false)
+             RETURNING id, name, muscle, type, description AS desc,
+                       built_in AS "builtIn", created_at AS "createdAt"`,
+            [uid(), name, muscle, type, desc || '']
+        );
+        return rows[0];
     },
+
     remove: async (id) => {
-        const idx = exercises.findIndex(e => e.id === id);
-        if (idx === -1) return false;
-        exercises.splice(idx, 1);
-        return true;
+        const rows = await query(`DELETE FROM exercises WHERE id = $1 RETURNING id`, [id]);
+        return rows.length > 0;
     },
 };

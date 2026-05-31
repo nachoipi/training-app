@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import { UserModel } from '../models/user.model.js';
 import { createToken } from '../services/auth.service.js';
 
@@ -8,7 +9,7 @@ export const login = async (req, res, next) => {
             return res.status(400).json({ error: 'Email y contraseña son requeridos.' });
         }
         const user = await UserModel.findByEmail(email);
-        if (!user || user.password !== password) {
+        if (!user || !(await bcrypt.compare(password, user.password_hash))) {
             return res.status(401).json({ error: 'Credenciales incorrectas. Verificá tus datos.' });
         }
         const token = createToken(user);

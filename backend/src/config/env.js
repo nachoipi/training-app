@@ -2,10 +2,12 @@ import 'dotenv/config';
 
 export const PORT = parseInt(process.env.PORT || '3000', 10);
 
-export const DB_HOST     = process.env.DB_HOST     || 'localhost';
-export const DB_PORT     = parseInt(process.env.DB_PORT || '3306', 10);
-export const DB_USER     = process.env.DB_USER     || 'root';
-export const DB_PASSWORD = process.env.DB_PASSWORD || '';
-export const DB_NAME     = process.env.DB_NAME     || 'fitcore';
+// Postgres connection string. Works unchanged against Supabase and GCP Cloud SQL.
+// Supabase:  postgresql://postgres:[PWD]@db.[REF].supabase.co:5432/postgres
+// Cloud SQL: postgresql://[USER]:[PWD]@[HOST]:5432/[DB]
+export const DATABASE_URL = process.env.DATABASE_URL || '';
+
+// Enable TLS for managed Postgres (Supabase requires it). Set PGSSL=false for local.
+export const PGSSL = (process.env.PGSSL || 'true').toLowerCase() !== 'false';
 
 export const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;

@@ -1,88 +1,94 @@
--- FitCore — MySQL schema
--- Apply with: mysql -u root -p fitcore < database/schema.sql
+-- FitCore — PostgreSQL schema
+-- Apply with: psql "$DATABASE_URL" -f database/schema.sql
+-- Portable across Supabase and GCP Cloud SQL for Postgres.
 
-CREATE DATABASE IF NOT EXISTS fitcore
-    CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-USE fitcore;
-
-DROP TABLE IF EXISTS session_logs;
-DROP TABLE IF EXISTS sessions;
-DROP TABLE IF EXISTS planifications;
-DROP TABLE IF EXISTS routines;
-DROP TABLE IF EXISTS exercises;
-DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS session_logs   CASCADE;
+DROP TABLE IF EXISTS sessions       CASCADE;
+DROP TABLE IF EXISTS planifications CASCADE;
+DROP TABLE IF EXISTS routines       CASCADE;
+DROP TABLE IF EXISTS exercises      CASCADE;
+DROP TABLE IF EXISTS users          CASCADE;
 
 CREATE TABLE users (
     id            VARCHAR(32)  PRIMARY KEY,
     email         VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role          ENUM('trainer','athlete') NOT NULL,
+    role          VARCHAR(16)  NOT NULL CHECK (role IN ('trainer', 'athlete')),
     name          VARCHAR(120) NOT NULL,
-    avatar        VARCHAR(8)   NULL,
-    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+    avatar        VARCHAR(8),
+    created_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
 
 CREATE TABLE exercises (
-    id         VARCHAR(32)  PRIMARY KEY,
-    name       VARCHAR(120) NOT NULL,
-    muscle     VARCHAR(40)  NOT NULL,
-    type       VARCHAR(40)  NOT NULL,
-    description TEXT        NULL,
-    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_exercises_muscle (muscle),
-    INDEX idx_exercises_type (type)
-) ENGINE=InnoDB;
+    id          VARCHAR(32)  PRIMARY KEY,
+    name        VARCHAR(120) NOT NULL,
+    muscle      VARCHAR(40)  NOT NULL,
+    type        VARCHAR(40)  NOT NULL,
+    description TEXT,
+    built_in    BOOLEAN      NOT NULL DEFAULT false,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_exercises_muscle ON exercises (muscle);
+CREATE INDEX idx_exercises_type   ON exercises (type);
 
 CREATE TABLE routines (
     id          VARCHAR(32)  PRIMARY KEY,
-    user_id     VARCHAR(32)  NOT NULL,
-    created_by  VARCHAR(32)  NOT NULL,
+    user_id     VARCHAR(32)  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_by  VARCHAR(32)  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name        VARCHAR(120) NOT NULL,
-    description TEXT         NULL,
-    days        JSON         NULL,
-    exercises   JSON         NULL,
-    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id)    REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+    description TEXT,
+    days        JSONB,
+    exercises   JSONB,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
 
 CREATE TABLE planifications (
     id          VARCHAR(32)  PRIMARY KEY,
-    athlete_id  VARCHAR(32)  NOT NULL,
-    created_by  VARCHAR(32)  NOT NULL,
+    athlete_id  VARCHAR(32)  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_by  VARCHAR(32)  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name        VARCHAR(120) NOT NULL,
-    weeks       INT          NOT NULL DEFAULT 4,
-    week_days   JSON         NULL,
-    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (athlete_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+    weeks       INTEGER      NOT NULL DEFAULT 4,
+    week_days   JSONB,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
 
 CREATE TABLE sessions (
     id           VARCHAR(32)  PRIMARY KEY,
-    user_id      VARCHAR(32)  NOT NULL,
-    routine_id   VARCHAR(32)  NULL,
-    routine_name VARCHAR(120) NULL,
+    user_id      VARCHAR(32)  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    routine_id   VARCHAR(32)  REFERENCES routines(id) ON DELETE SET NULL,
+    routine_name VARCHAR(120),
     date         DATE         NOT NULL,
-    duration     INT          NULL,
-    notes        TEXT         NULL,
-    intensity    TINYINT      NOT NULL DEFAULT 2,
-    created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id)    REFERENCES users(id)    ON DELETE CASCADE,
-    FOREIGN KEY (routine_id) REFERENCES routines(id) ON DELETE SET NULL,
-    INDEX idx_sessions_user_date (user_id, date)
-) ENGINE=InnoDB;
+    duration     INTEGER,
+    notes        TEXT,
+    intensity    SMALLINT     NOT NULL DEFAULT 2,
+    created_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_sessions_user_date ON sessions (user_id, date);
 
 CREATE TABLE session_logs (
-    id          BIGINT       AUTO_INCREMENT PRIMARY KEY,
-    athlete_id  VARCHAR(32)  NOT NULL,
-    plan_id     VARCHAR(32)  NOT NULL,
-    week        INT          NOT NULL,
-    day_number  INT          NOT NULL,
-    payload     JSON         NULL,
-    updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_athlete_plan_week_day (athlete_id, plan_id, week, day_number),
-    FOREIGN KEY (athlete_id) REFERENCES users(id)         ON DELETE CASCADE,
-    FOREIGN KEY (plan_id)    REFERENCES planifications(id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+    id          BIGSERIAL    PRIMARY KEY,
+    athlete_id  VARCHAR(32)  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan_id     VARCHAR(32)  NOT NULL REFERENCES planifications(id) ON DELETE CASCADE,
+    week        INTEGER      NOT NULL,
+    day_number  INTEGER      NOT NULL,
+    payload     JSONB,
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    CONSTRAINT uq_athlete_plan_week_day UNIQUE (athlete_id, plan_id, week, day_number)
+);
+
+-- Keep session_logs.updated_at fresh on every UPDATE (Postgres has no
+-- ON UPDATE clause like MySQL).
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_session_logs_updated_at
+    BEFORE UPDATE ON session_logs
+    FOR EACH ROW
+    EXECUTE FUNCTION set_updated_at();

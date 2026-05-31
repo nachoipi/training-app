@@ -1,13 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatDate } from '../../utils/helpers.js';
 import { StatCard } from '../Common/index.jsx';
-import { MOCK_ATHLETES } from '../../utils/constants.js';
+import { userService } from '../../services/userService.js';
 
 export function AthletesSection({ onShowToast, onOpenAthleteProfile }) {
     const [viewMode, setViewMode] = useState('list');
+    const [athletes, setAthletes] = useState([]);
+
+    useEffect(() => {
+        userService.listAthletes()
+            .then(r => setAthletes(r.data))
+            .catch(err => onShowToast && onShowToast(err.message, 'error'));
+    }, []);
+
     const today = new Date().toISOString().slice(0, 10);
-    const activeToday = MOCK_ATHLETES.filter(a => a.lastSession === today).length;
-    const totalSessions = MOCK_ATHLETES.reduce((s, a) => s + a.sessions, 0);
+    const activeToday = athletes.filter(a => a.lastSession === today).length;
+    const totalSessions = athletes.reduce((s, a) => s + a.sessions, 0);
 
     return (
         <section className="section">
@@ -46,14 +54,14 @@ export function AthletesSection({ onShowToast, onOpenAthleteProfile }) {
             </div>
 
             <div className="stats-row">
-                <StatCard value={MOCK_ATHLETES.length} label="Alumnos activos" accent="lime" />
+                <StatCard value={athletes.length} label="Alumnos activos" accent="lime" />
                 <StatCard value={activeToday} label="Entrenaron hoy" accent="green" />
                 <StatCard value={totalSessions} label="Sesiones totales" accent="blue" />
             </div>
 
             {viewMode === 'grid' ? (
                 <div className="athletes-grid">
-                    {MOCK_ATHLETES.map(a => (
+                    {athletes.map(a => (
                         <div key={a.id} className="athlete-card">
                             <div className="athlete-card-top">
                                 <div className="athlete-avatar">{a.avatar}</div>
@@ -92,7 +100,7 @@ export function AthletesSection({ onShowToast, onOpenAthleteProfile }) {
                         <span>Última sesión</span>
                         <span></span>
                     </div>
-                    {MOCK_ATHLETES.map(a => (
+                    {athletes.map(a => (
                         <div key={a.id} className="athlete-row">
                             <div className="athlete-row-identity">
                                 <div className="athlete-avatar athlete-avatar-sm">{a.avatar}</div>

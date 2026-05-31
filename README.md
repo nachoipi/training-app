@@ -31,7 +31,7 @@ The models currently keep the legacy in-memory arrays so the app runs without a 
 
 ```bash
 cd backend
-cp .env.example .env   # edit DB_* if connecting MySQL later
+cp .env
 npm install
 npm run dev            # listens on :3000
 ```

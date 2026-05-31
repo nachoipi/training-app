@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { isAuthenticated, login as doLogin } from '../services/authService.js';
 import '../styles/login.css';
 
+// --- Inline SVG icon components ---
+// Kept inline (instead of an icon library) to avoid bundle bloat for just these few icons.
+
 const IconMail = () => (
     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
         <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
@@ -14,12 +17,14 @@ const IconLock = () => (
         <path strokeLinecap="round" d="M7 11V7a5 5 0 0110 0v4"/>
     </svg>
 );
+// Shown when password is hidden; clicking it toggles to IconEyeOff
 const IconEye = () => (
     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
         <path strokeLinecap="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
         <path strokeLinecap="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
     </svg>
 );
+// Shown when password is visible; clicking it hides the password again
 const IconEyeOff = () => (
     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
         <path strokeLinecap="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
@@ -32,6 +37,7 @@ const IconAlert = () => (
         <line x1="12" y1="16" x2="12.01" y2="16"/>
     </svg>
 );
+// Tiny user avatar used in the footer role badge
 const IconUser = () => (
     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
         <circle cx="12" cy="8" r="4"/>
@@ -47,6 +53,8 @@ const IconGoogle = () => (
     </svg>
 );
 
+// Hardcoded demo credentials shown in the hint box so testers/new devs can log in quickly
+// without needing real accounts set up locally. Password is always '123456'.
 const DEMO_HINTS = {
     trainer: { email: 'trainer@fitcore.com', label: 'Entrenador' },
     athlete: { email: 'nacho@fitcore.com',   label: 'Atleta' },
@@ -54,21 +62,29 @@ const DEMO_HINTS = {
 
 export default function Login() {
     const navigate = useNavigate();
+
+    // `role` drives the copy shown on the left panel and the demo credentials hint
     const [role,     setRole]     = useState('trainer');
     const [email,    setEmail]    = useState('');
     const [password, setPassword] = useState('');
     const [remember, setRemember] = useState(false);
+    // Toggles the password input between type="password" and type="text"
     const [showPass, setShowPass] = useState(false);
     const [loading,  setLoading]  = useState(false);
     const [error,    setError]    = useState('');
+    // Briefly true after a successful login to show the green "✓ Acceso concedido" state
+    // before the redirect fires
     const [success,  setSuccess]  = useState(false);
 
+    // Redirect already-authenticated users away from the login page immediately
     useEffect(() => {
         if (isAuthenticated()) navigate('/dashboard', { replace: true });
     }, [navigate]);
 
+    // The hint object for the currently selected role (email + label)
     const hint = DEMO_HINTS[role];
 
+    // Client-side validation before hitting the API — avoids a round trip for obvious errors
     function validate() {
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             setError('Ingresá un email válido.');
@@ -89,6 +105,7 @@ export default function Login() {
         setLoading(true);
         try {
             await doLogin(email, password);
+            // Show success state briefly so the user gets visual feedback before navigation
             setSuccess(true);
             setTimeout(() => navigate('/dashboard', { replace: true }), 600);
         } catch (err) {
@@ -98,6 +115,8 @@ export default function Login() {
         }
     }
 
+    // Pre-fills the form with the demo credentials for the active role so testers
+    // don't have to type them manually
     function fillDemo() {
         setEmail(hint.email);
         setPassword('123456');
@@ -107,7 +126,10 @@ export default function Login() {
     return (
         <div className="login-page">
             <div className="layout">
+                {/* Left decorative panel — shows branding, tagline, and platform stats.
+                    Pure marketing/UX; no interactive logic here. */}
                 <div className="panel-left">
+                    {/* Layered concentric rings for the background decoration */}
                     <div className="deco-ring" style={{ width:'500px', height:'500px', top:'-120px', right:'-200px' }}/>
                     <div className="deco-ring" style={{ width:'300px', height:'300px', top:'-40px',  right:'-80px',  borderColor:'rgba(212,240,60,0.12)' }}/>
                     <div className="deco-ring" style={{ width:'180px', height:'180px', top:'60px',   right:'20px',   borderColor:'rgba(212,240,60,0.18)' }}/>
@@ -117,11 +139,13 @@ export default function Login() {
                             <span>{role === 'trainer' ? 'Personal Trainer Portal' : 'Athlete Portal'}</span>
                         </div>
                         <h1 className="hero-title">Fit<em>Core</em><br/>Pro</h1>
+                        {/* Tagline changes based on role to speak directly to each user type */}
                         <p className="hero-sub">
                             {role === 'trainer'
                                 ? 'Diseñá planes, monitoreá el progreso de tus alumnos y gestioná tu práctica profesional desde un solo lugar.'
                                 : 'Seguí tus rutinas, registrá cada sesión y visualizá tu progreso en tiempo real.'}
                         </p>
+                        {/* Social-proof stats row */}
                         <div className="stats-row">
                             <div className="stat">
                                 <span className="stat-value">2.4k</span>
@@ -141,6 +165,7 @@ export default function Login() {
                     </div>
                 </div>
 
+                {/* Right panel — contains the actual login form */}
                 <div className="panel-right">
                     <div className="login-header fade-in">
                         <span className="login-label">Acceso</span>
@@ -150,6 +175,7 @@ export default function Login() {
                         </h2>
                     </div>
 
+                    {/* Role selector — switching tabs resets form state to avoid stale credentials */}
                     <div className="role-tabs fade-in">
                         <button
                             type="button"
@@ -174,6 +200,7 @@ export default function Login() {
                         </button>
                     </div>
 
+                    {/* Demo credentials hint — "Autocompletar" calls fillDemo() to prefill the form */}
                     <div className="hint-box fade-in">
                         Demo: <strong>{hint.email}</strong> / <strong>123456</strong>
                         {' — '}
@@ -183,12 +210,14 @@ export default function Login() {
                         >Autocompletar</span>
                     </div>
 
+                    {/* Inline error banner — only rendered when there is an active error message */}
                     {error && (
                         <div className="error-msg">
                             <IconAlert/> <span>{error}</span>
                         </div>
                     )}
 
+                    {/* noValidate disables native browser validation so we control all error UX */}
                     <form onSubmit={handleSubmit} noValidate>
                         <div className="form-group">
                             <label className="form-label" htmlFor="email">
@@ -210,6 +239,7 @@ export default function Login() {
                             <label className="form-label" htmlFor="password">Contraseña</label>
                             <div className="input-wrapper">
                                 <span className="input-icon"><IconLock/></span>
+                                {/* type switches between 'password' and 'text' based on showPass */}
                                 <input
                                     className={`form-input${error ? ' has-error' : ''}`}
                                     type={showPass ? 'text' : 'password'} id="password"
@@ -231,6 +261,7 @@ export default function Login() {
                             <a href="#" className="forgot-link">¿Olvidaste tu contraseña?</a>
                         </div>
 
+                        {/* Button label changes based on state: loading spinner → normal label → success tick */}
                         <button
                             type="submit"
                             className={`btn-login${success ? ' success' : ''}`}
@@ -244,6 +275,7 @@ export default function Login() {
                         </button>
                     </form>
 
+                    {/* SSO section — Google login is wired up as a separate auth flow */}
                     <div className="divider">
                         <div className="divider-line"/>
                         <span className="divider-text">o continuar con</span>
@@ -254,6 +286,7 @@ export default function Login() {
                         <IconGoogle/> Continuar con Google
                     </button>
 
+                    {/* Footer shows copyright and a small badge with the active role */}
                     <div className="login-footer">
                         <span className="footer-text">© 2025 FitCore Pro</span>
                         <span className="footer-role">

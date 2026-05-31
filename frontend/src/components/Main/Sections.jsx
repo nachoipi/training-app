@@ -3,7 +3,7 @@ import { formatDate, calcStreak } from '../../utils/helpers.js';
 import { StatCard, EmptyState } from '../Common/index.jsx';
 import { RoutineCard, SessionCard, ExerciseCard } from '../Cards/index.jsx';
 import { BarChart, DurationChart, Heatmap } from '../Charts/index.jsx';
-import { DEFAULT_EXERCISES, DAYS } from '../../utils/constants.js';
+import { DAYS } from '../../utils/constants.js';
 
 export function RoutinesSection({ routines, sessions, user, onNewRoutine, onOpenDetail }) {
     const lastSession = [...sessions].sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -211,7 +211,7 @@ export function ExercisesSection({ exercises, user, muscleFilter, onFilterChange
                         <ExerciseCard
                             key={e.id}
                             exercise={e}
-                            canDelete={isTrainer && !DEFAULT_EXERCISES.find(d => d.id === e.id)}
+                            canDelete={isTrainer && !e.builtIn}
                             onDelete={onDeleteExercise}
                         />
                     ))}

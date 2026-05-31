@@ -9,9 +9,12 @@ import {
     ModalSession,
     ModalExercise,
 } from '../components/Modals/index.jsx';
-import { getCurrentUser, loadUserData, saveUserData, uid } from '../utils/helpers.js';
+import { getCurrentUser } from '../utils/helpers.js';
 import { planificationService } from '../services/planificationService.js';
 import { sessionLogService } from '../services/sessionLogService.js';
+import { routineService } from '../services/routineService.js';
+import { sessionService } from '../services/sessionService.js';
+import { exerciseService } from '../services/exerciseService.js';
 import { logout as doLogout } from '../services/authService.js';
 
 export default function Dashboard() {
@@ -43,14 +46,30 @@ export default function Dashboard() {
     const [routineDetailModal, setRoutineDetailModal] = useState({ open: false, routine: null });
     const [exerciseModal, setExerciseModal]         = useState(false);
 
+    function showToast(msg, type = 'success') {
+        setToast({ msg, type, show: true });
+        setTimeout(() => setToast(t => ({ ...t, show: false })), 3000);
+    }
+
     useEffect(() => {
         const userData = getCurrentUser();
         setUser(userData);
-        const data = loadUserData(userData);
-        setRoutines(data.routines);
-        setSessions(data.sessions);
-        setExercises(data.exercises);
         if (userData && userData.role === 'athlete') setSection('my-plan');
+
+        // Load all domain data from the API. The DB is the only source of truth
+        // now — no localStorage fallback. Each call is independent so we let
+        // them race; per-section errors don't block the others.
+        routineService.list()
+            .then(r => setRoutines(r.data))
+            .catch(err => showToast(err.message, 'error'));
+
+        sessionService.list()
+            .then(r => setSessions(r.data))
+            .catch(err => showToast(err.message, 'error'));
+
+        exerciseService.list()
+            .then(r => setExercises(r.data))
+            .catch(err => showToast(err.message, 'error'));
 
         planificationService.list()
             .then(r => setPlanifications(r.data))
@@ -60,15 +79,6 @@ export default function Dashboard() {
             .then(r => setSessionLogs(r.data))
             .catch(() => setSessionLogs([]));
     }, []);
-
-    useEffect(() => {
-        if (user) saveUserData(user, routines, sessions, exercises);
-    }, [routines, sessions, exercises, user]);
-
-    function showToast(msg, type = 'success') {
-        setToast({ msg, type, show: true });
-        setTimeout(() => setToast(t => ({ ...t, show: false })), 3000);
-    }
 
     async function handleLogout() {
         if (confirm('¿Cerrar sesión?')) {
@@ -89,44 +99,63 @@ export default function Dashboard() {
         setSection('my-sessions');
     }
 
-    function handleSaveRoutine(routine) {
-        if (routine.id) {
-            setRoutines(rs => rs.map(r => r.id === routine.id ? { ...r, ...routine } : r));
-            showToast('Rutina actualizada ✓');
-        } else {
-            setRoutines(rs => [...rs, { ...routine, id: uid(), createdAt: new Date().toISOString() }]);
-            showToast('Rutina creada ✓');
-        }
-        setRoutineModal({ open: false, editing: null });
+    async function handleSaveRoutine(routine) {
+        try {
+            if (routine.id) {
+                const updated = await routineService.update(routine.id, routine);
+                setRoutines(rs => rs.map(r => r.id === updated.id ? updated : r));
+                showToast('Rutina actualizada ✓');
+            } else {
+                const created = await routineService.create(routine);
+                setRoutines(rs => [...rs, created]);
+                showToast('Rutina creada ✓');
+            }
+            setRoutineModal({ open: false, editing: null });
+        } catch (err) { showToast(err.message, 'error'); }
     }
 
-    function handleDeleteRoutine(id) {
+    async function handleDeleteRoutine(id) {
         if (!confirm('¿Eliminar esta rutina?')) return;
-        setRoutines(rs => rs.filter(r => r.id !== id));
-        setRoutineDetailModal({ open: false, routine: null });
-        showToast('Rutina eliminada');
+        try {
+            await routineService.remove(id);
+            setRoutines(rs => rs.filter(r => r.id !== id));
+            setRoutineDetailModal({ open: false, routine: null });
+            showToast('Rutina eliminada');
+        } catch (err) { showToast(err.message, 'error'); }
     }
 
-    function handleSaveSession(session) {
-        setSessions(ss => [...ss, session]);
-        setSessionModal(false);
-        showToast('Sesión registrada ✓');
+    async function handleSaveSession(session) {
+        try {
+            const created = await sessionService.create(session);
+            setSessions(ss => [...ss, created]);
+            setSessionModal(false);
+            showToast('Sesión registrada ✓');
+        } catch (err) { showToast(err.message, 'error'); }
     }
 
-    function handleDeleteSession(id) {
-        setSessions(ss => ss.filter(s => s.id !== id));
-        showToast('Sesión eliminada');
+    async function handleDeleteSession(id) {
+        try {
+            await sessionService.remove(id);
+            setSessions(ss => ss.filter(s => s.id !== id));
+            showToast('Sesión eliminada');
+        } catch (err) { showToast(err.message, 'error'); }
     }
 
-    function handleSaveExercise(exercise) {
-        setExercises(es => [...es, exercise]);
-        setExerciseModal(false);
-        showToast('Ejercicio agregado ✓');
+    async function handleSaveExercise(exercise) {
+        try {
+            const created = await exerciseService.create(exercise);
+            setExercises(es => [...es, created]);
+            setExerciseModal(false);
+            showToast('Ejercicio agregado ✓');
+        } catch (err) { showToast(err.message, 'error'); }
     }
 
-    function handleDeleteExercise(id) {
-        setExercises(es => es.filter(e => e.id !== id));
-        showToast('Ejercicio eliminado');
+    async function handleDeleteExercise(id) {
+        try {
+            await exerciseService.remove(id);
+            setExercises(es => es.filter(e => e.id !== id));
+            showToast('Ejercicio eliminado');
+        } catch (err) { showToast(err.message, 'error'); }
     }
 
     return (
