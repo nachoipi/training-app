@@ -18,7 +18,7 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
             });
         });
 
-        const hasNewFormat = sessionLog && sessionLog.exercises.some(e => e.serieIndex != null);
+        const hasNewFormat = sessionLog && sessionLog.exercises?.some(e => e.serieIndex != null);
 
         if (hasNewFormat) {
             sessionLog.exercises.forEach(e => {
