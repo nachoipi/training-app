@@ -28,7 +28,7 @@ Branch name format: `<prefix><kebab-case-description>` — short but descriptive
 ```bash
 cd <project-root>
 git checkout main
-git pull
+git pull -rebase origin main
 git checkout -b <prefix>/<short-description>
 ```
 
