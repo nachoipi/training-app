@@ -88,6 +88,7 @@ Workflow order: **start-task → investigate → plan → testing → commit →
 ## Changelog
 
 ### 2026-06-01
+- **Frontend (athlete)**: Mobile-responsive athlete experience — replaced the desktop sidebar with a fixed `BottomNav` (Mi Plan / Sesiones / Rutinas / Progreso / Ejercicios) on viewports ≤768px. Trainer sidebar is unchanged.
 - **Database**: Migrated from MySQL (in-memory) to PostgreSQL (Supabase). All models now use live `db.query()` calls.
 - **Users**: Removed demo user Carlos (`carlos@example.com`). Added permanent test accounts: `test_trainer@fitcore.com` (trainer) and `test_athlete@fitcore.com` (athlete) — both with password `123456`.
 - **Workflow**: Added `.claude/skills/` with 5 phased Claude Code skills: `start-task`, `investigate`, `commit`, `testing`, `finish-task`.
