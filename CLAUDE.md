@@ -9,18 +9,6 @@ FitCore is a full-stack training management app for trainers and athletes. It us
 - **Backend**: Node.js + Express MVC (port 3000), ES modules
 - **Database**: PostgreSQL (compatible with Supabase and GCP Cloud SQL)
 
-## Mobile Responsiveness (Athlete Side)
-
-**Athletes use the app exclusively on mobile phones.** All athlete-facing UI must be fully mobile-responsive (≤768px breakpoint).
-
-Key rules:
-- The sidebar becomes a **bottom navigation bar** on mobile for athletes (CSS class `sidebar--athlete` on the `<aside>`).
-- Athlete sections must use full-width layouts with generous touch targets (min 44px).
-- The session window (`AthleteMySession`) must stack inputs vertically on mobile — no horizontal overflow.
-- Plan weeks (`AthleteMyPlan`, `AthleteMySessions`) use horizontal scroll on mobile, not multi-column grids.
-- All responsive overrides live in `frontend/src/styles/responsive.css`.
-- Use `env(safe-area-inset-bottom)` for iOS notch/home indicator clearance on the bottom nav.
-
 ## Development Commands
 
 ### Backend
@@ -41,7 +29,7 @@ npm run build  # output to dist/
 ```bash
 # Apply schema (run once or after schema changes)
 psql $DATABASE_URL -f database/schema.sql
-# Seed demo data    
+# Seed demo data
 psql $DATABASE_URL -f database/seed.sql
 ```
 
