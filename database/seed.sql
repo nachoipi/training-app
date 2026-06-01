@@ -4,9 +4,10 @@
 --       Regenerate per-user before any real deployment.
 
 INSERT INTO users (id, email, password_hash, role, name, avatar) VALUES
-    ('trainer1', 'trainer@fitcore.com', '$2a$10$QvQSeNXOD0th7J6D8dHOIOXN.uK.Yh3XVTvrDPKW/Trgj9eVU7NfO', 'trainer', 'Coach Pro', 'C'),
-    ('nacho1',   'nacho@fitcore.com',   '$2a$10$QvQSeNXOD0th7J6D8dHOIOXN.uK.Yh3XVTvrDPKW/Trgj9eVU7NfO', 'athlete', 'Nacho',     'N'),
-    ('carlos1',  'carlos@example.com',  '$2a$10$QvQSeNXOD0th7J6D8dHOIOXN.uK.Yh3XVTvrDPKW/Trgj9eVU7NfO', 'athlete', 'Carlos M.', 'C')
+    ('trainer1',      'trainer@fitcore.com',      '$2a$10$QvQSeNXOD0th7J6D8dHOIOXN.uK.Yh3XVTvrDPKW/Trgj9eVU7NfO', 'trainer', 'Coach Pro',    'C'),
+    ('nacho1',        'nacho@fitcore.com',        '$2a$10$QvQSeNXOD0th7J6D8dHOIOXN.uK.Yh3XVTvrDPKW/Trgj9eVU7NfO', 'athlete', 'Nacho',        'N'),
+    ('test_trainer1', 'test_trainer@fitcore.com', '$2a$10$QvQSeNXOD0th7J6D8dHOIOXN.uK.Yh3XVTvrDPKW/Trgj9eVU7NfO', 'trainer', 'Test Trainer', 'T'),
+    ('test_athlete1', 'test_athlete@fitcore.com', '$2a$10$QvQSeNXOD0th7J6D8dHOIOXN.uK.Yh3XVTvrDPKW/Trgj9eVU7NfO', 'athlete', 'Test Athlete', 'T')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO exercises (id, name, muscle, type, description, built_in) VALUES
