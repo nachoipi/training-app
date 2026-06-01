@@ -45,4 +45,17 @@ Tell the user:
 
 ---
 
+## Workflow
+
+The full task workflow is:
+
+1. **start-task** — sync main, create branch (this skill)
+2. **investigate** — understand the code before changing it
+3. **plan** — propose concrete code changes and get user approval
+4. **testing** — verify the change works
+5. **commit** — update README.md if needed, stage, and commit
+6. **finish-task** — merge or open a PR, then optionally delete the branch
+
+---
+
 ⏸️ **Always stop here.** Ask: *"Branch `<name>` is ready. Want to move to the investigate phase?"*

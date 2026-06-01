@@ -81,4 +81,4 @@ Work through these in the browser with the test accounts:
 
 ---
 
-⏸️ **Always stop here.** Ask: *"Sandbox checks done. Once you've completed the manual checklist, let me know and we'll move to finish-task."*
+⏸️ **Always stop here.** Ask: *"Sandbox checks done. Once you've completed the manual checklist, let me know and we'll move to the commit phase."*

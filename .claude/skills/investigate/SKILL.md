@@ -51,4 +51,4 @@ Summarize findings to the user:
 
 ---
 
-⏸️ **Always stop here.** Ask: *"Investigation complete. Ready to move to the commit phase after making changes, or do you want to discuss the approach first?"*
+⏸️ **Always stop here.** Ask: *"Investigation complete. Ready to move to the plan phase?"*
