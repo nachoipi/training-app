@@ -76,9 +76,12 @@ This project uses a phased workflow enforced by Claude Code skills. Each phase m
 |----------------|----------------------------------------------------------|
 | `start-task`   | Sync main and create a branch (`fix/`, `feat/`, `chore/`, `refactor/`) |
 | `investigate`  | Trace the codebase before making any changes             |
-| `commit`       | Stage files and write a structured commit message        |
+| `plan`         | Propose a concrete code-change plan and get approval before coding |
 | `testing`      | Sandbox checks + manual checklist using test accounts    |
-| `finish-task`  | Merge to main, push, delete branch                       |
+| `commit`       | Update `README.md` (changelog/version/docs), stage files, write a structured commit message |
+| `finish-task`  | Merge to main *or* open a pull request, then optionally delete the branch |
+
+Workflow order: **start-task → investigate → plan → testing → commit → finish-task**.
 
 ---
 
@@ -88,3 +91,6 @@ This project uses a phased workflow enforced by Claude Code skills. Each phase m
 - **Database**: Migrated from MySQL (in-memory) to PostgreSQL (Supabase). All models now use live `db.query()` calls.
 - **Users**: Removed demo user Carlos (`carlos@example.com`). Added permanent test accounts: `test_trainer@fitcore.com` (trainer) and `test_athlete@fitcore.com` (athlete) — both with password `123456`.
 - **Workflow**: Added `.claude/skills/` with 5 phased Claude Code skills: `start-task`, `investigate`, `commit`, `testing`, `finish-task`.
+- **Workflow**: Added new `plan` skill between `investigate` and `testing`; reordered the phased workflow to `start-task → investigate → plan → testing → commit → finish-task`.
+- **Workflow**: `commit` skill now updates `README.md` (changelog, version, docs) before staging changes.
+- **Workflow**: `finish-task` skill now asks whether to merge directly to main or open a pull request, and whether to delete the branch afterward.
