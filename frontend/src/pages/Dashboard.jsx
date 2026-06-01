@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Header/index.jsx';
 import { Main } from '../components/Main/index.jsx';
+import { BottomNav } from '../components/BottomNav/index.jsx';
 import { Toast } from '../components/Common/index.jsx';
 import {
     ModalRoutine,
@@ -172,6 +173,7 @@ export default function Dashboard() {
             />
 
             <Main
+                className={user?.role === 'athlete' ? 'main-content--athlete' : ''}
                 activeSection={activeSection}
                 routines={routines}
                 sessions={sessions}
@@ -222,6 +224,12 @@ export default function Dashboard() {
                 sessionLogs={sessionLogs}
                 onOpenSession={({ plan, week, day }) => { setSelectedSession({ plan, week, day }); setSection('my-session'); }}
                 onSaveSessionLog={handleSaveSessionLog}
+            />
+
+            <BottomNav
+                user={user}
+                activeSection={activeSection}
+                onNavigate={setSection}
             />
 
             <ModalRoutine

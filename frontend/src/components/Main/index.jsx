@@ -42,9 +42,10 @@ export function Main({
     sessionLogs,
     onOpenSession,
     onSaveSessionLog,
+    className,
 }) {
     return (
-        <main className="main-content">
+        <main className={`main-content ${className || ''}`}>
             {activeSection === 'routines' && (
                 <RoutinesSection
                     routines={routines}
