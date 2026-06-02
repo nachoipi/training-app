@@ -26,7 +26,7 @@ backend/src/
 ├── controllers/   Request/response handlers
 ├── routes/        URL → controller wiring + auth middleware
 ├── middlewares/   requireAuth, requireRole
-├── services/      auth/token helpers (base64 JSON — replace with JWT for production)
+├── services/      auth/token helpers (HS256 JWT via jsonwebtoken)
 ├── app.js         express() + middleware + routes
 └── server.js      app.listen()
 ```
@@ -86,6 +86,11 @@ Workflow order: **start-task → investigate → plan → testing → commit →
 ---
 
 ## Changelog
+
+### 2026-06-02
+- **Auth (backend)**: Replaced the unsigned base64-JSON token scheme in `auth.service.js` with real HS256 JSON Web Tokens via `jsonwebtoken`. Tokens are now signed with `JWT_SECRET` and forged/tampered tokens are rejected with 401. New env vars: `JWT_SECRET` (required — boot fails without it) and `JWT_EXPIRES_IN` (defaults to `7d`). `.env.example` updated.
+- **Auth (frontend)**: Fixed `isAuthenticated()` in `authService.js` to parse the JWT payload (base64url, middle segment) and compare `exp * 1000` against `Date.now()` — the previous `atob(token)` path broke login under the new token format.
+- **Workflow**: `plan` skill now requires a documentation pass — every added/modified file gets a top-of-file purpose comment and inline comments on important methods.
 
 ### 2026-06-01
 - **Frontend (athlete)**: Mobile-responsive athlete experience — replaced the desktop sidebar with a fixed `BottomNav` (Mi Plan / Sesiones / Rutinas / Progreso / Ejercicios) on viewports ≤768px. Trainer sidebar is unchanged.

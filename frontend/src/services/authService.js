@@ -1,9 +1,15 @@
+// Frontend auth service. Owns the login/logout flow and the local token cache
+// (localStorage). The token itself is now a real HS256 JWT issued by the
+// backend — never trusted for authorisation here, only inspected so the UI can
+// decide whether to show the login screen or the dashboard.
 import { apiFetch } from '../api/httpClient.js';
 import { AUTH_LOGIN, AUTH_LOGOUT, AUTH_ME } from '../api/endpoints.js';
 
 const TOKEN_KEY = 'fitcore_token';
 const USER_KEY  = 'fitcore_user';
 
+// Authenticate against the backend, then persist the JWT and the user blob so
+// the rest of the SPA can render immediately on reload without re-fetching.
 export async function login(email, password) {
     const data = await apiFetch(AUTH_LOGIN, {
         method: 'POST',
@@ -31,12 +37,22 @@ export function getCurrentUser() {
     } catch { return null; }
 }
 
+// Client-side "is the token still plausibly valid?" check used by route
+// guards. We decode the JWT payload (header.payload.signature) without
+// verifying the signature — that's the server's job. Two JWT-specific
+// gotchas drive the implementation:
+//   1. base64url ≠ base64: convert '-'/'_' before calling atob().
+//   2. `exp` is in seconds, not ms — multiply by 1000 before comparing.
+// On any failure we evict the cached token so the user gets a clean login.
 export function isAuthenticated() {
     const token = getToken();
     if (!token) return false;
     try {
-        const payload = JSON.parse(atob(token));
-        if (!payload.exp || payload.exp < Date.now()) {
+        const [, payloadB64] = token.split('.');
+        if (!payloadB64) return false;
+        const json = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
+        const payload = JSON.parse(json);
+        if (!payload.exp || payload.exp * 1000 < Date.now()) {
             localStorage.removeItem(TOKEN_KEY);
             localStorage.removeItem(USER_KEY);
             return false;
