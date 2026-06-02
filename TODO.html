@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FitCore — Roadmap de Desarrollo</title>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a24;
+    --surface2: #22222f;
+    --border: #2e2e3e;
+    --accent: #7c6fff;
+    --accent2: #4fc3f7;
+    --green: #4caf82;
+    --orange: #f5a623;
+    --red: #ef5350;
+    --text: #e8e8f0;
+    --muted: #6b6b82;
+    --tag-bg: rgba(124,111,255,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+
+  .app { max-width: 860px; margin: 0 auto; padding: 32px 20px 60px; }
+
+  header { margin-bottom: 36px; }
+  .logo { font-size: 22px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; }
+
+  .progress-bar-wrap { margin-top: 16px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 3px; transition: width 0.4s; }
+
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 28px; }
+  .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+  .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .day-block { margin-bottom: 24px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .day-header { padding: 14px 20px; background: var(--surface); display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; }
+  .day-header:hover { background: var(--surface2); }
+  .day-number { font-size: 11px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; min-width: 44px; }
+  .day-title { font-weight: 600; flex: 1; }
+  .day-tag { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500; }
+  .tag-auth    { background: rgba(239,83,80,0.12); color: var(--red); }
+  .tag-feature { background: var(--tag-bg); color: var(--accent); }
+  .tag-ux      { background: rgba(79,195,247,0.12); color: var(--accent2); }
+  .tag-infra   { background: rgba(245,166,35,0.12); color: var(--orange); }
+  .tag-perf    { background: rgba(76,175,130,0.12); color: var(--green); }
+  .day-done-count { font-size: 11px; color: var(--muted); margin-left: auto; }
+  .chevron { color: var(--muted); font-size: 12px; transition: transform 0.2s; }
+  .day-block.open .chevron { transform: rotate(90deg); }
+
+  .day-body { border-top: 1px solid var(--border); display: none; }
+  .day-block.open .day-body { display: block; }
+
+  .task { display: flex; align-items: flex-start; gap: 12px; padding: 13px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
+  .task:last-child { border-bottom: none; }
+  .task:hover { background: var(--surface); }
+
+  .checkbox { width: 17px; height: 17px; border: 2px solid var(--border); border-radius: 4px; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .task.done .checkbox { background: var(--green); border-color: var(--green); }
+  .task.done .checkbox::after { content: '✓'; font-size: 11px; color: #fff; font-weight: 700; }
+  .task.done .task-text { color: var(--muted); text-decoration: line-through; }
+
+  .task-content { flex: 1; }
+  .task-text { font-size: 13.5px; }
+  .task-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .cat { font-size: 10px; padding: 2px 7px; border-radius: 20px; margin-left: 8px; vertical-align: middle; }
+  .cat-be { background: rgba(245,166,35,0.1); color: var(--orange); }
+  .cat-fe { background: rgba(79,195,247,0.1); color: var(--accent2); }
+  .cat-db { background: rgba(76,175,130,0.1); color: var(--green); }
+
+  .empty-day { padding: 16px 20px; color: var(--muted); font-size: 13px; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">⚡ FitCore — Roadmap</div>
+    <div class="subtitle">Paso a paso del desarrollo · Marcá cada tarea al completarla</div>
+    <div class="progress-bar-wrap">
+      <div class="progress-label"><span>Progreso total</span><span id="progress-text">0 / 0</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+  </header>
+
+  <div class="filters">
+    <button class="filter-btn active" data-filter="all">Todos</button>
+    <button class="filter-btn" data-filter="pendiente">Pendientes</button>
+    <button class="filter-btn" data-filter="done">Completados</button>
+    <button class="filter-btn" data-filter="feature">Feature</button>
+    <button class="filter-btn" data-filter="ux">UX</button>
+    <button class="filter-btn" data-filter="auth">Auth</button>
+    <button class="filter-btn" data-filter="infra">Infra</button>
+  </div>
+
+  <div id="days-container"></div>
+</div>
+
+<script>
+const DAYS = [
+  {
+    day: 'Día 1',
+    title: 'Seguridad del Auth',
+    tag: 'auth',
+    tasks: [
+      { text: 'Reemplazar auth.service.js con JWT real (jsonwebtoken + secret key)', detail: 'Actualmente es base64 sin firma — cualquiera puede forgearlo. Usar HS256 con JWT_SECRET en .env', cats: ['be'] },
+      { text: 'Agregar registro de nuevos usuarios (POST /api/auth/register)', detail: 'Formulario en frontend con validación: nombre, email, contraseña, rol (solo trainer puede crear athletes vía invite)', cats: ['be','fe'] },
+      { text: 'Rate limiting en rutas de auth', detail: 'express-rate-limit en POST /login y /register — máximo 10 req/min por IP', cats: ['be'] },
+      { text: 'Validación de inputs con Zod en el backend', detail: 'Reemplazar validaciones manuales en controllers por schemas Zod', cats: ['be'] },
+    ]
+  },
+  {
+    day: 'Día 2',
+    title: 'Perfil y gestión de cuenta',
+    tag: 'feature',
+    tasks: [
+      { text: 'Pantalla "Mi Perfil" para athlete y trainer', detail: 'Ver y editar nombre, avatar (emoji picker), y email', cats: ['fe'] },
+      { text: 'Endpoint PATCH /api/users/me para actualizar perfil', detail: 'Incluir validación de email único al cambiar', cats: ['be','db'] },
+      { text: 'Cambio de contraseña (con verificación de la actual)', detail: 'Modal con campos: contraseña actual, nueva, confirmación', cats: ['be','fe'] },
+      { text: 'Sección de cuenta en el header/sidebar', detail: 'Mostrar avatar + nombre + enlace a perfil', cats: ['fe'] },
+    ]
+  },
+  {
+    day: 'Día 3',
+    title: 'Mejoras a Ejercicios',
+    tag: 'feature',
+    tasks: [
+      { text: 'Editar ejercicios existentes (trainer)', detail: 'Actualmente solo se puede crear y eliminar — agregar modal de edición', cats: ['fe','be'] },
+      { text: 'Campo de dificultad en ejercicios (principiante / intermedio / avanzado)', detail: 'Agregar columna difficulty en tabla exercises y filtro en la UI', cats: ['be','db','fe'] },
+      { text: 'Campo de notas/instrucciones enriquecido por ejercicio', detail: 'Textarea en el modal y visualización expandible en la card', cats: ['fe'] },
+      { text: 'Paginación o scroll infinito en biblioteca de ejercicios', detail: 'La lista puede crecer mucho — cargar de a 20 con botón "Cargar más"', cats: ['be','fe'] },
+    ]
+  },
+  {
+    day: 'Día 4',
+    title: 'Mejoras a Rutinas',
+    tag: 'feature',
+    tasks: [
+      { text: 'Asignar una rutina a un atleta desde el modal de rutina', detail: 'Selector de athlete_id al crear/editar rutina (solo trainer)', cats: ['fe','be'] },
+      { text: 'Duplicar rutina existente', detail: 'Botón "Clonar" en el detail modal — útil para crear variaciones', cats: ['fe','be'] },
+      { text: 'Ordenar ejercicios dentro de la rutina con drag & drop', detail: 'Usar dnd-kit — el orden actual no se guarda en el JSONB', cats: ['fe'] },
+      { text: 'Vista previa de la rutina desde el perfil del atleta', detail: 'Expandir las rutinas asignadas con sus ejercicios', cats: ['fe'] },
+    ]
+  },
+  {
+    day: 'Día 5',
+    title: 'Registro de sesiones mejorado',
+    tag: 'feature',
+    tasks: [
+      { text: 'Editar sesión registrada', detail: 'Actualmente no hay PATCH /api/sessions/:id ni modal de edición', cats: ['be','fe'] },
+      { text: 'Filtros en la lista de sesiones (por rutina, fecha, intensidad)', detail: 'Select filters encima de la lista para acotar el historial', cats: ['fe'] },
+      { text: 'Notas enriquecidas por sesión (formato libre)', detail: 'Textarea más grande y preview en la session card', cats: ['fe'] },
+      { text: 'Exportar sesiones a CSV', detail: 'Botón "Exportar" que genera un .csv descargable con todo el historial', cats: ['fe','be'] },
+    ]
+  },
+  {
+    day: 'Día 6',
+    title: 'Tracking de PRs y progreso por ejercicio',
+    tag: 'feature',
+    tasks: [
+      { text: 'Tabla personal_records en la DB', detail: 'Columnas: athlete_id, exercise_id, weight, reps, date. Registrar automáticamente al completar una sesión de plan', cats: ['db','be'] },
+      { text: 'Sección "Mis PRs" en el dashboard del athlete', detail: 'Lista de ejercicios con el mejor peso registrado + fecha', cats: ['fe'] },
+      { text: 'Gráfico de evolución de peso por ejercicio', detail: 'Al clickear un ejercicio en la sección PRs, mostrar línea de tiempo del peso usado', cats: ['fe'] },
+      { text: 'Notificación de nuevo PR al completar una sesión', detail: 'Toast especial "🏆 Nuevo PR en Press de Banca: 80kg"', cats: ['fe'] },
+    ]
+  },
+  {
+    day: 'Día 7',
+    title: 'UX — Loading states y feedback',
+    tag: 'ux',
+    tasks: [
+      { text: 'Skeleton loaders en todas las secciones mientras cargan datos', detail: 'Reemplazar pantallas vacías iniciales por skeletons animados', cats: ['fe'] },
+      { text: 'Error boundary global con pantalla de error amigable', detail: 'Capturar crashes de React y mostrar mensaje con botón "Recargar"', cats: ['fe'] },
+      { text: 'Confirmación visual inmediata en acciones (optimistic UI)', detail: 'Mostrar el cambio antes de que responda la API, revertir si falla', cats: ['fe'] },
+      { text: 'Estado vacío mejorado con ilustraciones SVG inline', detail: 'Cada EmptyState debería tener un visual distinto según el contexto', cats: ['fe'] },
+    ]
+  },
+  {
+    day: 'Día 8',
+    title: 'Planificación — mejoras al editor',
+    tag: 'feature',
+    tasks: [
+      { text: 'Editar semanas individualmente dentro de una planificación', detail: 'Actualmente todas las semanas comparten los mismos días — permitir overrides por semana', cats: ['fe','be'] },
+      { text: 'Duplicar planificación completa', detail: 'Clonar una planificación existente para usarla como base en otro atleta', cats: ['fe','be'] },
+      { text: 'Reordenar bloques dentro de un día con drag & drop', detail: 'dnd-kit para los bloques dentro de AthletePlanification', cats: ['fe'] },
+      { text: 'Campo de notas por día en la planificación', detail: 'El trainer puede agregar instrucciones específicas para cada día de entreno', cats: ['fe','be'] },
+    ]
+  },
+  {
+    day: 'Día 9',
+    title: 'Estadísticas avanzadas para trainer',
+    tag: 'feature',
+    tasks: [
+      { text: 'Dashboard de stats del trainer con datos de todos sus atletas', detail: 'Sesiones totales del equipo, atleta más activo, adherencia al plan (% días completados)', cats: ['be','fe'] },
+      { text: 'Gráfico de adherencia por atleta (semana a semana)', detail: 'Línea que muestra días completados vs planificados por semana', cats: ['fe'] },
+      { text: 'Tabla comparativa de atletas (sesiones, racha, último entreno)', detail: 'Vista tabular en la sección Athletes con columnas ordenables', cats: ['fe'] },
+      { text: 'Endpoint GET /api/stats/team para datos agregados del trainer', detail: 'Consulta eficiente con JOINs en lugar de múltiples llamadas desde el frontend', cats: ['be','db'] },
+    ]
+  },
+  {
+    day: 'Día 10',
+    title: 'Notificaciones y recordatorios',
+    tag: 'feature',
+    tasks: [
+      { text: 'Sistema de notificaciones in-app (bell icon en el header)', detail: 'Tabla notifications en DB. Eventos: nueva planificación asignada, comentario del trainer, PR nuevo', cats: ['db','be','fe'] },
+      { text: 'Badge de notificaciones no leídas', detail: 'GET /api/notifications/unread — contar y mostrar en el ícono de campana', cats: ['be','fe'] },
+      { text: 'Marcar como leídas (todas o una a una)', detail: 'PATCH /api/notifications/:id/read y PATCH /api/notifications/read-all', cats: ['be','fe'] },
+      { text: 'Push notifications web (Service Worker + Web Push API)', detail: 'Opcional pero impactante para engagement — recordatorio de entreno diario', cats: ['be','fe'] },
+    ]
+  },
+  {
+    day: 'Día 11',
+    title: 'Mobile — responsive y PWA',
+    tag: 'ux',
+    tasks: [
+      { text: 'Auditar responsive.css y corregir layouts rotos en móvil', detail: 'Revisar modales, planification editor y charts en pantallas < 400px', cats: ['fe'] },
+      { text: 'Convertir en PWA (manifest.json + service worker)', detail: 'Agregar manifest con íconos, theme-color, y SW básico para cache del shell', cats: ['fe'] },
+      { text: 'Swipe gestures en la bottom nav para cambiar sección', detail: 'Usar touch events o una lib como Hammer.js para swipe lateral', cats: ['fe'] },
+      { text: 'Modo offline básico — mostrar datos cacheados si no hay red', detail: 'Service Worker cachea las respuestas GET del API al navegar', cats: ['fe'] },
+    ]
+  },
+  {
+    day: 'Día 12',
+    title: 'Tests — cobertura básica',
+    tag: 'infra',
+    tasks: [
+      { text: 'Setup de Vitest + React Testing Library en el frontend', detail: 'Configurar vitest.config.js, jsdom, y un test de humo por componente clave', cats: ['fe'] },
+      { text: 'Tests unitarios de los helpers (calcStreak, formatDate, formatCarga)', detail: 'Son funciones puras — fácil de testear y alto impacto si se rompen', cats: ['fe'] },
+      { text: 'Tests de integración en el backend con Supertest', detail: 'Happy path + error path en /auth/login, /routines, /sessions', cats: ['be'] },
+      { text: 'Test de los models con una DB de test (base de datos separada)', detail: 'Usar DATABASE_URL_TEST, rollback de transacciones entre tests', cats: ['be','db'] },
+    ]
+  },
+  {
+    day: 'Día 13',
+    title: 'Infra — CI/CD y deploy',
+    tag: 'infra',
+    tasks: [
+      { text: 'GitHub Actions: lint + test en cada PR', detail: 'Workflow con Node 20, install, npm test para backend y frontend', cats: ['be','fe'] },
+      { text: 'Dockerfile para backend y docker-compose local', detail: 'Incluir servicio de postgres para desarrollo sin instalar PG localmente', cats: ['be'] },
+      { text: 'Script de migración de schema (con versionado)', detail: 'Actualmente el schema.sql es destructivo (DROP TABLE). Migrar a node-pg-migrate o similar', cats: ['db'] },
+      { text: 'Variables de entorno documentadas y validadas al arrancar', detail: 'En server.js: validar que DATABASE_URL, JWT_SECRET, etc. estén seteadas al boot', cats: ['be'] },
+    ]
+  },
+  {
+    day: 'Día 14',
+    title: 'Pulido final y QA',
+    tag: 'ux',
+    tasks: [
+      { text: 'Auditoría de accesibilidad (roles ARIA, focus management en modales)', detail: 'Modales deben trapear el foco, tener aria-labelledby y cerrar con Escape', cats: ['fe'] },
+      { text: 'Animaciones de transición entre secciones', detail: 'Fade/slide al cambiar de sección en el Main — CSS transitions o Framer Motion', cats: ['fe'] },
+      { text: 'Internacionalización básica (i18n) con react-i18next', detail: 'Extraer strings hardcodeados en español a un archivo de traducciones', cats: ['fe'] },
+      { text: 'README actualizado con guía de setup, arquitectura y deploy', detail: 'Docs claras para onboarding de nuevos devs y para el portfolio', cats: ['be','fe'] },
+    ]
+  },
+  {
+    day: 'Mejoras',
+    title: 'Mejoras a Coach',
+    tag: 'feature',
+    tasks: [
+      { text: 'BottomNav del coach con ítems definitivos', detail: 'Revisar el set actual (Alumnos / Rutinas / Ejercicios / Progreso / Cuenta) y ajustarlo según uso real', cats: ['fe'] },
+      { text: 'Dashboard resumen para el coach', detail: 'KPIs: nº de atletas activos, sesiones completadas esta semana, adherencia promedio, alertas de inactividad', cats: ['fe','be'] },
+      { text: 'Filtros y ordenamiento en la lista de Alumnos', detail: 'Filtrar por adherencia / última sesión / objetivo; ordenar por nombre o actividad', cats: ['fe','be'] },
+      { text: 'Acciones rápidas desde la tarjeta de alumno', detail: 'Crear planificación, enviar nota, ver última sesión sin entrar al perfil', cats: ['fe'] },
+      { text: 'Vista previa de la rutina desde el perfil del atleta', detail: 'Expandir las rutinas asignadas con sus ejercicios sin abrir un modal', cats: ['fe'] },
+      { text: 'Slim down del JWT a { userId, role, exp }', detail: 'Sacar name/email/avatar del token y leerlos siempre desde la DB en cada request. Evita el re-issue del token en updates de perfil y reduce la superficie de claims stale.', cats: ['be'] },
+    ]
+  },
+  {
+    day: 'Mejoras',
+    title: 'Mejoras a Atleta',
+    tag: 'feature',
+    tasks: [
+      { text: 'Indicador de progreso semanal en "Mi Plan"', detail: 'Mostrar días completados / días planificados en la semana actual', cats: ['fe'] },
+      { text: 'Notificaciones in-app cuando el coach asigna planificación', detail: 'Badge en la BottomNav + toast la próxima vez que entre', cats: ['fe','be'] },
+      { text: 'Recordatorio del próximo entrenamiento en la home', detail: 'Card destacada con día / ejercicios / botón "Empezar"', cats: ['fe'] },
+      { text: 'Histórico personal de PRs por ejercicio', detail: 'Vista con mejores marcas (peso × reps) y gráfico de evolución', cats: ['fe','be'] },
+      { text: 'Auto-relleno de la última carga registrada al loguear una sesión', detail: 'Pre-cargar los inputs con la última carga del mismo ejercicio para acelerar el registro', cats: ['fe'] },
+    ]
+  },
+];
+
+const KEY = 'fitcore_todo_v1';
+let state = JSON.parse(localStorage.getItem(KEY) || '{}');
+
+function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
+
+function taskId(dayIdx, taskIdx) { return `${dayIdx}-${taskIdx}`; }
+
+function isDone(dayIdx, taskIdx) { return !!state[taskId(dayIdx, taskIdx)]; }
+
+function toggle(dayIdx, taskIdx) {
+  const id = taskId(dayIdx, taskIdx);
+  state[id] = !state[id];
+  save();
+  render();
+}
+
+function updateProgress() {
+  let total = 0, done = 0;
+  DAYS.forEach((d, di) => d.tasks.forEach((_, ti) => { total++; if (isDone(di, ti)) done++; }));
+  document.getElementById('progress-text').textContent = `${done} / ${total}`;
+  document.getElementById('progress-fill').style.width = `${total ? (done/total*100) : 0}%`;
+}
+
+let activeFilter = 'all';
+
+function render() {
+  updateProgress();
+  const container = document.getElementById('days-container');
+  container.innerHTML = '';
+
+  DAYS.forEach((day, di) => {
+    const allDone = day.tasks.every((_, ti) => isDone(di, ti));
+    const doneCnt = day.tasks.filter((_, ti) => isDone(di, ti)).length;
+
+    // Filter
+    let visibleTasks = day.tasks;
+    if (activeFilter === 'pendiente') visibleTasks = day.tasks.filter((_, ti) => !isDone(di, ti));
+    else if (activeFilter === 'done') visibleTasks = day.tasks.filter((_, ti) => isDone(di, ti));
+    else if (['feature','ux','auth','infra','perf'].includes(activeFilter)) {
+      if (day.tag !== activeFilter) return;
+    }
+
+    const block = document.createElement('div');
+    block.className = 'day-block open';
+
+    const tagLabel = { feature: 'Feature', ux: 'UX', auth: 'Auth & Seguridad', infra: 'Infra', perf: 'Performance' }[day.tag] || day.tag;
+
+    block.innerHTML = `
+      <div class="day-header">
+        <span class="day-number">${day.day}</span>
+        <span class="day-title">${day.title}</span>
+        <span class="day-tag tag-${day.tag}">${tagLabel}</span>
+        <span class="day-done-count">${doneCnt}/${day.tasks.length}</span>
+        <span class="chevron">▶</span>
+      </div>
+      <div class="day-body"></div>
+    `;
+
+    block.querySelector('.day-header').addEventListener('click', () => {
+      block.classList.toggle('open');
+    });
+
+    const body = block.querySelector('.day-body');
+
+    if (visibleTasks.length === 0) {
+      body.innerHTML = '<div class="empty-day">Sin tareas en este filtro.</div>';
+    } else {
+      day.tasks.forEach((task, ti) => {
+        if (activeFilter === 'pendiente' && isDone(di, ti)) return;
+        if (activeFilter === 'done' && !isDone(di, ti)) return;
+
+        const catHtml = (task.cats || []).map(c => {
+          const labels = { be: 'Backend', fe: 'Frontend', db: 'DB' };
+          return `<span class="cat cat-${c}">${labels[c]}</span>`;
+        }).join('');
+
+        const row = document.createElement('div');
+        row.className = `task${isDone(di, ti) ? ' done' : ''}`;
+        row.innerHTML = `
+          <div class="checkbox"></div>
+          <div class="task-content">
+            <div class="task-text">${task.text}${catHtml}</div>
+            ${task.detail ? `<div class="task-detail">${task.detail}</div>` : ''}
+          </div>
+        `;
+        row.addEventListener('click', () => toggle(di, ti));
+        body.appendChild(row);
+      });
+    }
+
+    container.appendChild(block);
+  });
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeFilter = btn.dataset.filter;
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>
