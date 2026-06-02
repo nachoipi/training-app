@@ -6,6 +6,7 @@ import sessionRoutes       from './routes/session.routes.js';
 import planificationRoutes from './routes/planification.routes.js';
 import sessionLogRoutes    from './routes/sessionLog.routes.js';
 import athleteRoutes       from './routes/athlete.routes.js';
+import userRoutes          from './routes/user.routes.js';
 import statsRoutes         from './routes/stats.routes.js';
 import healthRoutes        from './routes/health.routes.js';
 import errorMiddleware     from './middlewares/error.middleware.js';
@@ -21,6 +22,7 @@ app.use('/api/sessions',       sessionRoutes);
 app.use('/api/planifications', planificationRoutes);
 app.use('/api/session-logs',   sessionLogRoutes);
 app.use('/api/athletes',       athleteRoutes);
+app.use('/api/users',          userRoutes);
 app.use('/api/stats',          statsRoutes);
 app.use('/api',                healthRoutes);
 

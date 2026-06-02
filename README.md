@@ -88,6 +88,9 @@ Workflow order: **start-task → investigate → plan → testing → commit →
 ## Changelog
 
 ### 2026-06-02
+- **Profile (frontend)**: New "Mi Perfil" section — view + edit name, email, and avatar (curated 24-emoji grid). Includes a `Preferencias` card for theme toggle and logout (previously in the sidebar footer).
+- **Profile (backend)**: New `PATCH /api/users/me` endpoint behind `requireAuth`. Validates name/email/avatar, pre-checks email uniqueness (clean 409 instead of raw PG 23505), and re-issues the JWT so embedded `req.user` claims stay in sync with the DB.
+- **Layout**: Added a 66.5px fixed `TopBar` (name + role + avatar, right-aligned) as the entry point to the profile screen. Sidebar footer removed; theme toggle and logout live in Profile. On mobile (≤768px) the sidebar is hidden for both roles and the trainer now gets a `BottomNav` (Alumnos / Rutinas / Ejercicios / Registro / Progreso).
 - **Auth (backend)**: Replaced the unsigned base64-JSON token scheme in `auth.service.js` with real HS256 JSON Web Tokens via `jsonwebtoken`. Tokens are now signed with `JWT_SECRET` and forged/tampered tokens are rejected with 401. New env vars: `JWT_SECRET` (required — boot fails without it) and `JWT_EXPIRES_IN` (defaults to `7d`). `.env.example` updated.
 - **Auth (frontend)**: Fixed `isAuthenticated()` in `authService.js` to parse the JWT payload (base64url, middle segment) and compare `exp * 1000` against `Date.now()` — the previous `atob(token)` path broke login under the new token format.
 - **Workflow**: `plan` skill now requires a documentation pass — every added/modified file gets a top-of-file purpose comment and inline comments on important methods.

@@ -8,6 +8,7 @@ export const SESSIONS       = '/api/sessions';
 export const PLANIFICATIONS = '/api/planifications';
 export const SESSION_LOGS   = '/api/session-logs';
 export const ATHLETES       = '/api/athletes';
+export const USERS_ME       = '/api/users/me';
 export const STATS          = '/api/stats';
 export const STATUS         = '/api/status';
 export const HEALTH         = '/api/health';
