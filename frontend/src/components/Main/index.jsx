@@ -11,6 +11,7 @@ import { AthletePlanification } from './AthletePlanification.jsx';
 import { AthleteMyPlan } from './AthleteMyPlan.jsx';
 import { AthleteMySessions } from './AthleteMySessions.jsx';
 import { AthleteMySession } from './AthleteMySession.jsx';
+import { Profile } from './Profile.jsx';
 
 export function Main({
     activeSection,
@@ -42,6 +43,10 @@ export function Main({
     sessionLogs,
     onOpenSession,
     onSaveSessionLog,
+    onProfileUpdated,
+    theme,
+    onToggleTheme,
+    onLogout,
     className,
 }) {
     return (
@@ -98,6 +103,16 @@ export function Main({
                     onBack={() => onNavigate('my-sessions')}
                     onSave={onSaveSessionLog}
                     onShowToast={onShowToast}
+                />
+            )}
+            {activeSection === 'profile' && (
+                <Profile
+                    user={user}
+                    onShowToast={onShowToast}
+                    onProfileUpdated={onProfileUpdated}
+                    theme={theme}
+                    onToggleTheme={onToggleTheme}
+                    onLogout={onLogout}
                 />
             )}
             {activeSection === 'athletes' && (

@@ -30,6 +30,19 @@ export function getToken() {
     return localStorage.getItem(TOKEN_KEY);
 }
 
+// Persist a freshly issued token. Used after profile updates, where the
+// backend re-signs the JWT so its embedded name/email/avatar claims match the
+// DB. Without this the sidebar and req.user would show stale data.
+export function setToken(token) {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+}
+
+// Persist a freshly returned user blob. Paired with setToken on profile
+// updates so reloading the SPA reads the new values straight from cache.
+export function setCurrentUser(user) {
+    if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
 export function getCurrentUser() {
     try {
         const raw = localStorage.getItem(USER_KEY);

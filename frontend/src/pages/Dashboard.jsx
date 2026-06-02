@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Header/index.jsx';
 import { Main } from '../components/Main/index.jsx';
 import { BottomNav } from '../components/BottomNav/index.jsx';
+import { TopBar } from '../components/TopBar/index.jsx';
 import { Toast } from '../components/Common/index.jsx';
 import {
     ModalRoutine,
@@ -80,6 +81,12 @@ export default function Dashboard() {
             .then(r => setSessionLogs(r.data))
             .catch(() => setSessionLogs([]));
     }, []);
+
+    // Receive the updated user blob from the Profile screen so the sidebar
+    // and BottomNav re-render with the new name/avatar without a reload.
+    function handleProfileUpdated(updated) {
+        setUser(updated);
+    }
 
     async function handleLogout() {
         if (confirm('¿Cerrar sesión?')) {
@@ -165,15 +172,11 @@ export default function Dashboard() {
                 user={user}
                 activeSection={activeSection}
                 onNavigate={setSection}
-                onLogout={handleLogout}
                 collapsed={collapsed}
                 onToggle={() => setCollapsed(c => !c)}
-                theme={theme}
-                onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
             />
 
             <Main
-                className={user?.role === 'athlete' ? 'main-content--athlete' : ''}
                 activeSection={activeSection}
                 routines={routines}
                 sessions={sessions}
@@ -224,12 +227,23 @@ export default function Dashboard() {
                 sessionLogs={sessionLogs}
                 onOpenSession={({ plan, week, day }) => { setSelectedSession({ plan, week, day }); setSection('my-session'); }}
                 onSaveSessionLog={handleSaveSessionLog}
+                onProfileUpdated={handleProfileUpdated}
+                theme={theme}
+                onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+                onLogout={handleLogout}
             />
 
             <BottomNav
                 user={user}
                 activeSection={activeSection}
                 onNavigate={setSection}
+            />
+
+            <TopBar
+                user={user}
+                activeSection={activeSection}
+                onNavigate={setSection}
+                sidebarCollapsed={collapsed}
             />
 
             <ModalRoutine

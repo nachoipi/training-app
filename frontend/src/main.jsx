@@ -18,6 +18,7 @@ import './styles/modals.css';
 import './styles/forms.css';
 import './styles/empty.css';
 import './styles/toast.css';
+import './styles/profile.css';
 import './styles/responsive.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(

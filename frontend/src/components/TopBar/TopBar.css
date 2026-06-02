@@ -1,0 +1,84 @@
+/* Top header strip. Fixed position, 64px tall (matches .sidebar-header). On
+   desktop it starts where the sidebar ends; on mobile (sidebar hidden) it
+   spans the full width. Clicking anywhere navigates to the profile screen. */
+.top-bar {
+    position: fixed;
+    top: 0;
+    left: var(--sidebar-width);
+    right: 0;
+    height: 66.5px;
+    z-index: 150; /* below modals, above content */
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    padding: 0 20px;
+    background: var(--bg-deep);
+    cursor: pointer;
+    transition: left 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.top-bar.sidebar-collapsed {
+    left: var(--sidebar-collapsed);
+}
+
+.top-bar-identity {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    line-height: 1.1;
+}
+
+.top-bar-name {
+    font-weight: 600;
+    font-size: 1.15rem;
+    color: var(--text-primary);
+}
+
+.top-bar-role {
+    font-size: 0.9rem;
+    color: var(--text-secondary, #888);
+}
+
+.top-bar-avatar {
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-size: 1.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.top-bar:hover .top-bar-avatar {
+    transform: scale(1.04);
+    border-color: var(--accent);
+}
+
+.top-bar-avatar.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Push main content below the TopBar. */
+.main-content {
+    padding-top: 66.5px;
+}
+
+@media (max-width: 768px) {
+    .top-bar {
+        left: 0;
+        padding: 0 14px;
+        gap: 10px;
+    }
+    .top-bar-name { font-size: 1rem; }
+    .top-bar-role { font-size: 0.8rem; }
+    .top-bar-avatar { width: 48px; height: 48px; font-size: 1.4rem; }
+}

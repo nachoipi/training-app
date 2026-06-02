@@ -1,17 +1,10 @@
 @media (max-width: 768px) {
-    /* Hide the desktop sidebar for athletes — replaced by <BottomNav> */
-    .sidebar--athlete { display: none; }
+    /* Hide the desktop sidebar for both roles on mobile — replaced by
+       <BottomNav> (nav) + <TopAvatar> (profile entry point). */
+    .sidebar { display: none; }
 
-    /* Trainers keep the collapsed icon sidebar */
-    .sidebar:not(.sidebar--athlete) { width: var(--sidebar-collapsed); min-width: var(--sidebar-collapsed); }
-    .sidebar:not(.sidebar--athlete) .logo-text,
-    .sidebar:not(.sidebar--athlete) .nav-label,
-    .sidebar:not(.sidebar--athlete) .user-name,
-    .sidebar:not(.sidebar--athlete) .user-role-badge,
-    .sidebar:not(.sidebar--athlete) .btn-logout-label { opacity: 0; width: 0; overflow: hidden; }
-
-    /* Push main content above the bottom nav */
-    .main-content--athlete { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+    /* Push main content above the bottom nav (both roles now show it) */
+    .main-content { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
 
     .section { padding: 18px 14px; }
     .charts-grid { grid-template-columns: 1fr; }

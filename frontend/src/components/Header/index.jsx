@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function Header({ user, activeSection, onNavigate, onLogout, collapsed, onToggle, theme, onToggleTheme }) {
+export function Header({ user, activeSection, onNavigate, collapsed, onToggle }) {
     const isTrainer = user && user.role === 'trainer';
     const isAthlete = user && user.role === 'athlete';
 
@@ -15,7 +15,7 @@ export function Header({ user, activeSection, onNavigate, onLogout, collapsed, o
     ];
 
     return (
-        <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${isAthlete ? 'sidebar--athlete' : ''}`}>
+        <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
             <div className="sidebar-header">
                 <div className="logo">
                     <span className="logo-icon">⚡</span>
@@ -37,33 +37,6 @@ export function Header({ user, activeSection, onNavigate, onLogout, collapsed, o
                 ))}
             </nav>
 
-            <div className="sidebar-footer">
-                <div className="user-info">
-                    <div className="user-avatar">
-                        {user ? (user.avatar || user.name[0].toUpperCase()) : '?'}
-                    </div>
-                    <div className="user-details">
-                        <span className="user-name">{user ? user.name : '—'}</span>
-                        <span className="user-role-badge">
-                            {user ? (user.role === 'trainer' ? '⚡ Entrenador' : '💪 Atleta') : '—'}
-                        </span>
-                    </div>
-                </div>
-                <button
-                    className="btn-theme-toggle"
-                    onClick={onToggleTheme}
-                    title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
-                >
-                    <span>{theme === 'dark' ? '☀️' : '🌙'}</span>
-                    <span className="btn-theme-toggle-label">
-                        {theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
-                    </span>
-                </button>
-                <button className="btn-logout" onClick={onLogout} title="Cerrar sesión">
-                    <span>↩</span>
-                    <span className="btn-logout-label">Cerrar sesión</span>
-                </button>
-            </div>
         </aside>
     );
 }
