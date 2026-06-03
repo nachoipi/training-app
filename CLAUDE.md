@@ -85,14 +85,16 @@ Two roles: `trainer` and `athlete`.
 - Trainers can create/edit exercises, create routines for athletes, view all athletes.
 - Athletes can log sessions, view assigned planifications, create own routines.
 
-Demo / testing credentials (from `database/seed.sql`):
+Seeded credentials (from `database/seed.sql` — test users only):
 
-| Role    | Email                      | Password | Notes        |
-|---------|----------------------------|----------|--------------|
-| Trainer | `trainer@fitcore.com`      | `123456` | Demo trainer |
-| Athlete | `nacho@fitcore.com`        | `123456` | Demo athlete |
-| Trainer | `test_trainer@fitcore.com` | `123456` | Testing only |
-| Athlete | `test_athlete@fitcore.com` | `123456` | Testing only |
+| Role    | Email                      | Password | Notes                 |
+|---------|----------------------------|----------|-----------------------|
+| Trainer | `test_trainer@fitcore.com` | `123456` | Seeded — testing only |
+| Athlete | `test_athlete@fitcore.com` | `123456` | Seeded — testing only |
+
+Real trainer/athlete accounts (`trainer@fitcore.com`, `nacho@fitcore.com`, etc.) are no longer seeded — create them through the app for realistic end-to-end testing. The Login page's autofill (`DEMO_HINTS` in `frontend/src/pages/Login.jsx`) still offers those addresses so devs can register and reuse them.
+
+Exercises are no longer seeded either. The catalog is imported from a CSV/XLS file — see `database/migrations/exercises/README.md` for the spreadsheet format and the planned importer.
 
 Auth tokens are HS256 JWTs signed with `JWT_SECRET`. The token currently embeds the full user row; trimming it to `{ id, role }` is tracked in `TODO.html` under `Mejoras a Coach` (slim-JWT cleanup).
 

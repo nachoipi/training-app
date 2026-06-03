@@ -53,11 +53,22 @@ const IconGoogle = () => (
     </svg>
 );
 
-// Hardcoded demo credentials shown in the hint box so testers/new devs can log in quickly
+// Hardcoded credentials shown in the hint box so testers/new devs can log in quickly
 // without needing real accounts set up locally. Password is always '123456'.
+//   - `demo` rows point at the "realistic" accounts (trainer@/nacho@). These are NOT
+//     seeded anymore — register them through the app the first time you need them,
+//     then reuse for end-to-end testing with real data.
+//   - `test` rows point at the accounts seeded by database/seed.sql (test_trainer@,
+//     test_athlete@). Use these for throwaway/automated checks.
 const DEMO_HINTS = {
-    trainer: { email: 'trainer@fitcore.com', label: 'Entrenador' },
-    athlete: { email: 'nacho@fitcore.com',   label: 'Atleta' },
+    trainer: {
+        demo: { email: 'trainer@fitcore.com',      label: 'Demo' },
+        test: { email: 'test_trainer@fitcore.com', label: 'Test' },
+    },
+    athlete: {
+        demo: { email: 'nacho@fitcore.com',        label: 'Demo' },
+        test: { email: 'test_athlete@fitcore.com', label: 'Test' },
+    },
 };
 
 export default function Login() {
@@ -81,8 +92,8 @@ export default function Login() {
         if (isAuthenticated()) navigate('/dashboard', { replace: true });
     }, [navigate]);
 
-    // The hint object for the currently selected role (email + label)
-    const hint = DEMO_HINTS[role];
+    // The hint pair (demo + test) for the currently selected role
+    const hints = DEMO_HINTS[role];
 
     // Client-side validation before hitting the API — avoids a round trip for obvious errors
     function validate() {
@@ -115,10 +126,10 @@ export default function Login() {
         }
     }
 
-    // Pre-fills the form with the demo credentials for the active role so testers
-    // don't have to type them manually
-    function fillDemo() {
-        setEmail(hint.email);
+    // Pre-fills the form with one of the hint accounts (demo or test) for the active
+    // role so testers don't have to type them manually
+    function fillHint(which) {
+        setEmail(hints[which].email);
         setPassword('123456');
         setError('');
     }
@@ -200,14 +211,26 @@ export default function Login() {
                         </button>
                     </div>
 
-                    {/* Demo credentials hint — "Autocompletar" calls fillDemo() to prefill the form */}
+                    {/* Credentials hint — exposes both the "demo" account (realistic data,
+                        not seeded) and the "test" account (seeded by database/seed.sql).
+                        Clicking either label prefills the form with that account. */}
                     <div className="hint-box fade-in">
-                        Demo: <strong>{hint.email}</strong> / <strong>123456</strong>
-                        {' — '}
-                        <span
-                            style={{ color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline' }}
-                            onClick={fillDemo}
-                        >Autocompletar</span>
+                        <div>
+                            {hints.demo.label}: <strong>{hints.demo.email}</strong> / <strong>123456</strong>
+                            {' — '}
+                            <span
+                                style={{ color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline' }}
+                                onClick={() => fillHint('demo')}
+                            >Autocompletar</span>
+                        </div>
+                        <div>
+                            {hints.test.label}: <strong>{hints.test.email}</strong> / <strong>123456</strong>
+                            {' — '}
+                            <span
+                                style={{ color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline' }}
+                                onClick={() => fillHint('test')}
+                            >Autocompletar</span>
+                        </div>
                     </div>
 
                     {/* Inline error banner — only rendered when there is an active error message */}

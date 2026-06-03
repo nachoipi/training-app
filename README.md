@@ -56,17 +56,21 @@ Open <http://localhost:5173>.
 
 ```bash
 psql $DATABASE_URL -f database/schema.sql
-psql $DATABASE_URL -f database/seed.sql
+psql $DATABASE_URL -f database/seed.sql   # test users only
 ```
+
+Exercises are no longer seeded. The catalog is imported from a CSV/XLS file —
+see `database/migrations/exercises/README.md` for the spreadsheet format and
+the planned importer.
 
 ## Accounts
 
-| Role    | Email                    | Password | Notes        |
-|---------|--------------------------|----------|--------------|
-| Trainer | trainer@fitcore.com      | 123456   | Demo trainer |
-| Athlete | nacho@fitcore.com        | 123456   | Demo athlete |
-| Trainer | test_trainer@fitcore.com | 123456   | Testing only |
-| Athlete | test_athlete@fitcore.com | 123456   | Testing only |
+Only the two test accounts below are seeded by `database/seed.sql`. Real trainer/athlete users are created through the app (signup or profile edit). The Login page autofill still offers `trainer@fitcore.com` / `nacho@fitcore.com` so you can register and reuse those addresses for realistic end-to-end testing.
+
+| Role    | Email                    | Password | Notes                |
+|---------|--------------------------|----------|----------------------|
+| Trainer | test_trainer@fitcore.com | 123456   | Seeded — testing only |
+| Athlete | test_athlete@fitcore.com | 123456   | Seeded — testing only |
 
 ## Claude Code Skills (`.claude/skills/`)
 
@@ -86,6 +90,12 @@ Workflow order: **start-task → investigate → plan → testing → commit →
 ---
 
 ## Changelog
+
+### 2026-06-03
+- **Database**: `seed.sql` now seeds **test users only** (`test_trainer@`, `test_athlete@`). Removed the two demo users (`trainer@fitcore.com`, `nacho@fitcore.com`) and all 18 hardcoded exercises — local DBs start empty so we can build up real data through the app and an importer.
+- **Exercises importer (scaffold)**: New `database/migrations/exercises/` folder with `README.md` locking the CSV/XLS column spec (`id, name, muscle, type, description, built_in`), planned importer behavior (validate → upsert idempotent), and `exercises.sample.csv` as a starter file. Script itself lands in a follow-up task.
+- **Login**: `DEMO_HINTS` now exposes both a Demo row (realistic, not seeded — register through the app) and a Test row (seeded) per role, each with its own Autocompletar link.
+- **Docs**: `README.md` + `CLAUDE.md` credentials tables trimmed to the seeded test users; both files now point at the exercises importer folder.
 
 ### 2026-06-02
 - **Profile (frontend)**: New "Mi Perfil" section — view + edit name, email, and avatar (curated 24-emoji grid). Includes a `Preferencias` card for theme toggle and logout (previously in the sidebar footer).
