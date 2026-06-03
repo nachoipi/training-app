@@ -39,6 +39,8 @@ Copy `backend/.env.example` to `backend/.env` and set:
 - `DATABASE_URL` — PostgreSQL connection string
 - `PGSSL=true` — required for managed databases (Supabase, GCP Cloud SQL)
 - `PORT=3000` — defaults to 3000
+- `JWT_SECRET` — **required**; the backend refuses to boot without it
+- `JWT_EXPIRES_IN` — token lifetime (default `7d`)
 
 ## Architecture
 
@@ -51,7 +53,8 @@ Copy `backend/.env.example` to `backend/.env` and set:
 - **`controllers/`**: Handle request/response, validate inputs, delegate to models, call `next(err)` on failure.
 - **`routes/`**: Mount auth middleware, define REST endpoints, connect to controllers.
 - **`middlewares/auth.middleware.js`**: `requireAuth` (verifies Bearer token, sets `req.user`) and `requireRole(...roles)` (checks `req.user.role`).
-- **`services/auth.service.js`**: Token creation/verification using base64-encoded JSON (not cryptographically signed — for dev use). TTL via `TOKEN_TTL_MS` env var (default 7 days).
+- **`services/auth.service.js`**: HS256 JSON Web Tokens via `jsonwebtoken`. Signed with `JWT_SECRET`; lifetime from `JWT_EXPIRES_IN` (default `7d`). Forged/tampered tokens are rejected with 401.
+- **`PATCH /api/users/me`**: Authenticated profile update (name, email, avatar). Pre-checks email uniqueness (returns 409 instead of raw PG `23505`) and re-issues the JWT so embedded `req.user` claims stay in sync with the DB row.
 
 ### Frontend (`frontend/src/`)
 
@@ -60,8 +63,11 @@ Copy `backend/.env.example` to `backend/.env` and set:
 - **`api/httpClient.js`**: `apiFetch(path, options)` automatically attaches the `Authorization: Bearer <token>` header from localStorage and throws on non-2xx responses.
 - **`api/endpoints.js`**: All API path constants. Update here when adding routes.
 - **`services/`**: One service file per domain (auth, exercise, routine, session, planification, sessionLog, user). These call `apiFetch`.
-- **`hooks/useAuth.js`**: React hook for auth state (user, login, logout). Syncs with `localStorage` keys `fitcore_token` and `fitcore_user`.
+- **`hooks/useAuth.js`**: React hook for auth state (user, login, logout). Syncs with `localStorage` keys `fitcore_token` and `fitcore_user`. `isAuthenticated()` parses the JWT payload (base64url middle segment) and compares `exp * 1000` against `Date.now()`.
 - **`pages/Dashboard.jsx`**: Main app shell — renders role-based sections (trainer vs athlete).
+- **`components/TopBar`**: Fixed 66.5px top bar (name + role + avatar, right-aligned) — entry point to the "Mi Perfil" screen.
+- **`components/BottomNav`**: Mobile (≤768px) bottom nav. Athletes get Mi Plan / Sesiones / Rutinas / Progreso / Ejercicios. Trainers get Alumnos / Rutinas / Ejercicios / Registro / Progreso. The desktop sidebar is hidden on mobile for both roles.
+- **`pages/Profile` ("Mi Perfil")**: View/edit name, email and avatar (curated 24-emoji grid). Includes a `Preferencias` card with the theme toggle and logout button (previously in the sidebar footer).
 - **`components/Modals/`**: CRUD modals for routines, sessions, exercises.
 
 ### Database Schema (`database/schema.sql`)
@@ -79,11 +85,16 @@ Two roles: `trainer` and `athlete`.
 - Trainers can create/edit exercises, create routines for athletes, view all athletes.
 - Athletes can log sessions, view assigned planifications, create own routines.
 
-Demo credentials (from `database/seed.sql`):
-- `trainer@fitcore.com` / `123456`
-- `nacho@fitcore.com` / `123456`
+Demo / testing credentials (from `database/seed.sql`):
 
-The auth token is base64 JSON (not HMAC-signed). For production, replace `auth.service.js` with JWT + a secret key.
+| Role    | Email                      | Password | Notes        |
+|---------|----------------------------|----------|--------------|
+| Trainer | `trainer@fitcore.com`      | `123456` | Demo trainer |
+| Athlete | `nacho@fitcore.com`        | `123456` | Demo athlete |
+| Trainer | `test_trainer@fitcore.com` | `123456` | Testing only |
+| Athlete | `test_athlete@fitcore.com` | `123456` | Testing only |
+
+Auth tokens are HS256 JWTs signed with `JWT_SECRET`. The token currently embeds the full user row; trimming it to `{ id, role }` is tracked in `TODO.html` under `Mejoras a Coach` (slim-JWT cleanup).
 
 ## Adding New Features
 
