@@ -1,0 +1,4 @@
+id,name,muscle,type,description,built_in
+press-banca,Press de Banca,pecho,fuerza,Ejercicio compuesto para el pecho con barra o mancuernas.,true
+sentadilla,Sentadilla,piernas,fuerza,El rey de los ejercicios de piernas.,true
+correr,Correr,piernas,cardio,Cardio de bajo a alto impacto.,true
