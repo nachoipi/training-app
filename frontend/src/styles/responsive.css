@@ -1,3 +1,8 @@
+/* Viewport-gated layout swaps. .mobile-only renders the mobile variant of a
+   component on ≤768px viewports, .desktop-only on larger ones. */
+.mobile-only { display: none; }
+.desktop-only { display: block; }
+
 @media (max-width: 768px) {
     /* Hide the desktop sidebar for both roles on mobile — replaced by
        <BottomNav> (nav) + <TopAvatar> (profile entry point). */
@@ -11,4 +16,7 @@
     .section-title { font-size: 1.8rem; }
     .exercise-row { grid-template-columns: 1fr 52px 52px 34px; }
     .modal { border-radius: var(--radius); }
+
+    .mobile-only { display: block; }
+    .desktop-only { display: none; }
 }

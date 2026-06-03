@@ -92,6 +92,7 @@ Workflow order: **start-task → investigate → plan → testing → commit →
 ## Changelog
 
 ### 2026-06-03
+- **Athlete Mi Plan (mobile)**: Replaced the horizontal weeks-grid (which collapsed into 4 cramped columns on phones) with a vertical Plan → Semana N → Día N → Exercise stack. Block headers dropped on mobile; a dashed separator now marks block boundaries (intra-block exercises sit flush). Completed days are colorized by RPE using the same palette as the trainer view. Desktop layout is unchanged — gated via new `.mobile-only` / `.desktop-only` helpers in `responsive.css`.
 - **Database**: `seed.sql` now seeds **test users only** (`test_trainer@`, `test_athlete@`). Removed the two demo users (`trainer@fitcore.com`, `nacho@fitcore.com`) and all 18 hardcoded exercises — local DBs start empty so we can build up real data through the app and an importer.
 - **Exercises importer (scaffold)**: New `database/migrations/exercises/` folder with `README.md` locking the CSV/XLS column spec (`id, name, muscle, type, description, built_in`), planned importer behavior (validate → upsert idempotent), and `exercises.sample.csv` as a starter file. Script itself lands in a follow-up task.
 - **Login**: `DEMO_HINTS` now exposes both a Demo row (realistic, not seeded — register through the app) and a Test row (seeded) per role, each with its own Autocompletar link.

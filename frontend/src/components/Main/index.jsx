@@ -85,7 +85,7 @@ export function Main({
                 />
             )}
             {activeSection === 'my-plan' && (
-                <AthleteMyPlan planifications={planifications} />
+                <AthleteMyPlan planifications={planifications} sessionLogs={sessionLogs} />
             )}
             {activeSection === 'my-sessions' && (
                 <AthleteMySessions planifications={planifications} sessionLogs={sessionLogs} onOpenSession={onOpenSession} />
