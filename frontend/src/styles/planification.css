@@ -351,8 +351,18 @@
     padding: 4px 12px; border-radius: 20px;
 }
 
+/* Header checkmark replacing the "Completada" text badge once the session is done */
+.session-completed-check {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px;
+    background: var(--green-bg); color: var(--green);
+    border-radius: 50%;
+    font-size: 1rem; font-weight: 800;
+    flex-shrink: 0;
+}
+
 .session-window-body {
-    flex: 1; min-height: 0; overflow-y: auto; padding: 28px;
+    flex: 1; min-height: 0; overflow-y: auto; padding: 6px;
     width: 100%; box-sizing: border-box;
 }
 
@@ -441,8 +451,8 @@
 }
 
 .session-serie-exercise-name {
-    font-size: 0.82rem;
-    font-weight: 600;
+    font-size: 1.05rem;
+    font-weight: 700;
     color: var(--text-primary);
 }
 
@@ -465,8 +475,8 @@
 }
 
 .session-serie-exercise-link {
-    font-size: 0.82rem;
-    font-weight: 600;
+    font-size: 1.05rem;
+    font-weight: 700;
     color: var(--accent);
     text-decoration: none;
     transition: opacity var(--transition);
@@ -474,7 +484,7 @@
 .session-serie-exercise-link:hover { opacity: 0.75; text-decoration: underline; }
 
 .session-serie-exercise-prescription {
-    font-size: 0.72rem;
+    font-size: 0.9rem;
     color: var(--text-muted);
 }
 
@@ -520,6 +530,216 @@
     cursor: pointer;
     accent-color: var(--accent);
     margin-top: 4px;
+}
+
+/* Exercise card (per-serie): full-width name row, media+inputs middle row, full-width trainer comment */
+.session-serie-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.02);
+}
+
+.session-serie-card-middle {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+}
+
+.session-serie-card-inputs {
+    flex: 1; min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+}
+
+.session-serie-card + .session-serie-card {
+    margin-top: 8px;
+}
+
+.session-serie-card-media {
+    flex-shrink: 0;
+    width: 96px; height: 96px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    position: relative;
+    text-decoration: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+    transition: border-color var(--transition), transform var(--transition);
+}
+.session-serie-card-media:hover { border-color: var(--accent); transform: translateY(-1px); }
+
+.session-serie-card-media-icon {
+    background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+}
+.session-serie-card-media-icon-img {
+    width: 64%; height: 64%;
+    object-fit: contain;
+    opacity: 0.9;
+}
+
+.session-serie-card-media-img {
+    width: 100%; height: 100%; object-fit: cover;
+}
+
+.session-serie-card-media-play {
+    position: absolute;
+    bottom: 4px; right: 6px;
+    font-size: 0.85rem;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+}
+
+.session-serie-card-media-link {
+    flex-direction: column;
+    gap: 4px;
+}
+.session-serie-card-media-link .session-serie-card-media-play {
+    position: static;
+    font-size: 1.4rem;
+    color: var(--accent);
+    text-shadow: none;
+}
+
+.session-serie-card-media-3d {
+    flex-direction: column;
+    gap: 4px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+}
+.session-serie-card-media-3d-cube {
+    font-size: 1.8rem;
+    color: var(--accent);
+    line-height: 1;
+}
+.session-serie-card-media-label {
+    font-family: var(--font-display);
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+}
+
+.session-serie-card-name-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.session-serie-card-name-block {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+}
+
+.session-serie-card-done {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.session-serie-card-input-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.session-serie-card-input-row .session-exercise-input-label {
+    flex: 1; min-width: 0;
+}
+
+.session-serie-card-trainer-comment {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    background: rgba(255,255,255,0.03);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    padding: 6px 10px;
+    line-height: 1.4;
+}
+
+@media (max-width: 480px) {
+    .session-serie-card-media { width: 76px; height: 76px; }
+}
+
+/* Exercise detail modal — opens when athlete taps the media tile */
+.exercise-detail-modal { max-width: 560px; }
+/* Narrower modal when the video is a YouTube Short (9:16) so the player
+   doesn't have huge black bars on either side. */
+.exercise-detail-modal--short { max-width: 380px; }
+
+.exercise-detail-video {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+.exercise-detail-video--short {
+    aspect-ratio: 9 / 16;
+    max-width: 320px;
+    margin: 0 auto;
+}
+.exercise-detail-video iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+}
+
+.exercise-detail-link-row {
+    display: flex; justify-content: center; padding: 20px 0;
+}
+
+.exercise-detail-model-image {
+    width: 100%;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: var(--bg-deep);
+    display: flex; align-items: center; justify-content: center;
+}
+.exercise-detail-model-image img {
+    width: 100%; height: auto; display: block;
+    max-height: 360px; object-fit: contain;
+}
+
+.exercise-detail-3d-placeholder {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px;
+    padding: 40px 20px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+}
+.exercise-detail-3d-cube {
+    font-size: 3rem; color: var(--accent); line-height: 1;
+}
+.exercise-detail-3d-label {
+    font-family: var(--font-display);
+    font-size: 0.75rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--text-muted);
+}
+
+.exercise-detail-comment {
+    margin-top: 16px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    background: rgba(255,255,255,0.03);
+    border-left: 2px solid var(--accent);
+    padding: 8px 12px;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    line-height: 1.5;
 }
 
 /* RPE exercise row colors */

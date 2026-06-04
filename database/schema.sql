@@ -19,18 +19,30 @@ CREATE TABLE users (
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
+-- Exercise catalog. Muscle tagging is now an array (primary/secondary) instead
+-- of the single VARCHAR `muscle` column the table originally had — see
+-- database/migrations/2026-06-04_extend_exercises.sql for the live-DB path.
 CREATE TABLE exercises (
-    id          VARCHAR(32)  PRIMARY KEY,
-    name        VARCHAR(120) NOT NULL,
-    muscle      VARCHAR(40)  NOT NULL,
-    type        VARCHAR(40)  NOT NULL,
-    description TEXT,
-    built_in    BOOLEAN      NOT NULL DEFAULT false,
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+    id                VARCHAR(32)  PRIMARY KEY,
+    name              VARCHAR(120) NOT NULL,
+    second_name       VARCHAR(120),
+    type              VARCHAR(40)  NOT NULL,
+    equipment         VARCHAR(40),
+    primary_muscles   TEXT[]       NOT NULL DEFAULT '{}',
+    secondary_muscles TEXT[]       NOT NULL DEFAULT '{}',
+    icon_url          VARCHAR(500),
+    video_url         VARCHAR(500),
+    model_image_url   VARCHAR(500),
+    description       TEXT,
+    built_in          BOOLEAN      NOT NULL DEFAULT false,
+    created_at        TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_exercises_muscle ON exercises (muscle);
-CREATE INDEX idx_exercises_type   ON exercises (type);
+CREATE INDEX idx_exercises_type ON exercises (type);
+-- GIN indexes let us filter exercises by primary/secondary muscle with
+-- `WHERE primary_muscles @> ARRAY['piernas']` in O(log n).
+CREATE INDEX idx_exercises_primary_muscles   ON exercises USING GIN (primary_muscles);
+CREATE INDEX idx_exercises_secondary_muscles ON exercises USING GIN (secondary_muscles);
 
 CREATE TABLE routines (
     id          VARCHAR(32)  PRIMARY KEY,
