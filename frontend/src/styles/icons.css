@@ -1,0 +1,17 @@
+/* Inline UI icons. Rendered by components/Icon — see its registry for the
+   shape catalogue. Use currentColor by default so active-state, theme, and
+   accent overrides all flow through automatically. */
+.icon {
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+/* Toast: align the leading status icon with the message text */
+.toast {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.toast-icon { flex-shrink: 0; }
+.toast-message { line-height: 1.3; }

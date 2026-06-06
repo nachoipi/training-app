@@ -8,6 +8,13 @@ function makeExercise(blockLabel, position) {
         position: `${blockLabel}${position}`,
         exerciseId: '',
         exerciseName: '',
+        secondName: '',
+        equipment: '',
+        primaryMuscles: [],
+        secondaryMuscles: [],
+        iconUrl: '',
+        videoUrl: '',
+        modelImageUrl: '',
         video: '',
         series: '',
         reps: '',
@@ -164,9 +171,19 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
                             exercises: b.exercises.map((e, ei) => {
                                 if (ei !== exIdx) return e;
                                 const updated = { ...e, [field]: value };
+                                // When the trainer picks an exercise, snapshot the catalog
+                                // metadata onto the planification so the athlete view can
+                                // render it offline (after the catalog row may have changed).
                                 if (field === 'exerciseId') {
                                     const found = exercises.find(ex => ex.id === value);
-                                    updated.exerciseName = found ? found.name : '';
+                                    updated.exerciseName     = found ? found.name : '';
+                                    updated.secondName       = found ? (found.secondName || '') : '';
+                                    updated.equipment        = found ? (found.equipment || '') : '';
+                                    updated.primaryMuscles   = found ? (found.primaryMuscles || []) : [];
+                                    updated.secondaryMuscles = found ? (found.secondaryMuscles || []) : [];
+                                    updated.iconUrl          = found ? (found.iconUrl || '') : '';
+                                    updated.videoUrl         = found ? (found.videoUrl || '') : '';
+                                    updated.modelImageUrl    = found ? (found.modelImageUrl || '') : '';
                                 }
                                 return updated;
                             }),

@@ -1,13 +1,190 @@
+// Athlete-side session execution view. Opened from AthleteMySessions when the
+// athlete taps "Realizar Sesión" / "Ver Sesión" (Dashboard sets section to
+// 'my-session'). Renders blocks → series → per-exercise cards with media tile,
+// reps/carga steppers, done checkbox and the trainer's prescription comment.
+// Per-exercise RPE + athlete comment stay in the block footer. Persists via
+// onSave({ ...log }) provided by Dashboard.
 import React, { useState, useEffect } from 'react';
 import { uid, formatCarga } from '../../utils/helpers.js';
+import { MUSCLE_LABELS, EQUIPMENT_LABELS } from '../../utils/constants.js';
+import { Icon } from '../Icon/index.jsx';
 
 const RPE_CLASSES = { '1': 'session-rpe-1', '2': 'session-rpe-2', '3': 'session-rpe-3', '4': 'session-rpe-4' };
+
+// Extracts a YouTube video id from common URL shapes (watch?v=, youtu.be/, embed/).
+// Returns null when the URL is not YouTube — caller then falls back to a
+// generic play tile so unknown hosts don't break with a 404 image.
+function extractYouTubeId(url) {
+    if (!url) return null;
+    const patterns = [
+        /[?&]v=([a-zA-Z0-9_-]{11})/,
+        /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+        /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+        /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+    ];
+    for (const p of patterns) {
+        const m = url.match(p);
+        if (m) return m[1];
+    }
+    return null;
+}
+
+// Shorts render vertically (9:16) so the detail modal switches to a portrait
+// embed when the source URL is /shorts/<id>. Regular embeds stay 16:9.
+function isYouTubeShort(url) {
+    return !!(url && /youtube\.com\/shorts\//.test(url));
+}
+
+const GENERIC_EXERCISE_ICON = '/icons/exercise-generic.svg';
+
+// Media tile rendered to the left of each exercise card. Always a button:
+// clicking it opens ExerciseDetailModal, regardless of whether a video exists.
+// Preview image preference: YouTube thumbnail → ex.iconUrl (DB, future phase) →
+// generic dumbbell SVG fallback under frontend/public/icons/.
+// Per-planification `ex.video` (trainer override) wins over the catalog
+// `ex.videoUrl` snapshot. resolveVideo centralizes that so the tile preview
+// and the detail modal stay in sync.
+function resolveVideo(ex) {
+    return (ex.video && ex.video.trim()) || (ex.videoUrl && ex.videoUrl.trim()) || '';
+}
+
+function ExerciseMediaThumb({ ex, onOpen }) {
+    const video = resolveVideo(ex);
+    const ytId = extractYouTubeId(video);
+    // Preview preference: YouTube thumb → per-exercise icon → generic SVG.
+    const previewSrc = ytId
+        ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
+        : (ex.iconUrl || GENERIC_EXERCISE_ICON);
+    const isPhotoLike = !!ytId;
+
+    return (
+        <button
+            type="button"
+            className={`session-serie-card-media ${isPhotoLike ? '' : 'session-serie-card-media-icon'}`}
+            onClick={onOpen}
+            aria-label={`Ver detalle de ${ex.exerciseName || 'ejercicio'}`}
+        >
+            <img
+                src={previewSrc}
+                alt={ex.exerciseName || 'Ejercicio'}
+                className={isPhotoLike ? 'session-serie-card-media-img' : 'session-serie-card-media-icon-img'}
+            />
+            {isPhotoLike && <span className="session-serie-card-media-play"><Icon name="play-circle" size={20} /></span>}
+        </button>
+    );
+}
+
+// Modal opened when the athlete taps an exercise tile. Shows the trainer's
+// video when present (embedded YouTube iframe for YT URLs; "Abrir video" link
+// for arbitrary URLs we can't safely embed) and falls back to a "3D animation
+// coming soon" placeholder otherwise.
+function ExerciseDetailModal({ exercise, onClose }) {
+    if (!exercise) return null;
+    const video = resolveVideo(exercise);
+    const ytId = extractYouTubeId(video);
+    const isShort = isYouTubeShort(video);
+    const hasOtherVideo = video && !ytId;
+    const modelImage = (exercise.modelImageUrl || '').trim();
+    const primary = exercise.primaryMuscles || [];
+    const secondary = exercise.secondaryMuscles || [];
+    const equipmentLabel = exercise.equipment ? (EQUIPMENT_LABELS[exercise.equipment] || exercise.equipment) : null;
+
+    function handleOverlayClick(e) {
+        if (e.target === e.currentTarget) onClose();
+    }
+
+    return (
+        <div className="modal-overlay open" onClick={handleOverlayClick}>
+            <div className={`modal exercise-detail-modal ${isShort ? 'exercise-detail-modal--short' : ''}`}>
+                <div className="modal-header">
+                    <div>
+                        <h2>{exercise.exerciseName || 'Ejercicio'}</h2>
+                        {exercise.secondName && (
+                            <div className="exercise-detail-second-name">{exercise.secondName}</div>
+                        )}
+                    </div>
+                    <button className="modal-close" onClick={onClose} aria-label="Cerrar"><Icon name="close" size={18} /></button>
+                </div>
+                <div className="modal-body">
+                    {ytId && (
+                        <div className={`exercise-detail-video ${isShort ? 'exercise-detail-video--short' : ''}`}>
+                            <iframe
+                                src={`https://www.youtube.com/embed/${ytId}`}
+                                title={exercise.exerciseName || 'Ejercicio'}
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            />
+                        </div>
+                    )}
+                    {hasOtherVideo && (
+                        <div className="exercise-detail-link-row">
+                            <a className="btn btn-primary btn-sm" href={video} target="_blank" rel="noreferrer">
+                                Abrir video
+                            </a>
+                        </div>
+                    )}
+                    {!video && modelImage && (
+                        <div className="exercise-detail-model-image">
+                            <img src={modelImage} alt={exercise.exerciseName || 'Modelo 3D del ejercicio'} />
+                        </div>
+                    )}
+                    {!video && !modelImage && (
+                        <div className="exercise-detail-3d-placeholder">
+                            <span className="exercise-detail-3d-cube"><Icon name="cube-3d" size={48} /></span>
+                            <span className="exercise-detail-3d-label">Animación 3D — próximamente</span>
+                        </div>
+                    )}
+
+                    {exercise.comentario && (
+                        <p className="exercise-detail-comment">{exercise.comentario}</p>
+                    )}
+
+                    {(equipmentLabel || primary.length > 0 || secondary.length > 0) && (
+                        <div className="exercise-detail-meta">
+                            {equipmentLabel && (
+                                <div className="exercise-detail-meta-row">
+                                    <span className="exercise-detail-meta-label">Equipamiento</span>
+                                    <span className="exercise-detail-meta-value">{equipmentLabel}</span>
+                                </div>
+                            )}
+                            {primary.length > 0 && (
+                                <div className="exercise-detail-meta-row">
+                                    <span className="exercise-detail-meta-label">Primarios</span>
+                                    <div className="muscle-badge-group">
+                                        {primary.map(m => (
+                                            <span key={`p-${m}`} className={`muscle-badge muscle-${m}`}>{MUSCLE_LABELS[m] || m}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {secondary.length > 0 && (
+                                <div className="exercise-detail-meta-row">
+                                    <span className="exercise-detail-meta-label">Secundarios</span>
+                                    <div className="muscle-badge-group">
+                                        {secondary.map(m => (
+                                            <span key={`s-${m}`} className={`muscle-badge muscle-badge--secondary muscle-${m}`}>{MUSCLE_LABELS[m] || m}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, onShowToast }) {
     const [exerciseData, setExerciseData] = useState({});
     const [exerciseSummary, setExerciseSummary] = useState({});
     const [completed, setCompleted] = useState(false);
+    const [detailExercise, setDetailExercise] = useState(null);
 
+    // Hydrate local state from sessionLog when opening the screen.
+    // hasNewFormat distinguishes per-serie logs (current shape) from legacy
+    // per-exercise logs so older sessions still load without crashing.
     useEffect(() => {
         const map = {};
         const summary = {};
@@ -103,6 +280,11 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
         };
     }
 
+    // Invariants the trainer relies on for progress tracking:
+    //   - every serie must be flagged done before the session can be saved
+    //   - every exercise must have an RPE so the trainer sees subjective load
+    // Toast-based rather than form-validation so the athlete is guided to the
+    // exact serie/exercise blocking the save.
     function validate() {
         for (const block of day.blocks) {
             for (const ex of block.exercises) {
@@ -131,9 +313,13 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
             <div className="session-window-header">
                 <button className="btn btn-secondary btn-sm" onClick={onBack}>← Volver</button>
                 <span className="session-window-title">
-                    Sesión de Entrenamiento — Semana {week} — Día {day.dayNumber}
+                    {plan.name} — Semana {week} — Día {day.dayNumber}
                 </span>
-                {completed && <span className="session-completed-badge">Completada</span>}
+                {completed && (
+                    <span className="session-completed-check" title="Sesión completada" aria-label="Sesión completada">
+                        <Icon name="check" size={18} />
+                    </span>
+                )}
             </div>
 
             <div className="session-window-body">
@@ -177,55 +363,69 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                                                 const repsArr = ex.reps ? String(ex.reps).split(',') : [];
                                                 const repForSerie = (repsArr[serieNum - 1] ?? repsArr[0] ?? ex.reps ?? '').trim();
                                                 const rpeClass = RPE_CLASSES[exerciseSummary[ex.position]?.rpe] || '';
+                                                const trainerComment = (ex.comentario || '').trim();
 
                                                 return (
-                                                    <div key={ex.position} className={`session-serie-exercise-row ${rpeClass}`}>
-                                                        <div className="session-serie-exercise-name-row">
-                                                            {ex.video
-                                                                ? <a href={ex.video} target="_blank" rel="noreferrer" className="session-serie-exercise-link">{ex.exerciseName || '—'}</a>
-                                                                : <span className="session-serie-exercise-name">{ex.exerciseName || '—'}</span>
-                                                            }
-                                                            <span className="session-serie-exercise-prescription">
-                                                                ({repForSerie} reps{formatCarga(ex) !== '—' ? ` · ${formatCarga(ex)}` : ''})
-                                                            </span>
-                                                        </div>
-                                                        <div className="session-serie-inputs">
-                                                            <div className="session-exercise-input-group">
-                                                                <span className="session-exercise-input-label">Reps realizadas</span>
-                                                                <div className="session-stepper">
-                                                                    <button className="session-stepper-btn" onClick={() => step(ex.position, serieNum, 'actualReps', -1)}>−</button>
-                                                                    <input
-                                                                        className="session-exercise-input session-stepper-input"
-                                                                        value={data.actualReps ?? ''}
-                                                                        onChange={e => updateField(ex.position, serieNum, 'actualReps', e.target.value)}
-                                                                        placeholder={repForSerie || '—'}
-                                                                    />
-                                                                    <button className="session-stepper-btn" onClick={() => step(ex.position, serieNum, 'actualReps', 1)}>+</button>
-                                                                </div>
+                                                    <div key={ex.position} className={`session-serie-card ${rpeClass}`}>
+                                                        <div className="session-serie-card-name-row">
+                                                            <div className="session-serie-card-name-block">
+                                                                {ex.video
+                                                                    ? <a href={ex.video} target="_blank" rel="noreferrer" className="session-serie-exercise-link">{ex.exerciseName || '—'}</a>
+                                                                    : <span className="session-serie-exercise-name">{ex.exerciseName || '—'}</span>
+                                                                }
+                                                                <span className="session-serie-exercise-prescription">
+                                                                    ({repForSerie} reps{formatCarga(ex) !== '—' ? ` · ${formatCarga(ex)}` : ''})
+                                                                </span>
                                                             </div>
-                                                            <div className="session-exercise-input-group">
-                                                                <span className="session-exercise-input-label">Carga utilizada</span>
-                                                                <div className="session-stepper">
-                                                                    <button className="session-stepper-btn" onClick={() => step(ex.position, serieNum, 'actualCarga', -1)}>−</button>
-                                                                    <input
-                                                                        className="session-exercise-input session-stepper-input"
-                                                                        value={data.actualCarga ?? ''}
-                                                                        onChange={e => updateField(ex.position, serieNum, 'actualCarga', e.target.value)}
-                                                                        placeholder={ex.carga || '—'}
-                                                                    />
-                                                                    <button className="session-stepper-btn" onClick={() => step(ex.position, serieNum, 'actualCarga', 1)}>+</button>
-                                                                </div>
-                                                            </div>
-                                                            <div className="session-exercise-input-group session-done-group">
-                                                                <span className="session-exercise-input-label">Hecho</span>
+                                                            <label className="session-serie-card-done" title="Hecho">
                                                                 <input
                                                                     type="checkbox"
                                                                     className="session-done-check"
                                                                     checked={data.done ?? false}
                                                                     onChange={e => updateField(ex.position, serieNum, 'done', e.target.checked)}
                                                                 />
+                                                            </label>
+                                                        </div>
+
+                                                        <div className="session-serie-card-middle">
+                                                            <ExerciseMediaThumb ex={ex} onOpen={() => setDetailExercise(ex)} />
+
+                                                            <div className="session-serie-card-inputs">
+                                                                <div className="session-serie-card-input-row">
+                                                                    <span className="session-exercise-input-label">Reps realizadas</span>
+                                                                    <div className="session-stepper">
+                                                                        <button className="session-stepper-btn" onClick={() => step(ex.position, serieNum, 'actualReps', -1)}>−</button>
+                                                                        <input
+                                                                            className="session-exercise-input session-stepper-input"
+                                                                            value={data.actualReps ?? ''}
+                                                                            onChange={e => updateField(ex.position, serieNum, 'actualReps', e.target.value)}
+                                                                            placeholder={repForSerie || '—'}
+                                                                        />
+                                                                        <button className="session-stepper-btn" onClick={() => step(ex.position, serieNum, 'actualReps', 1)}>+</button>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="session-serie-card-input-row">
+                                                                    <span className="session-exercise-input-label">Carga utilizada</span>
+                                                                    <div className="session-stepper">
+                                                                        <button className="session-stepper-btn" onClick={() => step(ex.position, serieNum, 'actualCarga', -1)}>−</button>
+                                                                        <input
+                                                                            className="session-exercise-input session-stepper-input"
+                                                                            value={data.actualCarga ?? ''}
+                                                                            onChange={e => updateField(ex.position, serieNum, 'actualCarga', e.target.value)}
+                                                                            placeholder={ex.carga || '—'}
+                                                                        />
+                                                                        <button className="session-stepper-btn" onClick={() => step(ex.position, serieNum, 'actualCarga', 1)}>+</button>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
+
+                                                        {trainerComment && (
+                                                            <div className="session-serie-card-trainer-comment" title="Comentario del entrenador">
+                                                                {trainerComment}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
                                             })}
@@ -233,7 +433,7 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                                 );
                             })}
 
-                            {/* Block footer: comment + RPE per exercise */}
+                            {/* Block footer: athlete's per-exercise comment + RPE */}
                             <div className="session-block-footer">
                                 {block.exercises.map(ex => (
                                     <div key={ex.position} className="session-block-footer-row">
@@ -279,6 +479,10 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                     Guardar
                 </button>
             </div>
+
+            {detailExercise && (
+                <ExerciseDetailModal exercise={detailExercise} onClose={() => setDetailExercise(null)} />
+            )}
         </div>
     );
 }

@@ -64,5 +64,40 @@
 .muscle-brazos   { background: rgba(192,132,252,0.15); color: #c084fc; }
 .muscle-core     { background: rgba(251,191,36,0.15);  color: #fbbf24; }
 
-.exercise-type-tag { font-size: 0.73rem; color: var(--text-muted); margin-top: 4px; }
+.exercise-type-tag { font-size: 0.73rem; color: var(--text-muted); }
+.exercise-equipment-tag { font-size: 0.73rem; color: var(--text-muted); margin-left: 10px; }
+.exercise-card-meta { display: flex; align-items: center; margin-top: 6px; flex-wrap: wrap; }
 .exercise-desc { font-size: 0.76rem; color: var(--text-muted); margin-top: 8px; line-height: 1.5; }
+
+.exercise-card-actions { display: flex; gap: 8px; margin-top: 10px; }
+.exercise-card-name-block { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.exercise-card-second-name {
+    font-size: 0.78rem; color: var(--text-muted); font-style: italic;
+    text-transform: none; letter-spacing: 0;
+}
+
+.muscle-badge-group { display: flex; flex-wrap: wrap; gap: 4px; }
+.muscle-badge-group--secondary { margin-top: 6px; }
+.muscle-badge--secondary { opacity: 0.7; font-weight: 500; }
+
+.muscle-chip-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.muscle-chip-group .chip[disabled] { opacity: 0.35; cursor: not-allowed; }
+
+.exercise-detail-second-name {
+    font-size: 0.85rem; color: var(--text-muted); font-style: italic;
+    margin-top: 2px; letter-spacing: 0; text-transform: none;
+}
+.exercise-detail-meta {
+    display: flex; flex-direction: column; gap: 8px;
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+.exercise-detail-meta-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.exercise-detail-meta-label {
+    font-family: var(--font-display);
+    font-size: 0.65rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-muted);
+    min-width: 90px;
+}
+.exercise-detail-meta-value { font-size: 0.85rem; color: var(--text-secondary); }

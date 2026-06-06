@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { uid } from '../../utils/helpers.js';
-import { INTENSITY_LABELS, DAYS } from '../../utils/constants.js';
+import { INTENSITY_LABELS, DAYS, MUSCLE_OPTIONS, EQUIPMENT_OPTIONS } from '../../utils/constants.js';
+import { Icon } from '../Icon/index.jsx';
 
 export function ModalRoutine({ open, editing, exercises, onClose, onSave }) {
     const [name, setName]     = useState('');
@@ -50,7 +51,7 @@ export function ModalRoutine({ open, editing, exercises, onClose, onSave }) {
             <div className="modal">
                 <div className="modal-header">
                     <h2>{editing ? 'Editar Rutina' : 'Nueva Rutina'}</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <button className="modal-close" onClick={onClose} aria-label="Cerrar"><Icon name="close" size={18} /></button>
                 </div>
                 <div className="modal-body">
                     <div className="form-group">
@@ -107,7 +108,7 @@ export function ModalRoutine({ open, editing, exercises, onClose, onSave }) {
                                         value={row.reps}
                                         onChange={e => updateRow(i, 'reps', e.target.value)}
                                     />
-                                    <button type="button" className="btn-remove-ex" onClick={() => removeRow(i)}>✕</button>
+                                    <button type="button" className="btn-remove-ex" onClick={() => removeRow(i)} aria-label="Quitar"><Icon name="close" size={14} /></button>
                                 </div>
                             ))}
                         </div>
@@ -133,7 +134,7 @@ export function ModalRoutineDetail({ open, routine, onClose, onEdit, onDelete })
             <div className="modal modal-large">
                 <div className="modal-header">
                     <h2>{routine.name}</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <button className="modal-close" onClick={onClose} aria-label="Cerrar"><Icon name="close" size={18} /></button>
                 </div>
                 <div className="modal-body">
                     {routine.days && routine.days.length > 0 && (
@@ -200,7 +201,7 @@ export function ModalSession({ open, routines, onClose, onSave }) {
             <div className="modal">
                 <div className="modal-header">
                     <h2>Registrar Sesión</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <button className="modal-close" onClick={onClose} aria-label="Cerrar"><Icon name="close" size={18} /></button>
                 </div>
                 <div className="modal-body">
                     <div className="form-group">
@@ -256,45 +257,112 @@ export function ModalSession({ open, routines, onClose, onSave }) {
     );
 }
 
-export function ModalExercise({ open, onClose, onSave }) {
-    const [name, setName]     = useState('');
-    const [muscle, setMuscle] = useState('pecho');
-    const [type, setType]     = useState('fuerza');
-    const [desc, setDesc]     = useState('');
+// Trainer-only exercise editor. Backs POST /api/exercises (create) or PUT
+// /api/exercises/:id (update, when `editing` is passed in). primaryMuscles
+// must hold at least one entry — the server enforces it but we also disable
+// Save here to make the rule visible to the trainer. secondaryMuscles,
+// equipment, secondName and iconUrl are optional.
+export function ModalExercise({ open, editing, onClose, onSave }) {
+    const [name, setName]                       = useState('');
+    const [secondName, setSecondName]           = useState('');
+    const [type, setType]                       = useState('fuerza');
+    const [equipment, setEquipment]             = useState('');
+    const [primaryMuscles, setPrimaryMuscles]   = useState([]);
+    const [secondaryMuscles, setSecondaryMuscles] = useState([]);
+    const [iconUrl, setIconUrl]                 = useState('');
+    const [videoUrl, setVideoUrl]               = useState('');
+    const [modelImageUrl, setModelImageUrl]     = useState('');
+    const [desc, setDesc]                       = useState('');
 
+    // Hydrate from `editing` when present so an existing exercise opens with
+    // its current values populated; otherwise reset to a blank create form.
     useEffect(() => {
-        if (open) { setName(''); setMuscle('pecho'); setType('fuerza'); setDesc(''); }
-    }, [open]);
+        if (!open) return;
+        if (editing) {
+            setName(editing.name || '');
+            setSecondName(editing.secondName || '');
+            setType(editing.type || 'fuerza');
+            setEquipment(editing.equipment || '');
+            setPrimaryMuscles(editing.primaryMuscles || []);
+            setSecondaryMuscles(editing.secondaryMuscles || []);
+            setIconUrl(editing.iconUrl || '');
+            setVideoUrl(editing.videoUrl || '');
+            setModelImageUrl(editing.modelImageUrl || '');
+            setDesc(editing.desc || '');
+        } else {
+            setName('');
+            setSecondName('');
+            setType('fuerza');
+            setEquipment('');
+            setPrimaryMuscles([]);
+            setSecondaryMuscles([]);
+            setIconUrl('');
+            setVideoUrl('');
+            setModelImageUrl('');
+            setDesc('');
+        }
+    }, [open, editing]);
+
+    // Toggles a muscle in a chip group. Used for both primary and secondary
+    // selectors; the secondary chip auto-removes a muscle if it's already
+    // picked as primary so the two lists stay disjoint.
+    function toggleMuscle(value, isPrimary) {
+        if (isPrimary) {
+            setPrimaryMuscles(prev => prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]);
+            setSecondaryMuscles(prev => prev.filter(v => v !== value));
+        } else {
+            if (primaryMuscles.includes(value)) return;
+            setSecondaryMuscles(prev => prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]);
+        }
+    }
+
+    const canSave = name.trim().length > 0 && primaryMuscles.length > 0;
 
     function handleSave() {
-        if (!name.trim()) { alert('Ingresá un nombre'); return; }
-        onSave({ id: uid(), name: name.trim(), muscle, type, desc: desc.trim() });
+        if (!canSave) {
+            alert('Ingresá un nombre y al menos un grupo muscular primario');
+            return;
+        }
+        // When editing, keep the existing id so the parent can route to PUT;
+        // when creating, mint a fresh client-side id (server doesn't trust it).
+        onSave({
+            id: editing ? editing.id : uid(),
+            name: name.trim(),
+            secondName: secondName.trim(),
+            type,
+            equipment: equipment || null,
+            primaryMuscles,
+            secondaryMuscles,
+            iconUrl: iconUrl.trim(),
+            videoUrl: videoUrl.trim(),
+            modelImageUrl: modelImageUrl.trim(),
+            desc: desc.trim(),
+        });
     }
 
     if (!open) return null;
 
     return (
         <div className="modal-overlay open" onClick={e => e.target === e.currentTarget && onClose()}>
-            <div className="modal">
+            <div className="modal modal-large">
                 <div className="modal-header">
-                    <h2>Nuevo Ejercicio</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <h2>{editing ? 'Editar Ejercicio' : 'Nuevo Ejercicio'}</h2>
+                    <button className="modal-close" onClick={onClose} aria-label="Cerrar"><Icon name="close" size={18} /></button>
                 </div>
                 <div className="modal-body">
                     <div className="form-group">
-                        <label className="form-label">Nombre del ejercicio</label>
+                        <label className="form-label">Nombre</label>
                         <input
-                            className="form-input" placeholder="ej: Press de banca..."
+                            className="form-input" placeholder="ej: Press de banca"
                             value={name} onChange={e => setName(e.target.value)}
                         />
                     </div>
                     <div className="form-group">
-                        <label className="form-label">Grupo muscular</label>
-                        <select className="form-input" value={muscle} onChange={e => setMuscle(e.target.value)}>
-                            {['pecho','espalda','piernas','hombros','brazos','core'].map(m => (
-                                <option key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>
-                            ))}
-                        </select>
+                        <label className="form-label">Segundo nombre (opcional)</label>
+                        <input
+                            className="form-input" placeholder="ej: Bench Press"
+                            value={secondName} onChange={e => setSecondName(e.target.value)}
+                        />
                     </div>
                     <div className="form-group">
                         <label className="form-label">Tipo</label>
@@ -303,6 +371,57 @@ export function ModalExercise({ open, onClose, onSave }) {
                             <option value="cardio">Cardio</option>
                             <option value="movilidad">Movilidad</option>
                         </select>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Equipamiento (opcional)</label>
+                        <select className="form-input" value={equipment} onChange={e => setEquipment(e.target.value)}>
+                            <option value="">— Sin especificar —</option>
+                            {EQUIPMENT_OPTIONS.map(o => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Músculos primarios</label>
+                        <div className="muscle-chip-group">
+                            {MUSCLE_OPTIONS.map(m => (
+                                <button
+                                    type="button"
+                                    key={m.value}
+                                    className={`chip ${primaryMuscles.includes(m.value) ? 'active' : ''}`}
+                                    onClick={() => toggleMuscle(m.value, true)}
+                                >
+                                    {m.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Músculos secundarios (opcional)</label>
+                        <div className="muscle-chip-group">
+                            {MUSCLE_OPTIONS.map(m => {
+                                const disabled = primaryMuscles.includes(m.value);
+                                return (
+                                    <button
+                                        type="button"
+                                        key={m.value}
+                                        disabled={disabled}
+                                        className={`chip ${secondaryMuscles.includes(m.value) ? 'active' : ''}`}
+                                        onClick={() => toggleMuscle(m.value, false)}
+                                        title={disabled ? 'Ya está marcado como primario' : ''}
+                                    >
+                                        {m.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">URL del video (opcional)</label>
+                        <input
+                            className="form-input" placeholder="https://www.youtube.com/watch?v=..."
+                            value={videoUrl} onChange={e => setVideoUrl(e.target.value)}
+                        />
                     </div>
                     <div className="form-group">
                         <label className="form-label">Descripción (opcional)</label>
@@ -314,7 +433,7 @@ export function ModalExercise({ open, onClose, onSave }) {
                 </div>
                 <div className="modal-footer">
                     <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-                    <button className="btn btn-primary" onClick={handleSave}>Guardar</button>
+                    <button className="btn btn-primary" onClick={handleSave} disabled={!canSave}>Guardar</button>
                 </div>
             </div>
         </div>

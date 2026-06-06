@@ -30,6 +30,7 @@ export function Main({
     onChangePeriod,
     onFilterChange,
     onNewExercise,
+    onEditExercise,
     onDeleteExercise,
     onShowToast,
     onOpenAthleteProfile,
@@ -81,6 +82,7 @@ export function Main({
                     muscleFilter={muscleFilter}
                     onFilterChange={onFilterChange}
                     onNewExercise={onNewExercise}
+                    onEditExercise={onEditExercise}
                     onDeleteExercise={onDeleteExercise}
                 />
             )}

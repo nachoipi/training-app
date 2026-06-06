@@ -3,13 +3,15 @@
 // user's name + role badge on the left of the avatar; clicking anywhere on
 // the strip navigates to the 'profile' section.
 import React from 'react';
+import { Icon } from '../Icon/index.jsx';
 import './TopBar.css';
 
 export function TopBar({ user, activeSection, onNavigate, sidebarCollapsed }) {
     if (!user) return null;
     const active = activeSection === 'profile';
     const initial = user.avatar || (user.name?.[0] || '?').toUpperCase();
-    const roleLabel = user.role === 'trainer' ? '⚡ Entrenador' : '💪 Atleta';
+    const roleIcon = user.role === 'trainer' ? 'bolt' : 'flex';
+    const roleText = user.role === 'trainer' ? 'Entrenador' : 'Atleta';
 
     return (
         <header
@@ -23,7 +25,7 @@ export function TopBar({ user, activeSection, onNavigate, sidebarCollapsed }) {
         >
             <div className="top-bar-identity">
                 <span className="top-bar-name">{user.name}</span>
-                <span className="top-bar-role">{roleLabel}</span>
+                <span className="top-bar-role"><Icon name={roleIcon} size={14} /> {roleText}</span>
             </div>
             <div className={`top-bar-avatar ${active ? 'active' : ''}`}>
                 {initial}

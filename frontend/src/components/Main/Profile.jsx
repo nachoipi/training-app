@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { userService } from '../../services/userService.js';
 import { setCurrentUser, setToken } from '../../services/authService.js';
+import { Icon } from '../Icon/index.jsx';
 
 // Curated emoji grid for the avatar. Matches the DB VARCHAR(8) column and
 // avoids platform-specific glyphs that an unconstrained input would allow.
@@ -67,7 +68,7 @@ export function Profile({ user, onShowToast, onProfileUpdated, theme, onToggleTh
             setCurrentUser(updated);
             setToken(token);
             onProfileUpdated(updated);
-            onShowToast('Perfil actualizado ✓');
+            onShowToast('Perfil actualizado');
             setEditing(false);
         } catch (err) {
             onShowToast(err.message || 'No se pudo actualizar el perfil.', 'error');
@@ -76,7 +77,8 @@ export function Profile({ user, onShowToast, onProfileUpdated, theme, onToggleTh
         }
     }
 
-    const roleLabel = user.role === 'trainer' ? '⚡ Entrenador' : '💪 Atleta';
+    const roleIcon = user.role === 'trainer' ? 'bolt' : 'flex';
+    const roleText = user.role === 'trainer' ? 'Entrenador' : 'Atleta';
 
     return (
         <section className="section profile-section-page">
@@ -87,7 +89,7 @@ export function Profile({ user, onShowToast, onProfileUpdated, theme, onToggleTh
                     </div>
                     <div className="profile-identity">
                         <h1 className="profile-title">{editing ? 'Editar perfil' : user.name}</h1>
-                        <span className="profile-role">{roleLabel}</span>
+                        <span className="profile-role"><Icon name={roleIcon} size={14} /> {roleText}</span>
                     </div>
                 </div>
 

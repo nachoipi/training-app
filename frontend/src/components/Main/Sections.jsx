@@ -3,6 +3,7 @@ import { formatDate, calcStreak } from '../../utils/helpers.js';
 import { StatCard, EmptyState } from '../Common/index.jsx';
 import { RoutineCard, SessionCard, ExerciseCard } from '../Cards/index.jsx';
 import { BarChart, DurationChart, Heatmap } from '../Charts/index.jsx';
+import { Icon } from '../Icon/index.jsx';
 import { DAYS } from '../../utils/constants.js';
 
 export function RoutinesSection({ routines, sessions, user, onNewRoutine, onOpenDetail }) {
@@ -31,13 +32,13 @@ export function RoutinesSection({ routines, sessions, user, onNewRoutine, onOpen
             {routines.length === 0 ? (
                 isTrainer ? (
                     <EmptyState
-                        icon="📋" title="Sin rutinas todavía"
+                        icon="clipboard" title="Sin rutinas todavía"
                         subtitle="Creá la primera rutina para tus alumnos"
                         onAction={onNewRoutine} actionLabel="+ Nueva Rutina"
                     />
                 ) : (
                     <EmptyState
-                        icon="📋" title="Aún no tenés rutinas asignadas"
+                        icon="clipboard" title="Aún no tenés rutinas asignadas"
                         subtitle="Tu entrenador te asignará un plan pronto"
                     />
                 )
@@ -79,7 +80,7 @@ export function SessionsSection({ sessions, onLogSession, onDeleteSession }) {
 
             {sorted.length === 0 ? (
                 <EmptyState
-                    icon="🏋️" title="Sin sesiones registradas"
+                    icon="barbell" title="Sin sesiones registradas"
                     subtitle="Registrá tu primer entrenamiento hoy"
                     onAction={onLogSession} actionLabel="+ Registrar Sesión"
                 />
@@ -123,7 +124,7 @@ export function ProgressSection({ sessions, progressPeriod, onChangePeriod }) {
 
             {sessions.length === 0 ? (
                 <EmptyState
-                    icon="📈" title="Sin datos de progreso"
+                    icon="chart-up" title="Sin datos de progreso"
                     subtitle="Registrá algunas sesiones para ver tus estadísticas"
                 />
             ) : (
@@ -155,15 +156,19 @@ export function ProgressSection({ sessions, progressPeriod, onChangePeriod }) {
     );
 }
 
-export function ExercisesSection({ exercises, user, muscleFilter, onFilterChange, onNewExercise, onDeleteExercise }) {
+export function ExercisesSection({ exercises, user, muscleFilter, onFilterChange, onNewExercise, onEditExercise, onDeleteExercise }) {
     const [search, setSearch] = useState('');
     const isTrainer = user && user.role === 'trainer';
     const muscles = ['all', 'pecho', 'espalda', 'piernas', 'hombros', 'brazos', 'core'];
     const muscleLabels = { all: 'Todos', pecho: 'Pecho', espalda: 'Espalda', piernas: 'Piernas', hombros: 'Hombros', brazos: 'Brazos', core: 'Core' };
 
+    // Matches the chip against either primary or secondary muscles so a chest
+    // exercise that also targets shoulders shows up under the Hombros chip.
     const filtered = exercises.filter(e => {
-        const matchMuscle = muscleFilter === 'all' || e.muscle === muscleFilter;
-        const matchSearch = !search || e.name.toLowerCase().includes(search.toLowerCase()) || (e.desc || '').toLowerCase().includes(search.toLowerCase());
+        const tags = [...(e.primaryMuscles || []), ...(e.secondaryMuscles || [])];
+        const matchMuscle = muscleFilter === 'all' || tags.includes(muscleFilter);
+        const haystack = `${e.name} ${e.secondName || ''} ${e.desc || ''}`.toLowerCase();
+        const matchSearch = !search || haystack.includes(search.toLowerCase());
         return matchMuscle && matchSearch;
     });
 
@@ -181,7 +186,7 @@ export function ExercisesSection({ exercises, user, muscleFilter, onFilterChange
 
             <div className="search-filter-row">
                 <div className="search-box">
-                    <span className="search-icon">🔍</span>
+                    <span className="search-icon"><Icon name="search" size={16} /></span>
                     <input
                         type="text"
                         className="search-input"
@@ -204,14 +209,16 @@ export function ExercisesSection({ exercises, user, muscleFilter, onFilterChange
             </div>
 
             {filtered.length === 0 ? (
-                <EmptyState icon="🔍" title="Sin resultados" subtitle="Probá con otro filtro" />
+                <EmptyState icon="search" title="Sin resultados" subtitle="Probá con otro filtro" />
             ) : (
                 <div className="exercises-grid">
                     {filtered.map(e => (
                         <ExerciseCard
                             key={e.id}
                             exercise={e}
+                            canEdit={isTrainer && !e.builtIn}
                             canDelete={isTrainer && !e.builtIn}
+                            onEdit={onEditExercise}
                             onDelete={onDeleteExercise}
                         />
                     ))}

@@ -47,6 +47,7 @@ export default function Dashboard() {
     const [sessionModal, setSessionModal]           = useState(false);
     const [routineDetailModal, setRoutineDetailModal] = useState({ open: false, routine: null });
     const [exerciseModal, setExerciseModal]         = useState(false);
+    const [editingExercise, setEditingExercise]     = useState(null);
 
     function showToast(msg, type = 'success') {
         setToast({ msg, type, show: true });
@@ -112,11 +113,11 @@ export default function Dashboard() {
             if (routine.id) {
                 const updated = await routineService.update(routine.id, routine);
                 setRoutines(rs => rs.map(r => r.id === updated.id ? updated : r));
-                showToast('Rutina actualizada ✓');
+                showToast('Rutina actualizada');
             } else {
                 const created = await routineService.create(routine);
                 setRoutines(rs => [...rs, created]);
-                showToast('Rutina creada ✓');
+                showToast('Rutina creada');
             }
             setRoutineModal({ open: false, editing: null });
         } catch (err) { showToast(err.message, 'error'); }
@@ -137,7 +138,7 @@ export default function Dashboard() {
             const created = await sessionService.create(session);
             setSessions(ss => [...ss, created]);
             setSessionModal(false);
-            showToast('Sesión registrada ✓');
+            showToast('Sesión registrada');
         } catch (err) { showToast(err.message, 'error'); }
     }
 
@@ -149,13 +150,28 @@ export default function Dashboard() {
         } catch (err) { showToast(err.message, 'error'); }
     }
 
+    // Single handler for both create and update — branches on whether we're
+    // editing an existing row. The id baked into `exercise` is the source of
+    // truth (ModalExercise reuses editing.id when editing).
     async function handleSaveExercise(exercise) {
         try {
-            const created = await exerciseService.create(exercise);
-            setExercises(es => [...es, created]);
+            if (editingExercise) {
+                const updated = await exerciseService.update(editingExercise.id, exercise);
+                setExercises(es => es.map(e => e.id === updated.id ? updated : e));
+                showToast('Ejercicio actualizado');
+            } else {
+                const created = await exerciseService.create(exercise);
+                setExercises(es => [...es, created]);
+                showToast('Ejercicio agregado');
+            }
             setExerciseModal(false);
-            showToast('Ejercicio agregado ✓');
+            setEditingExercise(null);
         } catch (err) { showToast(err.message, 'error'); }
+    }
+
+    function handleEditExercise(exercise) {
+        setEditingExercise(exercise);
+        setExerciseModal(true);
     }
 
     async function handleDeleteExercise(id) {
@@ -191,7 +207,8 @@ export default function Dashboard() {
                 onDeleteSession={handleDeleteSession}
                 onChangePeriod={setProgressPeriod}
                 onFilterChange={setMuscleFilter}
-                onNewExercise={() => setExerciseModal(true)}
+                onNewExercise={() => { setEditingExercise(null); setExerciseModal(true); }}
+                onEditExercise={handleEditExercise}
                 onDeleteExercise={handleDeleteExercise}
                 onShowToast={showToast}
                 planifications={planifications}
@@ -212,11 +229,11 @@ export default function Dashboard() {
                         if (plan.id) {
                             const updated = await planificationService.update(plan.id, plan);
                             setPlanifications(ps => ps.map(p => p.id === updated.id ? updated : p));
-                            showToast('Planificación actualizada ✓');
+                            showToast('Planificación actualizada');
                         } else {
                             const created = await planificationService.create(plan);
                             setPlanifications(ps => [...ps, created]);
-                            showToast('Planificación guardada ✓');
+                            showToast('Planificación guardada');
                         }
                         setSelectedPlanification(null);
                         setSection('athlete-profile');
@@ -271,7 +288,8 @@ export default function Dashboard() {
             />
             <ModalExercise
                 open={exerciseModal}
-                onClose={() => setExerciseModal(false)}
+                editing={editingExercise}
+                onClose={() => { setExerciseModal(false); setEditingExercise(null); }}
                 onSave={handleSaveExercise}
             />
 

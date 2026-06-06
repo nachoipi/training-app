@@ -1,6 +1,7 @@
 import React from 'react';
 import { getDayMonth, formatDate } from '../../utils/helpers.js';
-import { INTENSITY_LABELS, TYPE_ICONS } from '../../utils/constants.js';
+import { INTENSITY_LABELS, TYPE_ICONS, MUSCLE_LABELS, EQUIPMENT_LABELS } from '../../utils/constants.js';
+import { Icon } from '../Icon/index.jsx';
 
 export function RoutineCard({ routine, onClick }) {
     return (
@@ -39,27 +40,67 @@ export function SessionCard({ session, onDelete }) {
                 )}
             </div>
             <span className={`intensity-badge intensity-${session.intensity || 2}`}>
-                {INTENSITY_LABELS[session.intensity || 2]}
+                <Icon name={INTENSITY_LABELS[session.intensity || 2].icon} size={14} /> {INTENSITY_LABELS[session.intensity || 2].label}
             </span>
-            <button className="btn-delete-session" onClick={() => onDelete(session.id)} title="Eliminar">🗑</button>
+            <button className="btn-delete-session" onClick={() => onDelete(session.id)} title="Eliminar" aria-label="Eliminar">
+                <Icon name="trash" size={16} />
+            </button>
         </div>
     );
 }
 
-export function ExerciseCard({ exercise, canDelete, onDelete }) {
+export function ExerciseCard({ exercise, canEdit, canDelete, onEdit, onDelete }) {
+    const primary = exercise.primaryMuscles || [];
+    const secondary = exercise.secondaryMuscles || [];
+    const equipmentLabel = exercise.equipment ? (EQUIPMENT_LABELS[exercise.equipment] || exercise.equipment) : null;
+
     return (
         <div className="exercise-card">
             <div className="exercise-card-top">
-                <div className="exercise-card-name">{exercise.name}</div>
-                <span className={`muscle-badge muscle-${exercise.muscle}`}>{exercise.muscle}</span>
+                <div className="exercise-card-name-block">
+                    <div className="exercise-card-name">{exercise.name}</div>
+                    {exercise.secondName && (
+                        <div className="exercise-card-second-name">{exercise.secondName}</div>
+                    )}
+                </div>
+                <div className="muscle-badge-group">
+                    {primary.map(m => (
+                        <span key={`p-${m}`} className={`muscle-badge muscle-${m}`}>{MUSCLE_LABELS[m] || m}</span>
+                    ))}
+                </div>
             </div>
-            <div className="exercise-type-tag">{TYPE_ICONS[exercise.type] || exercise.type}</div>
+            <div className="exercise-card-meta">
+                <span className="exercise-type-tag">
+                    {TYPE_ICONS[exercise.type] ? (
+                        <><Icon name={TYPE_ICONS[exercise.type].icon} size={14} /> {TYPE_ICONS[exercise.type].label}</>
+                    ) : exercise.type}
+                </span>
+                {equipmentLabel && (
+                    <span className="exercise-equipment-tag">
+                        <Icon name="wrench" size={14} /> {equipmentLabel}
+                    </span>
+                )}
+            </div>
+            {secondary.length > 0 && (
+                <div className="muscle-badge-group muscle-badge-group--secondary">
+                    {secondary.map(m => (
+                        <span key={`s-${m}`} className={`muscle-badge muscle-badge--secondary muscle-${m}`}>{MUSCLE_LABELS[m] || m}</span>
+                    ))}
+                </div>
+            )}
             {exercise.desc && <p className="exercise-desc">{exercise.desc}</p>}
-            {canDelete && (
-                <div style={{ marginTop: '10px' }}>
-                    <button className="btn btn-danger btn-sm" onClick={() => onDelete(exercise.id)}>
-                        Eliminar
-                    </button>
+            {(canEdit || canDelete) && (
+                <div className="exercise-card-actions">
+                    {canEdit && (
+                        <button className="btn btn-secondary btn-sm" onClick={() => onEdit(exercise)}>
+                            Editar
+                        </button>
+                    )}
+                    {canDelete && (
+                        <button className="btn btn-danger btn-sm" onClick={() => onDelete(exercise.id)}>
+                            Eliminar
+                        </button>
+                    )}
                 </div>
             )}
         </div>
