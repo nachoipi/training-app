@@ -1,8 +1,21 @@
 // UI enums. Domain data (exercises, athletes, routines, sessions) lives in
 // Supabase and is loaded via the API — see frontend/src/services/*.
 
-export const INTENSITY_LABELS = { 1: '😴 Suave', 2: '💪 Normal', 3: '🔥 Intenso', 4: '⚡ Extremo' };
-export const TYPE_ICONS = { fuerza: '🏋️ Fuerza', cardio: '🏃 Cardio', movilidad: '🧘 Movilidad' };
+// Intensity 1–4 used by session logging. Each entry pairs an Icon registry
+// name with the visible Spanish label so consumers can render either or both.
+export const INTENSITY_LABELS = {
+    1: { icon: 'zzz',   label: 'Suave' },
+    2: { icon: 'flex',  label: 'Normal' },
+    3: { icon: 'flame', label: 'Intenso' },
+    4: { icon: 'bolt',  label: 'Extremo' },
+};
+
+// Exercise type taxonomy. Same shape as INTENSITY_LABELS.
+export const TYPE_ICONS = {
+    fuerza:    { icon: 'barbell', label: 'Fuerza' },
+    cardio:    { icon: 'run',     label: 'Cardio' },
+    movilidad: { icon: 'stretch', label: 'Movilidad' },
+};
 export const DAYS = [
     { key: 'Lun', label: 'L' }, { key: 'Mar', label: 'M' }, { key: 'Mié', label: 'X' },
     { key: 'Jue', label: 'J' }, { key: 'Vie', label: 'V' }, { key: 'Sáb', label: 'S' },

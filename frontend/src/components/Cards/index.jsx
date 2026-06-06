@@ -1,6 +1,7 @@
 import React from 'react';
 import { getDayMonth, formatDate } from '../../utils/helpers.js';
 import { INTENSITY_LABELS, TYPE_ICONS, MUSCLE_LABELS, EQUIPMENT_LABELS } from '../../utils/constants.js';
+import { Icon } from '../Icon/index.jsx';
 
 export function RoutineCard({ routine, onClick }) {
     return (
@@ -39,9 +40,11 @@ export function SessionCard({ session, onDelete }) {
                 )}
             </div>
             <span className={`intensity-badge intensity-${session.intensity || 2}`}>
-                {INTENSITY_LABELS[session.intensity || 2]}
+                <Icon name={INTENSITY_LABELS[session.intensity || 2].icon} size={14} /> {INTENSITY_LABELS[session.intensity || 2].label}
             </span>
-            <button className="btn-delete-session" onClick={() => onDelete(session.id)} title="Eliminar">🗑</button>
+            <button className="btn-delete-session" onClick={() => onDelete(session.id)} title="Eliminar" aria-label="Eliminar">
+                <Icon name="trash" size={16} />
+            </button>
         </div>
     );
 }
@@ -67,9 +70,15 @@ export function ExerciseCard({ exercise, canEdit, canDelete, onEdit, onDelete })
                 </div>
             </div>
             <div className="exercise-card-meta">
-                <span className="exercise-type-tag">{TYPE_ICONS[exercise.type] || exercise.type}</span>
+                <span className="exercise-type-tag">
+                    {TYPE_ICONS[exercise.type] ? (
+                        <><Icon name={TYPE_ICONS[exercise.type].icon} size={14} /> {TYPE_ICONS[exercise.type].label}</>
+                    ) : exercise.type}
+                </span>
                 {equipmentLabel && (
-                    <span className="exercise-equipment-tag">🛠 {equipmentLabel}</span>
+                    <span className="exercise-equipment-tag">
+                        <Icon name="wrench" size={14} /> {equipmentLabel}
+                    </span>
                 )}
             </div>
             {secondary.length > 0 && (

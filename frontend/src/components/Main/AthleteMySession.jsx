@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { uid, formatCarga } from '../../utils/helpers.js';
 import { MUSCLE_LABELS, EQUIPMENT_LABELS } from '../../utils/constants.js';
+import { Icon } from '../Icon/index.jsx';
 
 const RPE_CLASSES = { '1': 'session-rpe-1', '2': 'session-rpe-2', '3': 'session-rpe-3', '4': 'session-rpe-4' };
 
@@ -68,7 +69,7 @@ function ExerciseMediaThumb({ ex, onOpen }) {
                 alt={ex.exerciseName || 'Ejercicio'}
                 className={isPhotoLike ? 'session-serie-card-media-img' : 'session-serie-card-media-icon-img'}
             />
-            {isPhotoLike && <span className="session-serie-card-media-play">▶</span>}
+            {isPhotoLike && <span className="session-serie-card-media-play"><Icon name="play-circle" size={20} /></span>}
         </button>
     );
 }
@@ -102,7 +103,7 @@ function ExerciseDetailModal({ exercise, onClose }) {
                             <div className="exercise-detail-second-name">{exercise.secondName}</div>
                         )}
                     </div>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <button className="modal-close" onClick={onClose} aria-label="Cerrar"><Icon name="close" size={18} /></button>
                 </div>
                 <div className="modal-body">
                     {ytId && (
@@ -130,7 +131,7 @@ function ExerciseDetailModal({ exercise, onClose }) {
                     )}
                     {!video && !modelImage && (
                         <div className="exercise-detail-3d-placeholder">
-                            <span className="exercise-detail-3d-cube">◆</span>
+                            <span className="exercise-detail-3d-cube"><Icon name="cube-3d" size={48} /></span>
                             <span className="exercise-detail-3d-label">Animación 3D — próximamente</span>
                         </div>
                     )}
@@ -315,7 +316,9 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                     {plan.name} — Semana {week} — Día {day.dayNumber}
                 </span>
                 {completed && (
-                    <span className="session-completed-check" title="Sesión completada" aria-label="Sesión completada">✓</span>
+                    <span className="session-completed-check" title="Sesión completada" aria-label="Sesión completada">
+                        <Icon name="check" size={18} />
+                    </span>
                 )}
             </div>
 

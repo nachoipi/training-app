@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { uid } from '../../utils/helpers.js';
 import { INTENSITY_LABELS, DAYS, MUSCLE_OPTIONS, EQUIPMENT_OPTIONS } from '../../utils/constants.js';
+import { Icon } from '../Icon/index.jsx';
 
 export function ModalRoutine({ open, editing, exercises, onClose, onSave }) {
     const [name, setName]     = useState('');
@@ -50,7 +51,7 @@ export function ModalRoutine({ open, editing, exercises, onClose, onSave }) {
             <div className="modal">
                 <div className="modal-header">
                     <h2>{editing ? 'Editar Rutina' : 'Nueva Rutina'}</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <button className="modal-close" onClick={onClose} aria-label="Cerrar"><Icon name="close" size={18} /></button>
                 </div>
                 <div className="modal-body">
                     <div className="form-group">
@@ -107,7 +108,7 @@ export function ModalRoutine({ open, editing, exercises, onClose, onSave }) {
                                         value={row.reps}
                                         onChange={e => updateRow(i, 'reps', e.target.value)}
                                     />
-                                    <button type="button" className="btn-remove-ex" onClick={() => removeRow(i)}>✕</button>
+                                    <button type="button" className="btn-remove-ex" onClick={() => removeRow(i)} aria-label="Quitar"><Icon name="close" size={14} /></button>
                                 </div>
                             ))}
                         </div>
@@ -133,7 +134,7 @@ export function ModalRoutineDetail({ open, routine, onClose, onEdit, onDelete })
             <div className="modal modal-large">
                 <div className="modal-header">
                     <h2>{routine.name}</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <button className="modal-close" onClick={onClose} aria-label="Cerrar"><Icon name="close" size={18} /></button>
                 </div>
                 <div className="modal-body">
                     {routine.days && routine.days.length > 0 && (
@@ -200,7 +201,7 @@ export function ModalSession({ open, routines, onClose, onSave }) {
             <div className="modal">
                 <div className="modal-header">
                     <h2>Registrar Sesión</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <button className="modal-close" onClick={onClose} aria-label="Cerrar"><Icon name="close" size={18} /></button>
                 </div>
                 <div className="modal-body">
                     <div className="form-group">
@@ -346,7 +347,7 @@ export function ModalExercise({ open, editing, onClose, onSave }) {
             <div className="modal modal-large">
                 <div className="modal-header">
                     <h2>{editing ? 'Editar Ejercicio' : 'Nuevo Ejercicio'}</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <button className="modal-close" onClick={onClose} aria-label="Cerrar"><Icon name="close" size={18} /></button>
                 </div>
                 <div className="modal-body">
                     <div className="form-group">
@@ -416,24 +417,10 @@ export function ModalExercise({ open, editing, onClose, onSave }) {
                         </div>
                     </div>
                     <div className="form-group">
-                        <label className="form-label">URL del icono (opcional)</label>
-                        <input
-                            className="form-input" placeholder="/icons/chin-up.svg o https://..."
-                            value={iconUrl} onChange={e => setIconUrl(e.target.value)}
-                        />
-                    </div>
-                    <div className="form-group">
                         <label className="form-label">URL del video (opcional)</label>
                         <input
                             className="form-input" placeholder="https://www.youtube.com/watch?v=..."
                             value={videoUrl} onChange={e => setVideoUrl(e.target.value)}
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">URL de imagen 3D / guía visual (opcional)</label>
-                        <input
-                            className="form-input" placeholder="/images/chin-up-3d.png o https://..."
-                            value={modelImageUrl} onChange={e => setModelImageUrl(e.target.value)}
                         />
                     </div>
                     <div className="form-group">
