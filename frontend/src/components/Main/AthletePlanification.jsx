@@ -15,7 +15,6 @@ function makeExercise(blockLabel, position) {
         iconUrl: '',
         videoUrl: '',
         modelImageUrl: '',
-        video: '',
         series: '',
         reps: '',
         medida: 'Reps',
@@ -322,7 +321,6 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
                             <div className="planification-exercise-header">
                                 <span></span>
                                 <span>Ejercicio</span>
-                                <span>Video</span>
                                 <span>Series</span>
                                 <span>Reps</span>
                                 <span>Medida</span>
@@ -344,13 +342,6 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
                                             <option key={e.id} value={e.id}>{e.name}</option>
                                         ))}
                                     </select>
-                                    <input
-                                        className="planification-input planification-video-input"
-                                        type="text"
-                                        placeholder="Video URL"
-                                        value={ex.video ?? ''}
-                                        onChange={e => updateExercise(weekIdx, dayIdx, blockIdx, exIdx, 'video', e.target.value)}
-                                    />
                                     <input
                                         className="planification-input planification-num-input"
                                         type="number"

@@ -101,7 +101,7 @@
 /* Exercise header */
 .planification-exercise-header {
     display: grid;
-    grid-template-columns: 36px minmax(160px, 1.3fr) 110px 60px 60px 110px 60px 180px 28px;
+    grid-template-columns: 36px minmax(160px, 1.3fr) 60px 60px 110px 60px 180px 28px;
     gap: 8px; align-items: center;
     padding: 0 0 6px 0;
     font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
@@ -111,7 +111,7 @@
 /* Exercise row */
 .planification-exercise-row {
     display: grid;
-    grid-template-columns: 36px minmax(160px, 1.3fr) 110px 60px 60px 110px 60px 180px 28px;
+    grid-template-columns: 36px minmax(160px, 1.3fr) 60px 60px 110px 60px 180px 28px;
     gap: 8px; align-items: center;
     margin-bottom: 6px;
 }
