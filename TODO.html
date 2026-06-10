@@ -102,7 +102,74 @@
 </div>
 
 <script>
+// 🎯 MISIÓN DE ESTA FASE: cerrar el loop trainer → atleta → trainer.
+//   1) Trainer crea y asigna una planificación.
+//   2) Atleta la recibe y entrena (loguea la sesión).
+//   3) Trainer recibe la sesión completada del atleta.
+//   4) Trainer ajusta (o no) sesiones futuras en base a lo que el atleta hizo.
+// Todo lo que no sirva a este loop vive en "Extras" al final.
 const DAYS = [
+  {
+    day: 'Fase 1',
+    title: 'Trainer crea y asigna planificación',
+    tag: 'feature',
+    tasks: [
+      { text: 'Flujo "Nueva planificación" desde la ficha del atleta', detail: 'Botón visible en la tarjeta/perfil del alumno que abre el editor de plan directamente asociado a ese athlete_id — hoy hay que crearla suelta y vincularla a mano.', cats: ['fe'] },
+      { text: 'Editor de planificación con días, bloques y ejercicios coherentes', detail: 'Asegurar que el editor permita: elegir semanas, agregar días, dentro de cada día agregar bloques (calentamiento / principal / accesorios) y dentro de cada bloque ejercicios con series × reps × carga objetivo y descanso.', cats: ['fe','be'] },
+      { text: 'Notas del trainer por día y por ejercicio', detail: 'Campo libre que el atleta verá al entrenar ("RIR 2", "técnica lenta en la bajada", "si te sobra energía sumá una serie").', cats: ['fe','be'] },
+      { text: 'Estado de la planificación (borrador / publicada)', detail: 'El atleta sólo ve planificaciones publicadas. Mientras el trainer arma, queda en borrador. Endpoint PATCH /api/planifications/:id/publish.', cats: ['be','db','fe'] },
+      { text: 'Confirmación de asignación + feedback al trainer', detail: 'Al publicar: toast "Plan asignado a {atleta}" y la planificación aparece en la home del atleta la próxima vez que entre.', cats: ['fe'] },
+    ]
+  },
+  {
+    day: 'Fase 2',
+    title: 'Atleta recibe el plan y entrena',
+    tag: 'feature',
+    tasks: [
+      { text: 'Home del atleta destaca el próximo entrenamiento', detail: 'Card grande con el día de hoy (o el próximo planificado): bloques, ejercicios, notas del coach, botón "Empezar entrenamiento".', cats: ['fe'] },
+      { text: 'Pantalla "Entrenar" guiada ejercicio por ejercicio', detail: 'Vista que recorre los bloques y ejercicios del día, mostrando objetivo (series × reps × carga sugerida) y permitiendo loguear lo realizado en cada serie.', cats: ['fe'] },
+      { text: 'Persistencia incremental en session_logs.payload', detail: 'Cada cambio del atleta (set completado, carga, RPE) se guarda al toque vía PATCH /api/session-logs/:id — si cierra la app vuelve donde estaba.', cats: ['be','fe'] },
+      { text: 'Cerrar sesión con comentario y RPE global', detail: 'Al terminar el día: modal "¿Cómo te fue?" con RPE 1-10, comentario libre y marca de sesión completada. Esto es lo que llega al trainer.', cats: ['fe','be'] },
+      { text: 'Indicador de progreso semanal en "Mi Plan"', detail: 'Días completados / días planificados en la semana actual, visible siempre que el atleta entra.', cats: ['fe'] },
+    ]
+  },
+  {
+    day: 'Fase 3',
+    title: 'Trainer recibe la sesión completada',
+    tag: 'feature',
+    tasks: [
+      { text: 'Feed "Sesiones recientes de mis atletas"', detail: 'Sección en el home del trainer con las últimas sesiones cerradas por sus atletas (más nuevas primero), una por tarjeta: atleta, día del plan, RPE, comentario.', cats: ['fe','be'] },
+      { text: 'Detalle de sesión completada del atleta', detail: 'Al abrir una tarjeta: ver cada ejercicio con objetivo vs realizado (series × reps × carga), RPE, comentario y notas del atleta. Comparar lado a lado plan ↔ ejecución.', cats: ['fe','be'] },
+      { text: 'Endpoint GET /api/session-logs?trainerId=me', detail: 'Backend agrega session_logs de todos los atletas del trainer, ordenados por updated_at. Necesario para el feed.', cats: ['be','db'] },
+      { text: 'Indicador "no revisado" en cada sesión nueva', detail: 'Marca visual hasta que el trainer la abre o la marca como revisada. Evita perder de vista qué falta mirar.', cats: ['fe','be','db'] },
+      { text: 'Comentario del trainer sobre la sesión del atleta', detail: 'El trainer puede dejar un comentario corto en la sesión completada; el atleta lo ve la próxima vez que entra a esa sesión / a su home.', cats: ['fe','be','db'] },
+    ]
+  },
+  {
+    day: 'Fase 4',
+    title: 'Trainer ajusta sesiones futuras (feedback loop)',
+    tag: 'feature',
+    tasks: [
+      { text: 'Editar días futuros de la planificación ya publicada', detail: 'El trainer puede modificar cargas, series o ejercicios de los días que el atleta todavía no entrenó, sin tocar el histórico.', cats: ['fe','be'] },
+      { text: 'Sugerencias automáticas en base al RPE/realizado', detail: 'Si el atleta cerró el día con RPE bajo y completó todo → sugerir subir carga la próxima vez. Si RPE alto o quedó series por hacer → sugerir mantener o bajar. El trainer acepta o ignora.', cats: ['be','fe'] },
+      { text: '"Repetir día" / "Repetir semana" desde una sesión completada', detail: 'Acción rápida en la sesión revisada para clonar la estructura del día (con o sin ajustes) en la próxima semana del plan.', cats: ['fe','be'] },
+      { text: 'Vista comparativa ejercicio por ejercicio en el tiempo', detail: 'Por cada ejercicio del plan, ver la evolución del atleta (cargas y RPE) sesión a sesión — sustento para decidir el ajuste.', cats: ['fe','be'] },
+      { text: 'Notificación al atleta cuando cambia su plan futuro', detail: 'Toast/badge la próxima vez que entra: "Tu coach ajustó el día de mañana".', cats: ['fe','be'] },
+    ]
+  },
+  {
+    day: 'Fase 5',
+    title: 'Comunicación trainer ↔ atleta',
+    tag: 'feature',
+    tasks: [
+      { text: 'Hilo de comentarios por sesión completada', detail: 'Tanto el trainer como el atleta pueden responderse sobre una sesión puntual (no es chat libre, es contextual a la sesión).', cats: ['fe','be','db'] },
+      { text: 'Badge de "comentarios sin leer" en ambos lados', detail: 'El atleta ve cuando el trainer le dejó feedback; el trainer ve cuando el atleta respondió.', cats: ['fe','be'] },
+      { text: 'Notificaciones in-app mínimas (sólo para el loop)', detail: 'Eventos: plan asignado, plan modificado, sesión completada, comentario nuevo. Nada más todavía — push y email quedan para extras.', cats: ['db','be','fe'] },
+    ]
+  },
+
+  // ─── Backlog original — sigue vigente, pero después de cerrar el loop ───
+
   {
     day: 'Día 1',
     title: 'Seguridad del Auth',
