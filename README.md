@@ -91,6 +91,10 @@ Workflow order: **start-task → investigate → plan → testing → commit →
 
 ## Changelog
 
+### 2026-06-10
+- **Database (security)**: Enabled Row-Level Security on every public table (`users`, `exercises`, `routines`, `planifications`, `sessions`, `session_logs`) to close a Supabase security advisory. The backend connects as the `postgres` superuser and bypasses RLS, so app behaviour is unchanged; the change blocks Supabase's auto-exposed PostgREST endpoint (anon/authenticated roles) from reading or writing these tables. Migration in `database/migrations/2026-06-10_enable_rls.sql`; `schema.sql` updated so fresh deploys start locked down.
+- **Workflow**: `commit` skill now requires updating both `README.md` *and* `CLAUDE.md` to reflect the change, with explicit guidance on which sections of `CLAUDE.md` (architecture, env, schema, auth, conventions) each kind of change should refresh.
+
 ### 2026-06-04
 - **Athlete session view**: Rebuilt the in-progress session screen — each serie now renders as a card with a media tile (left), reps/carga steppers (right), a full-width prescription header with the done checkbox, and a trainer-comment band below. Header title shows `{plan.name} — Semana N — Día N`; a green checkmark icon replaces the textual "Completada" badge once the session is finished.
 - **Exercise detail modal**: New modal opens when the athlete taps an exercise tile — embeds a YouTube/Shorts player (Shorts auto-flip to a 9:16 portrait layout), falls back to "Abrir video" for arbitrary URLs, then to a static model image, then to a 3D-coming-soon placeholder. Renders second name, equipment, primary/secondary muscle chips, and the trainer's prescription comment.

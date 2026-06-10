@@ -20,10 +20,14 @@ git status
 
 Make sure no unrelated files are staged.
 
-## Step 2 — Update `README.md` to reflect the change
+## Step 2 — Update `README.md` and `CLAUDE.md` to reflect the change
 
-Before staging anything, open the project `README.md` and update it so it stays in sync
-with the code that just changed. Depending on what was modified, this may mean:
+Before staging anything, open both the project `README.md` and `CLAUDE.md` and update
+them so they stay in sync with the code that just changed.
+
+### `README.md` (user-facing docs)
+
+Depending on what was modified, this may mean:
 
 - **Changelog** — add an entry under the current/next version describing the change
   (one bullet per user-visible behavior). Group by `Added` / `Changed` / `Fixed` /
@@ -38,10 +42,24 @@ with the code that just changed. Depending on what was modified, this may mean:
 - **Architecture / endpoints / schema** — refresh any sections that documented the
   area you just touched (new route, new table, new component, etc.).
 
-If the README has nothing relevant to update for this change, say so explicitly to the
-user and move on — don't invent edits.
+### `CLAUDE.md` (Claude Code project instructions)
 
-After updating the README, re-run `git status` so the README change is picked up in the
+`CLAUDE.md` is loaded into every Claude Code session as project context, so it must
+stay accurate. Update it when the change touches anything the file already documents,
+such as:
+
+- **Architecture** — new/renamed/removed routes, controllers, models, services,
+  hooks, components, or pages described in the file.
+- **Environment / setup** — new env vars, ports, scripts, or dev commands.
+- **Database schema** — table additions, JSONB columns, triggers, RLS policies,
+  cascade rules.
+- **Auth & roles** — changes to role permissions, token shape, or seeded credentials.
+- **Conventions** — new "Adding New Features" steps or proxy/build rules.
+
+If `README.md` or `CLAUDE.md` has nothing relevant to update for this change, say so
+explicitly to the user and move on — don't invent edits.
+
+After updating the docs, re-run `git status` so those changes are picked up in the
 next step.
 
 ## Step 3 — Stage the relevant files

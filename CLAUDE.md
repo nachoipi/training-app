@@ -78,6 +78,7 @@ Key tables: `users`, `exercises`, `routines`, `planifications`, `sessions`, `ses
 - `session_logs.payload` is **JSONB** (daily plan execution state).
 - `session_logs` has a DB trigger to auto-update `updated_at`.
 - Cascade deletes on user removal.
+- **Row-Level Security is enabled on every public table** (no policies attached). The backend connects as the `postgres` superuser and bypasses RLS, so app code is unaffected; the goal is to block Supabase's auto-exposed PostgREST endpoint (anon/authenticated roles) from reading or writing these tables. Any new public table must `ENABLE ROW LEVEL SECURITY` in `schema.sql`.
 
 ## Auth & Roles
 

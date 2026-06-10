@@ -104,3 +104,13 @@ CREATE TRIGGER trg_session_logs_updated_at
     BEFORE UPDATE ON session_logs
     FOR EACH ROW
     EXECUTE FUNCTION set_updated_at();
+
+-- Lock down PostgREST exposure on Supabase. The backend runs as the postgres
+-- superuser and bypasses RLS, so app behaviour is unchanged. Without policies,
+-- anon/authenticated PostgREST requests get a default deny.
+ALTER TABLE users          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE exercises      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE routines       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE planifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sessions       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE session_logs   ENABLE ROW LEVEL SECURITY;
