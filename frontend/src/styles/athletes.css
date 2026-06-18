@@ -161,25 +161,127 @@
 
 .assigned-routine-meta { font-size: 0.75rem; color: var(--text-muted); }
 
-/* Session history */
-.session-history-list { display: flex; flex-direction: column; gap: 4px; }
+/* Session history accordion */
+.session-history-list { display: flex; flex-direction: column; gap: 6px; }
 
-.session-history-header {
-    display: grid; grid-template-columns: 1fr 100px 1fr;
-    padding: 6px 12px;
-    font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.1em; color: var(--text-muted);
-}
-
-.session-history-row {
-    display: grid; grid-template-columns: 1fr 100px 1fr;
-    align-items: center;
-    background: var(--bg-deep); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 10px 12px;
-    font-size: 0.85rem; color: var(--text-secondary);
+.session-history-card {
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
     transition: border-color var(--transition);
 }
-.session-history-row:hover { border-color: var(--border-light); }
+.session-history-card--open { border-color: var(--border-light); }
+
+.session-history-card-header {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; padding: 10px 12px;
+    background: none; border: none; cursor: pointer;
+    text-align: left; color: var(--text);
+}
+.session-history-card-header:hover { background: var(--surface-hover, rgba(255,255,255,0.03)); }
+
+.session-history-card-date {
+    font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);
+    min-width: 90px; flex-shrink: 0;
+}
+
+.session-history-card-meta {
+    display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;
+}
+
+.session-history-card-plan {
+    font-size: 0.85rem; font-weight: 700; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.session-history-card-week {
+    font-size: 0.75rem; color: var(--text-muted);
+}
+
+.session-history-card-chevron {
+    flex-shrink: 0; color: var(--text-muted);
+    transition: transform 0.2s ease;
+}
+.session-history-card--open .session-history-card-chevron {
+    transform: rotate(180deg);
+}
+
+/* Expanded body */
+.session-history-card-body {
+    border-top: 1px solid var(--border);
+    padding: 0 12px 12px;
+}
+
+.session-history-no-detail {
+    font-size: 0.8rem; color: var(--text-muted); padding: 10px 0 0; margin: 0;
+}
+
+/* Exercise table inside the expanded card */
+.session-history-table-header,
+.session-history-table-row {
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 1.5fr 80px;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 0;
+}
+
+.session-history-table-header {
+    font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    margin-top: 8px; padding-bottom: 6px;
+}
+
+.session-history-table-row {
+    font-size: 0.82rem; color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+}
+.session-history-table-row:last-child { border-bottom: none; }
+
+/* RPE colouring reuses existing session-rpe-N variables */
+.session-history-table-row.session-rpe-1 { background: rgba(var(--rpe-1-rgb, 74,222,128), 0.06); }
+.session-history-table-row.session-rpe-2 { background: rgba(var(--rpe-2-rgb, 250,204,21), 0.06); }
+.session-history-table-row.session-rpe-3 { background: rgba(var(--rpe-3-rgb, 251,146,60), 0.06); }
+.session-history-table-row.session-rpe-4 { background: rgba(var(--rpe-4-rgb, 248,113,113), 0.06); }
+
+.session-history-ex-name { font-weight: 600; color: var(--text); }
+
+.session-history-rpe-badge {
+    display: inline-block;
+    padding: 2px 7px; border-radius: 99px;
+    font-size: 0.7rem; font-weight: 700;
+}
+.session-history-rpe-badge.session-rpe-1 { background: rgba(74,222,128,0.18); color: #4ade80; }
+.session-history-rpe-badge.session-rpe-2 { background: rgba(250,204,21,0.18); color: #facc15; }
+.session-history-rpe-badge.session-rpe-3 { background: rgba(251,146,60,0.18); color: #fb923c; }
+.session-history-rpe-badge.session-rpe-4 { background: rgba(248,113,113,0.18); color: #f87171; }
+.session-history-rpe-none { color: var(--text-muted); }
+
+/* Athlete comments block at the bottom of the expanded card */
+.session-history-comments {
+    margin-top: 10px; padding-top: 8px;
+    border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 4px;
+}
+
+.session-history-comment-row {
+    display: flex; gap: 8px; align-items: baseline;
+    font-size: 0.8rem; color: var(--text-secondary);
+}
+
+.session-history-comment-name { font-weight: 600; color: var(--text); flex-shrink: 0; }
+.session-history-comment-text { color: var(--text-muted); font-style: italic; }
+
+@media (max-width: 600px) {
+    .session-history-table-header,
+    .session-history-table-row {
+        grid-template-columns: 1.5fr 1fr 1fr 60px;
+        font-size: 0.75rem;
+    }
+    .session-history-card-date { min-width: 70px; }
+}
 
 /* Completed session card */
 .assigned-routine-row--completed {
