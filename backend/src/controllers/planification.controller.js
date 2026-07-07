@@ -1,4 +1,5 @@
 import { PlanificationModel } from '../models/planification.model.js';
+import { enrichPlanifications } from '../services/planification.enrich.service.js';
 
 export const getPlanifications = async (req, res, next) => {
     try {
@@ -6,6 +7,10 @@ export const getPlanifications = async (req, res, next) => {
             athleteId: req.user.userId,
             isTrainer: req.user.role === 'trainer',
         });
+        // Backfill empty media fields from the catalog at read time so coaches
+        // updating a catalog entry (new YouTube URL, icon, etc.) see it
+        // reflected immediately on every planification row referencing it.
+        await enrichPlanifications(data);
         res.json({ data, total: data.length });
     } catch (err) { next(err); }
 };

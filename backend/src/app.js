@@ -9,6 +9,7 @@ import athleteRoutes       from './routes/athlete.routes.js';
 import userRoutes          from './routes/user.routes.js';
 import statsRoutes         from './routes/stats.routes.js';
 import healthRoutes        from './routes/health.routes.js';
+import mediaProxyRoutes    from './routes/mediaProxy.routes.js';
 import errorMiddleware     from './middlewares/error.middleware.js';
 
 const app = express();
@@ -24,6 +25,7 @@ app.use('/api/session-logs',   sessionLogRoutes);
 app.use('/api/athletes',       athleteRoutes);
 app.use('/api/users',          userRoutes);
 app.use('/api/stats',          statsRoutes);
+app.use('/api/media',          mediaProxyRoutes);
 app.use('/api',                healthRoutes);
 
 app.use((req, res) => {
