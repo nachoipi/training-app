@@ -200,3 +200,15 @@
     transition: background var(--transition);
 }
 .btn-success:hover { background: #2ebd87; }
+/* When used as a status badge (disabled), keep the full green so it reads
+   as a confirmation, not as a deactivated control. */
+.btn-success:disabled,
+.btn-success[disabled] {
+    background: var(--green);
+    color: #000;
+    opacity: 1;
+    cursor: default;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}

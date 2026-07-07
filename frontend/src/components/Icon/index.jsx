@@ -176,6 +176,9 @@ const REGISTRY = {
             <line x1="4" y1="18" x2="20" y2="18" />
         </>
     ),
+    paperclip: () => (
+        <path d="M21 12.5l-8.5 8.5a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 1 1 5.19 5.19l-9.2 9.19a1.83 1.83 0 0 1-2.59-2.59l8.49-8.49" />
+    ),
 };
 
 // Inline SVG by name. Size defaults to 1em so the icon scales with the

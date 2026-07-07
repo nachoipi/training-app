@@ -22,6 +22,108 @@
 }
 .modal-large { max-width: 680px; }
 
+/* Exercise video preview stage — 9:16 by default (matches phone-recorded
+   clips). Caps the height so the modal still fits on small viewports and
+   keeps the controls reachable; landscape clips letterbox via object-fit. */
+.exercise-video-stage {
+    width: 100%;
+    max-width: 320px;
+    aspect-ratio: 9 / 16;
+    max-height: 60vh;
+    margin: 0 auto;
+    background: #000;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    display: flex;
+}
+.exercise-video-player {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    background: #000;
+}
+
+@media (max-width: 480px) {
+    .exercise-video-stage { max-width: 280px; max-height: 55vh; }
+}
+
+/* Two-phase upload progress bar.
+   - .is-uploading: fill width is bound to XHR upload progress (set inline).
+   - .is-processing: fill is full and animated with diagonal stripes to signal
+     indeterminate server-side work (push to Supabase Storage).
+   The label inside ("Subiendo…" / "Procesando…") changes accordingly. */
+.exercise-video-progress {
+    position: relative;
+    margin-top: 12px;
+    height: 18px;
+    border-radius: 999px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+.exercise-video-progress-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.18s ease;
+}
+.exercise-video-progress.is-processing .exercise-video-progress-fill {
+    background-image: linear-gradient(
+        45deg,
+        rgba(0, 0, 0, 0.18) 25%, transparent          25%,
+        transparent          50%, rgba(0, 0, 0, 0.18) 50%,
+        rgba(0, 0, 0, 0.18) 75%, transparent          75%,
+        transparent
+    );
+    background-size: 18px 18px;
+    animation: exercise-video-stripes 1s linear infinite;
+}
+@keyframes exercise-video-stripes {
+    from { background-position: 0 0; }
+    to   { background-position: 18px 0; }
+}
+/* Circular icon badges in the video modal footer (Eliminar / Subido). Visual
+   parity with .session-completed-check used in the session header — pastel
+   tinted background, matching outline, icon stroke in the same hue. */
+.exercise-video-badge-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    transition: background var(--transition), border-color var(--transition), transform var(--transition);
+    flex-shrink: 0;
+}
+.exercise-video-badge-btn:disabled,
+.exercise-video-badge-btn[disabled] {
+    cursor: default;
+}
+
+/* Success variant: pastel green, used as the "video uploaded" status badge. */
+.exercise-video-badge-btn.is-success {
+    background:   var(--green-bg);
+    color:        var(--green);
+    border-color: rgba(52, 211, 153, 0.35);
+}
+
+/* Danger variant: pastel red, used for the destructive "Eliminar" action.
+   Hover deepens the fill so it reads as actionable, not as a status. */
+.exercise-video-badge-btn.is-danger {
+    background:   var(--red-bg);
+    color:        var(--red);
+    border-color: rgba(240, 85, 60, 0.35);
+}
+.exercise-video-badge-btn.is-danger:hover:not(:disabled) {
+    background: var(--red);
+    color: #fff;
+    border-color: var(--red);
+}
+
 @keyframes slideUp {
     from { opacity: 0; transform: translateY(18px); }
     to   { opacity: 1; transform: translateY(0); }

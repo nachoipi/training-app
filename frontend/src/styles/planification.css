@@ -215,7 +215,12 @@
 }
 
 .session-window-body .plan-session-block {
-    width: fit-content;
+    /* All blocks share the same width so they line up vertically; the cap
+       keeps the column readable on wide desktops. Previously each block used
+       width: fit-content, which made each block size to its own widest child
+       and produced uneven columns. */
+    width: 100%;
+    max-width: 720px;
     margin: 0 auto;
 }
 
@@ -512,11 +517,22 @@
 .session-stepper-btn:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); border-right: none; }
 .session-stepper-btn:last-child  { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; border-left: none; }
 .session-stepper-btn:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+.session-stepper-btn:disabled { cursor: not-allowed; }
+.session-stepper-btn:disabled:hover { background: var(--bg-card); color: var(--text-secondary); border-color: var(--border); }
 
 .session-stepper .session-exercise-input {
     border-radius: 0;
     width: 70px;
     text-align: center;
+}
+.session-stepper .session-exercise-input:disabled { cursor: not-allowed; }
+
+/* Locked state — the athlete has confirmed this serie as "done". The whole
+   stepper dims to make the lock obvious; child :disabled rules block the
+   pointer interaction. Unchecking "done" removes .is-locked. */
+.session-stepper.is-locked {
+    opacity: 0.55;
+    filter: saturate(0.8);
 }
 
 /* Done checkbox */
@@ -678,7 +694,7 @@
 .exercise-detail-modal { max-width: 560px; }
 /* Narrower modal when the video is a YouTube Short (9:16) so the player
    doesn't have huge black bars on either side. */
-.exercise-detail-modal--short { max-width: 380px; }
+.exercise-detail-modal--short { max-width: 420px; }
 
 .exercise-detail-video {
     position: relative;
@@ -690,7 +706,13 @@
 }
 .exercise-detail-video--short {
     aspect-ratio: 9 / 16;
-    max-width: 320px;
+    /* Cap height (not width) so the frame fills as much of the modal body
+       as the viewport allows. On tall phones this puts the video's bottom
+       edge — where Drive/YouTube anchor their control overlay — close to
+       the phone's bottom, making controls reachable with a thumb rather
+       than floating in the middle of the screen. */
+    max-height: 78vh;
+    max-width: 380px;
     margin: 0 auto;
 }
 .exercise-detail-video iframe {
@@ -748,42 +770,95 @@
 .session-rpe-3 { background: rgba(239, 68, 68, 0.12);  border-color: rgba(239, 68, 68, 0.3);  border-radius: var(--radius-sm); padding: 6px 8px; }
 .session-rpe-4 { background: rgba(0, 0, 0, 0.5);        border-color: rgba(255,255,255,0.08);   border-radius: var(--radius-sm); padding: 6px 8px; }
 
-/* Block footer summary */
+/* Block footer summary — one card per exercise, sibling visual to
+   .session-serie-card. Holds the athlete's per-exercise RPE + comentario,
+   plus a (placeholder) paperclip button for future video uploads. */
 .session-block-footer {
     border-top: 1px solid var(--border);
-    padding-top: 10px;
+    /* Horizontal inset (13px) matches .session-serie-group's
+       border (1px) + padding (12px) so footer cards align with the
+       serie cards above them. */
+    padding: 12px 13px 0;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    align-self: stretch;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.session-block-footer-row {
+.session-block-footer-card {
     display: flex;
-    align-items: flex-end;
-    gap: 12px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.02);
+    align-self: stretch;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.session-block-footer-label {
+.session-block-footer-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.session-block-footer-card-name {
     font-family: var(--font-display);
-    font-size: 0.72rem;
+    font-size: 0.95rem;
     font-weight: 700;
+    color: var(--text-primary);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
+}
+
+.session-block-footer-attach {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-deep);
     color: var(--text-secondary);
-    min-width: 120px;
-    padding-bottom: 6px;
+    cursor: pointer;
+    transition: border-color var(--transition), color var(--transition);
+}
+.session-block-footer-attach:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+/* Filled state — there's already a video attached for this exercise. */
+.session-block-footer-attach.has-video {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(213, 232, 47, 0.08);
+}
+
+.session-block-footer-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .session-rpe-select {
     background: var(--bg-deep);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 6px 10px;
+    padding: 8px 10px;
     color: var(--text-primary);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     cursor: pointer;
     transition: border-color var(--transition);
-    min-width: 220px;
+    width: 100%;
 }
 .session-rpe-select:focus { outline: none; border-color: var(--accent); }
+
+.session-block-footer-field .session-exercise-input-comment {
+    width: 100%;
+}

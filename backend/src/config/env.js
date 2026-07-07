@@ -24,3 +24,11 @@ if (!JWT_SECRET) {
 // Token lifetime, expressed as any string jsonwebtoken accepts ('7d', '12h',
 // '30m', ...). Defaulted to 7 days to preserve the previous behaviour.
 export const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+
+// Supabase Storage — optional. When all three are set the backend can accept
+// athlete exercise-video uploads and proxy them to the bucket. When any are
+// missing, the upload endpoint responds 503 so the UI can degrade gracefully
+// instead of crashing the whole server at boot.
+export const SUPABASE_URL              = process.env.SUPABASE_URL || '';
+export const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+export const SUPABASE_VIDEO_BUCKET     = process.env.SUPABASE_VIDEO_BUCKET || 'exercise-videos';

@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { uid, formatCarga } from '../../utils/helpers.js';
 import { MUSCLE_LABELS, EQUIPMENT_LABELS } from '../../utils/constants.js';
 import { Icon } from '../Icon/index.jsx';
+import { ExerciseVideoModal } from '../Modals/ExerciseVideoModal.jsx';
 
 const RPE_CLASSES = { '1': 'session-rpe-1', '2': 'session-rpe-2', '3': 'session-rpe-3', '4': 'session-rpe-4' };
 
@@ -48,14 +49,86 @@ function resolveVideo(ex) {
     return (ex.video && ex.video.trim()) || (ex.videoUrl && ex.videoUrl.trim()) || '';
 }
 
+// Recognises direct video files we can render with a <video> tag. Strips query
+// strings before matching (Supabase Storage URLs can carry `?token=…`).
+// Anything not in the list (Vimeo, Loom share pages, etc.) falls back to the
+// static icon — the detail modal still surfaces an "Abrir video" link for them.
+function isDirectVideoUrl(url) {
+    if (!url) return false;
+    const clean = url.split('?')[0].toLowerCase();
+    return /\.(mp4|webm|mov|m4v|ogv|ogg)$/.test(clean);
+}
+
+// Extracts a Google Drive file id from common share-link shapes:
+//   https://drive.google.com/file/d/<ID>/view?usp=drive_link
+//   https://drive.google.com/open?id=<ID>
+//   https://drive.google.com/uc?id=<ID>&export=download
+// Returns null when not a Drive URL. Drive files won't play in a <video> tag
+// (the URL serves an HTML viewer, not a media stream) — so the catch points
+// the UI at Drive's own thumbnail + embeddable preview endpoints instead.
+function extractDriveFileId(url) {
+    if (!url) return null;
+    const m1 = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (m1) return m1[1];
+    const m2 = url.match(/drive\.google\.com\/(?:open|uc)\?[^#]*\bid=([a-zA-Z0-9_-]+)/);
+    if (m2) return m2[1];
+    return null;
+}
+
 function ExerciseMediaThumb({ ex, onOpen }) {
+    const [driveThumbFailed, setDriveThumbFailed] = useState(false);
     const video = resolveVideo(ex);
     const ytId = extractYouTubeId(video);
-    // Preview preference: YouTube thumb → per-exercise icon → generic SVG.
+    const driveId = !ytId ? extractDriveFileId(video) : null;
+    const directVideo = !ytId && !driveId && isDirectVideoUrl(video) ? video : null;
+
+    // Four rendering modes:
+    //  - YouTube: still uses the YT thumbnail JPEG (cheap + cached).
+    //  - Google Drive: uses Drive's thumbnail endpoint (requires the file to
+    //    be shared "anyone with the link"). Same <img> tag — same play-icon
+    //    overlay — only the URL builder changes.
+    //  - Direct video file: render a muted <video preload=metadata> so the
+    //    browser fetches just enough to display the first frame as a poster.
+    //    No controls — clicking the tile still opens the detail modal.
+    //  - Otherwise: per-exercise icon → generic SVG fallback.
+    if (directVideo) {
+        return (
+            <button
+                type="button"
+                className="session-serie-card-media"
+                onClick={onOpen}
+                aria-label={`Ver detalle de ${ex.exerciseName || 'ejercicio'}`}
+            >
+                <video
+                    src={directVideo}
+                    className="session-serie-card-media-img"
+                    muted
+                    playsInline
+                    preload="metadata"
+                />
+                <span className="session-serie-card-media-play"><Icon name="play-circle" size={20} /></span>
+            </button>
+        );
+    }
+
+    // Preview preference: YouTube thumb → Drive thumb → per-exercise icon →
+    // generic SVG. `isPhotoLike` toggles the photo-style rounded frame vs
+    // the icon-style padded frame.
+    // Drive's /thumbnail endpoint sets CORP=same-site so a same-origin proxy
+    // is required (see /api/media/drive-thumb). When the file isn't shared
+    // "anyone with the link" the proxy returns 403 → <img onError> swaps to
+    // the fallback icon so the tile never renders broken. Playback in the
+    // detail modal still works via the /preview iframe if the athlete has
+    // viewer access and is signed into their Google account.
     const previewSrc = ytId
         ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
-        : (ex.iconUrl || GENERIC_EXERCISE_ICON);
-    const isPhotoLike = !!ytId;
+        : driveId && !driveThumbFailed
+            ? `/api/media/drive-thumb?id=${driveId}&sz=w400`
+            : (ex.iconUrl || GENERIC_EXERCISE_ICON);
+    // A photo-like frame is only appropriate when we actually have a real
+    // photo behind it. If the Drive thumb fell back to the icon, revert to
+    // the icon-style padded frame.
+    const isPhotoLike = !!ytId || (!!driveId && !driveThumbFailed);
 
     return (
         <button
@@ -68,8 +141,15 @@ function ExerciseMediaThumb({ ex, onOpen }) {
                 src={previewSrc}
                 alt={ex.exerciseName || 'Ejercicio'}
                 className={isPhotoLike ? 'session-serie-card-media-img' : 'session-serie-card-media-icon-img'}
+                // Drive thumb 403/failed → fall back to the icon on next render.
+                onError={driveId && !driveThumbFailed ? () => setDriveThumbFailed(true) : undefined}
             />
-            {isPhotoLike && <span className="session-serie-card-media-play"><Icon name="play-circle" size={20} /></span>}
+            {/* Play overlay shown whenever there's a playable video source —
+                including Drive files where the thumbnail failed but the modal
+                iframe will still play if the athlete is signed in to Google. */}
+            {(isPhotoLike || driveId || directVideo) && (
+                <span className="session-serie-card-media-play"><Icon name="play-circle" size={20} /></span>
+            )}
         </button>
     );
 }
@@ -83,7 +163,19 @@ function ExerciseDetailModal({ exercise, onClose }) {
     const video = resolveVideo(exercise);
     const ytId = extractYouTubeId(video);
     const isShort = isYouTubeShort(video);
-    const hasOtherVideo = video && !ytId;
+    const driveId = !ytId ? extractDriveFileId(video) : null;
+    const directVideo = !ytId && !driveId && isDirectVideoUrl(video) ? video : null;
+    // Force a portrait-shaped iframe for Drive too. We can't detect the
+    // uploaded video's orientation from the URL alone, but Drive's embedded
+    // player wraps the video with its own UI (loading spinner, cookie
+    // consent prompt, controls) that needs vertical room to render. A 16:9
+    // frame ends up cropping the cookie buttons and the Google splash. A
+    // 9:16 frame gives that UI space; a landscape video inside just
+    // letterboxes cleanly.
+    const portrait = isShort || !!driveId;
+    // "Otra URL" branch — fall back to a plain link when the URL is neither
+    // YouTube, Drive, nor a direct video file (e.g. Vimeo/Loom share pages).
+    const hasOtherVideo = video && !ytId && !driveId && !directVideo;
     const modelImage = (exercise.modelImageUrl || '').trim();
     const primary = exercise.primaryMuscles || [];
     const secondary = exercise.secondaryMuscles || [];
@@ -95,7 +187,7 @@ function ExerciseDetailModal({ exercise, onClose }) {
 
     return (
         <div className="modal-overlay open" onClick={handleOverlayClick}>
-            <div className={`modal exercise-detail-modal ${isShort ? 'exercise-detail-modal--short' : ''}`}>
+            <div className={`modal exercise-detail-modal ${portrait ? 'exercise-detail-modal--short' : ''}`}>
                 <div className="modal-header">
                     <div>
                         <h2>{exercise.exerciseName || 'Ejercicio'}</h2>
@@ -107,7 +199,7 @@ function ExerciseDetailModal({ exercise, onClose }) {
                 </div>
                 <div className="modal-body">
                     {ytId && (
-                        <div className={`exercise-detail-video ${isShort ? 'exercise-detail-video--short' : ''}`}>
+                        <div className={`exercise-detail-video ${portrait ? 'exercise-detail-video--short' : ''}`}>
                             <iframe
                                 src={`https://www.youtube.com/embed/${ytId}`}
                                 title={exercise.exerciseName || 'Ejercicio'}
@@ -116,6 +208,56 @@ function ExerciseDetailModal({ exercise, onClose }) {
                                 allowFullScreen
                             />
                         </div>
+                    )}
+                    {directVideo && (
+                        // Direct file (mp4/webm/mov) — use the same short-form
+                        // 9:16 frame the modal already uses for YouTube Shorts
+                        // when the URL looks vertical. Defaults to letterboxed
+                        // 16:9 otherwise via the existing exercise-detail-video
+                        // wrapper.
+                        <div className="exercise-detail-video">
+                            <video
+                                src={directVideo}
+                                controls
+                                playsInline
+                                preload="metadata"
+                                style={{ width: '100%', height: '100%', background: '#000' }}
+                            />
+                        </div>
+                    )}
+                    {driveId && (
+                        // Google Drive uses its own embeddable player at
+                        // /file/d/<id>/preview. Drive's overlay UI (control
+                        // bar, "Open in Drive" affordance) lives inside a
+                        // cross-origin iframe, so we can't restyle or move
+                        // it. In some contexts (mobile-emulated Chrome UA,
+                        // restricted-share files, aggressive anti-embed
+                        // heuristics) Drive refuses to stream and shows a
+                        // "Descargar" fallback. The explicit "Abrir en
+                        // Drive" button below the iframe gives athletes a
+                        // reliable escape hatch to the full-fidelity Drive
+                        // app / web player when the embed misbehaves.
+                        <>
+                            <div className={`exercise-detail-video ${portrait ? 'exercise-detail-video--short' : ''}`}>
+                                <iframe
+                                    src={`https://drive.google.com/file/d/${driveId}/preview`}
+                                    title={exercise.exerciseName || 'Ejercicio'}
+                                    frameBorder="0"
+                                    allow="autoplay; encrypted-media"
+                                    allowFullScreen
+                                />
+                            </div>
+                            <div className="exercise-detail-link-row">
+                                <a
+                                    className="btn btn-secondary btn-sm"
+                                    href={`https://drive.google.com/file/d/${driveId}/view`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    Abrir en Drive
+                                </a>
+                            </div>
+                        </>
                     )}
                     {hasOtherVideo && (
                         <div className="exercise-detail-link-row">
@@ -181,6 +323,10 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
     const [exerciseSummary, setExerciseSummary] = useState({});
     const [completed, setCompleted] = useState(false);
     const [detailExercise, setDetailExercise] = useState(null);
+    // Position of the exercise whose video upload modal is currently open.
+    // null = closed. Kept here (not inside ExerciseVideoModal) so the modal
+    // can persist its result back into exerciseSummary.
+    const [videoFor, setVideoFor] = useState(null);
 
     // Hydrate local state from sessionLog when opening the screen.
     // hasNewFormat distinguishes per-serie logs (current shape) from legacy
@@ -191,7 +337,7 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
 
         day.blocks.forEach(block => {
             block.exercises.forEach(ex => {
-                summary[ex.position] = { comment: '', rpe: '' };
+                summary[ex.position] = { comment: '', rpe: '', videoUrl: '', videoPath: '' };
             });
         });
 
@@ -206,7 +352,12 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                 };
             });
             (sessionLog.exerciseSummaries || []).forEach(s => {
-                summary[s.position] = { comment: s.comment || '', rpe: s.rpe || '' };
+                summary[s.position] = {
+                    comment:   s.comment   || '',
+                    rpe:       s.rpe       || '',
+                    videoUrl:  s.videoUrl  || '',
+                    videoPath: s.videoPath || '',
+                };
             });
             setCompleted(sessionLog.completed);
         } else {
@@ -263,9 +414,11 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
         });
         const exerciseSummaries = day.blocks.flatMap(block =>
             block.exercises.map(ex => ({
-                position: ex.position,
-                comment: exerciseSummary[ex.position]?.comment ?? '',
-                rpe: exerciseSummary[ex.position]?.rpe ?? '',
+                position:  ex.position,
+                comment:   exerciseSummary[ex.position]?.comment   ?? '',
+                rpe:       exerciseSummary[ex.position]?.rpe       ?? '',
+                videoUrl:  exerciseSummary[ex.position]?.videoUrl  ?? '',
+                videoPath: exerciseSummary[ex.position]?.videoPath ?? '',
             }))
         );
         return {
@@ -387,35 +540,41 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                                                             </label>
                                                         </div>
 
+                                                        {/* When the athlete marks the serie done, the reps & carga
+                                                            steppers lock so the confirmed result can't be tweaked
+                                                            by accident. Unchecking "done" re-enables them. The
+                                                            .is-locked class on .session-stepper dims the row. */}
                                                         <div className="session-serie-card-middle">
                                                             <ExerciseMediaThumb ex={ex} onOpen={() => setDetailExercise(ex)} />
 
                                                             <div className="session-serie-card-inputs">
                                                                 <div className="session-serie-card-input-row">
                                                                     <span className="session-exercise-input-label">Reps realizadas</span>
-                                                                    <div className="session-stepper">
-                                                                        <button className="session-stepper-btn" onClick={() => step(ex.position, serieNum, 'actualReps', -1)}>−</button>
+                                                                    <div className={`session-stepper ${data.done ? 'is-locked' : ''}`}>
+                                                                        <button className="session-stepper-btn" disabled={data.done} onClick={() => step(ex.position, serieNum, 'actualReps', -1)}>−</button>
                                                                         <input
                                                                             className="session-exercise-input session-stepper-input"
                                                                             value={data.actualReps ?? ''}
                                                                             onChange={e => updateField(ex.position, serieNum, 'actualReps', e.target.value)}
                                                                             placeholder={repForSerie || '—'}
+                                                                            disabled={data.done}
                                                                         />
-                                                                        <button className="session-stepper-btn" onClick={() => step(ex.position, serieNum, 'actualReps', 1)}>+</button>
+                                                                        <button className="session-stepper-btn" disabled={data.done} onClick={() => step(ex.position, serieNum, 'actualReps', 1)}>+</button>
                                                                     </div>
                                                                 </div>
 
                                                                 <div className="session-serie-card-input-row">
                                                                     <span className="session-exercise-input-label">Carga utilizada</span>
-                                                                    <div className="session-stepper">
-                                                                        <button className="session-stepper-btn" onClick={() => step(ex.position, serieNum, 'actualCarga', -1)}>−</button>
+                                                                    <div className={`session-stepper ${data.done ? 'is-locked' : ''}`}>
+                                                                        <button className="session-stepper-btn" disabled={data.done} onClick={() => step(ex.position, serieNum, 'actualCarga', -1)}>−</button>
                                                                         <input
                                                                             className="session-exercise-input session-stepper-input"
                                                                             value={data.actualCarga ?? ''}
                                                                             onChange={e => updateField(ex.position, serieNum, 'actualCarga', e.target.value)}
                                                                             placeholder={ex.carga || '—'}
+                                                                            disabled={data.done}
                                                                         />
-                                                                        <button className="session-stepper-btn" onClick={() => step(ex.position, serieNum, 'actualCarga', 1)}>+</button>
+                                                                        <button className="session-stepper-btn" disabled={data.done} onClick={() => step(ex.position, serieNum, 'actualCarga', 1)}>+</button>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -433,36 +592,54 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                                 );
                             })}
 
-                            {/* Block footer: athlete's per-exercise comment + RPE */}
+                            {/* Block footer: per-exercise summary cards (RPE + athlete
+                                comment). One card per exercise, mirroring the serie-card
+                                shell above. The paperclip button is a placeholder for an
+                                upcoming feature (athlete uploads their own exercise video
+                                for trainer review in "Historial de sesiones"). */}
                             <div className="session-block-footer">
-                                {block.exercises.map(ex => (
-                                    <div key={ex.position} className="session-block-footer-row">
-                                        <span className="session-block-footer-label">{ex.position} — {ex.exerciseName || '—'}</span>
-                                        <div className="session-exercise-input-group">
-                                            <span className="session-exercise-input-label">Comentario</span>
-                                            <input
-                                                className="session-exercise-input session-exercise-input-comment"
-                                                value={exerciseSummary[ex.position]?.comment ?? ''}
-                                                onChange={e => updateExerciseSummary(ex.position, 'comment', e.target.value)}
-                                                placeholder="—"
-                                            />
+                                {block.exercises.map(ex => {
+                                    const rpeClass = RPE_CLASSES[exerciseSummary[ex.position]?.rpe] || '';
+                                    return (
+                                        <div key={ex.position} className={`session-block-footer-card ${rpeClass}`}>
+                                            <div className="session-block-footer-card-header">
+                                                <span className="session-block-footer-card-name">{ex.exerciseName || '—'}</span>
+                                                <button
+                                                    type="button"
+                                                    className={`session-block-footer-attach ${exerciseSummary[ex.position]?.videoUrl ? 'has-video' : ''}`}
+                                                    title={exerciseSummary[ex.position]?.videoUrl ? 'Ver / cambiar video' : 'Adjuntar video'}
+                                                    aria-label="Adjuntar video"
+                                                    onClick={() => setVideoFor(ex.position)}
+                                                >
+                                                    <Icon name="paperclip" size={18} />
+                                                </button>
+                                            </div>
+                                            <div className="session-block-footer-field">
+                                                <span className="session-exercise-input-label">RPE</span>
+                                                <select
+                                                    className="session-rpe-select"
+                                                    value={exerciseSummary[ex.position]?.rpe ?? ''}
+                                                    onChange={e => updateExerciseSummary(ex.position, 'rpe', e.target.value)}
+                                                >
+                                                    <option value="">—</option>
+                                                    <option value="1">Puedo aumentar la intensidad</option>
+                                                    <option value="2">Puedo mantener la intensidad</option>
+                                                    <option value="3">Estoy al límite</option>
+                                                    <option value="4">Debo disminuir la intensidad</option>
+                                                </select>
+                                            </div>
+                                            <div className="session-block-footer-field">
+                                                <span className="session-exercise-input-label">Comentario</span>
+                                                <input
+                                                    className="session-exercise-input session-exercise-input-comment"
+                                                    value={exerciseSummary[ex.position]?.comment ?? ''}
+                                                    onChange={e => updateExerciseSummary(ex.position, 'comment', e.target.value)}
+                                                    placeholder="—"
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="session-exercise-input-group">
-                                            <span className="session-exercise-input-label">RPE</span>
-                                            <select
-                                                className="session-rpe-select"
-                                                value={exerciseSummary[ex.position]?.rpe ?? ''}
-                                                onChange={e => updateExerciseSummary(ex.position, 'rpe', e.target.value)}
-                                            >
-                                                <option value="">—</option>
-                                                <option value="1">Puedo aumentar la intensidad</option>
-                                                <option value="2">Puedo mantener la intensidad</option>
-                                                <option value="3">Estoy al límite</option>
-                                                <option value="4">Debo disminuir la intensidad</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     );
@@ -483,6 +660,39 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
             {detailExercise && (
                 <ExerciseDetailModal exercise={detailExercise} onClose={() => setDetailExercise(null)} />
             )}
+
+            <ExerciseVideoModal
+                open={videoFor != null}
+                exerciseName={
+                    day.blocks.flatMap(b => b.exercises).find(e => e.position === videoFor)?.exerciseName || ''
+                }
+                existing={
+                    exerciseSummary[videoFor]?.videoUrl
+                        ? { url: exerciseSummary[videoFor].videoUrl, path: exerciseSummary[videoFor].videoPath }
+                        : null
+                }
+                planId={plan.id}
+                planName={plan.name}
+                week={week}
+                dayNumber={day.dayNumber}
+                position={videoFor}
+                onClose={() => setVideoFor(null)}
+                onUploaded={({ url, path }) => {
+                    setExerciseSummary(prev => ({
+                        ...prev,
+                        [videoFor]: { ...prev[videoFor], videoUrl: url, videoPath: path },
+                    }));
+                    onShowToast?.('Video subido', 'success');
+                }}
+                onRemoved={() => {
+                    setExerciseSummary(prev => ({
+                        ...prev,
+                        [videoFor]: { ...prev[videoFor], videoUrl: '', videoPath: '' },
+                    }));
+                    onShowToast?.('Video eliminado', 'success');
+                }}
+                onError={msg => onShowToast?.(msg, 'error')}
+            />
         </div>
     );
 }
