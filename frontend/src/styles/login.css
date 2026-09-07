@@ -258,7 +258,11 @@
 .login-page .fade-in { animation: login-fadeUp 0.4s ease forwards; }
 
 @media (max-width: 860px) {
-    .login-page .layout { grid-template-columns: 1fr; }
+    .login-page .layout { display: flex; justify-content: flex-end; }
     .login-page .panel-left { display: none; }
-    .login-page .panel-right { min-height: 100vh; padding: 2rem 1.5rem; }
+    .login-page .panel-right { width: 480px; max-width: 100%; min-height: 100vh; padding: 2rem 1.5rem; }
+}
+
+@media (max-width: 520px) {
+    .login-page .panel-right { width: 100%; }
 }
