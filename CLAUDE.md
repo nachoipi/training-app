@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Working Conventions
+
+- **Never `git commit` or `git push` without the user explicitly asking for it in that moment.** A prior approval of the change itself (e.g. "yes, go ahead" on content) is not approval to commit or push — ask separately, every time, regardless of how the session was started (phone, cloud, CLI). The user wants to check every step on the running app before anything is committed.
+- **Follow the task skills in order** for every task, no skipping steps: `start-task` → `investigate` → `plan` → (implement) → `testing` → `commit` → `finish-task`.
+
 ## Project Overview
 
 FitCore is a full-stack training management app for trainers and athletes. It uses:
