@@ -1,4 +1,7 @@
 import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import authRoutes          from './routes/auth.routes.js';
 import exerciseRoutes      from './routes/exercise.routes.js';
 import routineRoutes       from './routes/routine.routes.js';
@@ -27,6 +30,18 @@ app.use('/api/users',          userRoutes);
 app.use('/api/stats',          statsRoutes);
 app.use('/api/media',          mediaProxyRoutes);
 app.use('/api',                healthRoutes);
+
+// Serve the built frontend when present (production deploys where backend
+// and frontend share one origin). Local dev runs the Vite dev server
+// separately, so frontend/dist won't exist and this block is skipped.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const frontendDist = path.join(__dirname, '../../frontend/dist');
+if (fs.existsSync(frontendDist)) {
+    app.use(express.static(frontendDist));
+    app.get(/^(?!\/api).*/, (req, res) => {
+        res.sendFile(path.join(frontendDist, 'index.html'));
+    });
+}
 
 app.use((req, res) => {
     res.status(404).json({ error: 'Not Found', path: req.path });
