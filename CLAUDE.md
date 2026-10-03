@@ -127,3 +127,19 @@ Auth tokens are HS256 JWTs signed with `JWT_SECRET`. The token currently embeds 
 ## Vite Proxy
 
 `frontend/vite.config.js` proxies `/api/*` → `http://localhost:3000`. All frontend API calls must use `/api/` prefix.
+
+## Deployment (Render)
+
+FitCore deploys as a single Render Web Service via the `render.yaml` Blueprint at the repo root — Express serves both the API and the built frontend from one origin, so no CORS setup or frontend-side API base URL is needed.
+
+- **`render.yaml`**: build command installs both `backend/` and `frontend/`, builds the frontend, then starts the backend (`npm --prefix backend start`). Declares `PGSSL`, `JWT_EXPIRES_IN`, `SUPABASE_VIDEO_BUCKET` as fixed values, and `DATABASE_URL` / `JWT_SECRET` / `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` as secrets (`sync: false`) set manually in the Render dashboard. `healthCheckPath: /api/health` points at the DB-independent health route so Render can verify a deploy before migrations run.
+- **`backend/src/app.js`**: after all `/api/*` routes, serves `frontend/dist` as static files and falls back to `index.html` for non-API paths (SPA routing) — but only when `frontend/dist` exists on disk. Local dev (`npm run dev` on both sides, separate Vite server) never builds `dist/`, so this block is a no-op locally and doesn't interfere with the Vite proxy.
+- **`backend/package.json`**: pins `"engines": { "node": ">=22" }` so Render provisions a matching Node runtime instead of its own default.
+- Render reads `process.env.PORT` dynamically via `backend/src/config/env.js` — never hardcode a `PORT` env var in `render.yaml`, it would override Render's own port assignment and break routing.
+- Database is Supabase Postgres (not Render Postgres) — same `DATABASE_URL` / `PGSSL=true` setup as any other managed Postgres.
+
+### Branching for deploys
+
+- Develop on `main` as usual.
+- Once a change is tested locally, merge it into the `deploy-test` branch — Render's Blueprint is configured to deploy from `deploy-test`, so merging there pushes it live automatically.
+- `deploy-test` exists specifically for field-testing on a phone (e.g. taking it to the gym to run a real session) without needing `main` itself to be deploy-ready at every commit.
