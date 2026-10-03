@@ -15,6 +15,8 @@
     --font-display:   'Barlow Condensed', sans-serif;
     --font-body:      'Barlow', sans-serif;
 
+    flex: 1 1 0%;
+    min-width: 0;
     min-height: 100vh;
     background: var(--bg-deep);
     color: var(--text-primary);
@@ -23,7 +25,7 @@
 }
 .login-page *, .login-page *::before, .login-page *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-.login-page .layout { display: grid; grid-template-columns: 1fr 480px; min-height: 100vh; }
+.login-page .layout { display: grid; grid-template-columns: 1fr 480px; min-height: 100vh; width: 100%; }
 
 .login-page .panel-left {
     position: relative; overflow: hidden;
@@ -257,7 +259,11 @@
 .login-page .fade-in { animation: login-fadeUp 0.4s ease forwards; }
 
 @media (max-width: 860px) {
-    .login-page .layout { grid-template-columns: 1fr; }
+    .login-page .layout { display: flex; justify-content: flex-end; }
     .login-page .panel-left { display: none; }
-    .login-page .panel-right { min-height: 100vh; padding: 2rem 1.5rem; }
+    .login-page .panel-right { width: 480px; max-width: 100%; min-height: 100vh; padding: 2rem 1.5rem; }
+}
+
+@media (max-width: 520px) {
+    .login-page .panel-right { width: 100%; }
 }
