@@ -329,6 +329,7 @@ const DAYS = [
     title: 'Mejoras a Coach',
     tag: 'feature',
     tasks: [
+      { text: '⭐ [Alta prioridad] Upload de video de referencia por ejercicio del catálogo', detail: 'El coach sube el video desde el editor del ejercicio (multipart → Supabase Storage, misma infra que el upload de forma del atleta). Se guarda como URL directa MP4 en exercises.video_url; el <video> nativo del athlete-side renderiza consistente en desktop y mobile. Reemplaza los links a YouTube/Drive (que se mantienen como opción legacy) y elimina los problemas de embed cross-origin de Drive (controles en el medio en mobile, "No se puede cargar" en algunos contextos). Reutilizar storage.service.js, MAX_VIDEO_BYTES=50MB, patrón XHR con onProgress y el UI de ExerciseVideoModal (progress bar de dos fases, cámara + galería).', cats: ['be','fe'] },
       { text: 'BottomNav del coach con ítems definitivos', detail: 'Revisar el set actual (Alumnos / Rutinas / Ejercicios / Progreso / Cuenta) y ajustarlo según uso real', cats: ['fe'] },
       { text: 'Dashboard resumen para el coach', detail: 'KPIs: nº de atletas activos, sesiones completadas esta semana, adherencia promedio, alertas de inactividad', cats: ['fe','be'] },
       { text: 'Filtros y ordenamiento en la lista de Alumnos', detail: 'Filtrar por adherencia / última sesión / objetivo; ordenar por nombre o actividad', cats: ['fe','be'] },
