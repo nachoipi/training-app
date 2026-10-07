@@ -48,3 +48,7 @@ export const EQUIPMENT_OPTIONS = [
 
 export const MUSCLE_LABELS = Object.fromEntries(MUSCLE_OPTIONS.map(o => [o.value, o.label]));
 export const EQUIPMENT_LABELS = Object.fromEntries(EQUIPMENT_OPTIONS.map(o => [o.value, o.label]));
+
+// Session summary self-evaluation scale (athlete's rating of how the session went), shared by
+// the athlete's summary card and the coach's session history.
+export const SELF_EVALUATION_LABELS = { '1': 'Muy mala', '2': 'Mala', '3': 'Normal', '4': 'Buena', '5': 'Excelente' };
