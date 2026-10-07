@@ -303,9 +303,34 @@
     font-family: var(--font-display); font-size: 0.95rem; font-weight: 800;
     text-transform: uppercase; letter-spacing: 0.1em;
     color: var(--text-primary);
+    margin-bottom: 12px; /* gap above the first week card (mobile Mi Plan) */
 }
 
-.plan-stack-week { display: flex; flex-direction: column; gap: 10px; }
+/* Weeks are stacked rows on every viewport. Inside a week, days stack on mobile and
+   become columns on desktop (one column per day). */
+.plan-stack-weeks { display: block; }
+.plan-stack-week-days { display: flex; flex-direction: column; gap: 10px; }
+@media (min-width: 769px) {
+    .plan-stack-week-days {
+        display: grid;
+        grid-template-columns: repeat(var(--days, 1), minmax(0, 1fr));
+        gap: 12px;
+        align-items: start;
+    }
+}
+
+/* Each week is a card that wraps its title and day rows (Mi Plan). */
+.plan-stack-week {
+    display: flex; flex-direction: column; gap: 10px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px;
+    margin-bottom: 14px; /* .plan-stack's gap is overridden by .mobile-only's display:block */
+}
+
+.plan-stack-week > .session-history-card-header { padding: 0; } /* week card already pads */
+/* Drop the shared header hover highlight: on touch it sticks after a tap and shows as a lighter band. */
+.plan-stack-week > .session-history-card-header:hover { background: none; }
+.plan-stack-week.is-open > .session-history-card-header .session-history-card-chevron { transform: rotate(180deg); }
 
 .plan-stack-week-title {
     font-family: var(--font-display); font-size: 0.8rem; font-weight: 700;
@@ -323,6 +348,48 @@
     font-family: var(--font-display); font-size: 0.85rem; font-weight: 700;
     color: var(--accent);
 }
+
+/* Mi Plan: on days still to do, a dotted line is centered in the gap between a block's
+   exercise cards (flex gap 10px + margin 16px = 26px, so the line sits 13px from each).
+   Completed days drop the line and the extra margin: the RPE tints already separate the cards. */
+.plan-stack-week .plan-session-block .plan-session-exercise + .plan-session-exercise {
+    border-top: none;
+    padding-top: 6px;
+    margin-top: 16px;
+    position: relative;
+}
+.plan-stack-week .plan-session-block .plan-session-exercise + .plan-session-exercise::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; top: -13px;
+    border-top: 1px dashed var(--border-light, var(--border));
+}
+.plan-stack-week .session-history-card.assigned-routine-row--completed .plan-session-block .plan-session-exercise + .plan-session-exercise {
+    margin-top: 0;
+}
+.plan-stack-week .session-history-card.assigned-routine-row--completed .plan-session-block .plan-session-exercise + .plan-session-exercise::before {
+    display: none;
+}
+
+/* Mi Plan accordion (AthleteMyPlan PlanDay / PlanWeek). Day cards keep a
+   dark body (the shared green fill from .assigned-routine-row--completed is reset so
+   it can't be confused with the green RPE-tinted exercise rows); only the header of a
+   completed day in a not-yet-complete week gets the same green as a completed week.
+   The first block gets breathing room below the header divider. */
+.session-history-card.assigned-routine-row--completed { background: var(--bg-deep); }
+.plan-stack-day--solo-done > .session-history-card-header { background: var(--green-bg); }
+/* Desktop days are always expanded: the header is a static label, not a toggle. */
+.plan-stack-day--static > .session-history-card-header { cursor: default; }
+.plan-stack-day--static:not(.plan-stack-day--solo-done) > .session-history-card-header:hover { background: none; }
+.plan-stack-week.assigned-routine-row--completed {
+    background: var(--green-bg);
+    /* .plan-stack-week's own border (defined later) would otherwise beat the shared green one */
+    border-color: rgba(52, 211, 153, 0.35);
+}
+.session-history-card-body.plan-stack-day-blocks > .plan-stack-block:first-child,
+.session-history-card-body.plan-stack-day-blocks > .plan-session-block:first-child { margin-top: 12px; }
+/* Full-width Realizar/Ver Sesión buttons at the end of the day body: center their label. */
+.session-history-card-body.plan-stack-day-blocks > .btn { justify-content: center; }
 
 .plan-stack-day-blocks { display: flex; flex-direction: column; gap: 12px; }
 
@@ -443,6 +510,22 @@
     border-bottom: 1px solid var(--border);
 }
 
+/* Serie groups are accordions (AthleteMySession): the header is a button that toggles the
+   cards below it. Only the block's next serie starts open. */
+.session-serie-header-toggle {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; background: none; border: none;
+    border-bottom: 1px solid var(--border);
+    padding: 0 0 6px; cursor: pointer; text-align: left;
+    -webkit-tap-highlight-color: transparent;
+}
+.session-serie-header-toggle > span:first-child { flex: 1; }
+.session-serie-header-toggle .session-completed-check { width: 22px; height: 22px; }
+.session-serie-chevron { flex-shrink: 0; color: var(--text-muted); transition: transform 0.2s ease; }
+.session-serie-group.is-open .session-serie-chevron { transform: rotate(180deg); }
+/* A collapsed group is just its header row, so drop the divider and the bottom padding. */
+.session-serie-group:not(.is-open) .session-serie-header-toggle { border-bottom: none; padding-bottom: 0; }
+
 /* Exercise row inside a serie group */
 .session-serie-exercise-row {
     display: flex;
@@ -547,6 +630,8 @@
     accent-color: var(--accent);
     margin-top: 4px;
 }
+/* Locked until the exercises before it are checked (see canToggleDone in AthleteMySession). */
+.session-done-check:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* Exercise card (per-serie): full-width name row, media+inputs middle row, full-width trainer comment */
 .session-serie-card {
@@ -787,6 +872,12 @@
     box-sizing: border-box;
 }
 
+/* Mobile: drop the 13px inset so the RPE/Comentario/attach cards span the same width as
+   the serie groups above them (instead of lining up with the narrower serie cards inside). */
+@media (max-width: 768px) {
+    .session-block-footer { padding-left: 0; padding-right: 0; }
+}
+
 .session-block-footer-card {
     display: flex;
     flex-direction: column;
@@ -799,6 +890,14 @@
     width: 100%;
     box-sizing: border-box;
 }
+
+/* The footer card's own base background (above) is defined after .session-rpe-1..4, so the
+   RPE tint never showed. Re-apply it with a higher-specificity selector, same colors as the
+   exercise cards. */
+.session-block-footer-card.session-rpe-1 { background: rgba(52, 211, 153, 0.12); border-color: rgba(52, 211, 153, 0.3); }
+.session-block-footer-card.session-rpe-2 { background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.3); }
+.session-block-footer-card.session-rpe-3 { background: rgba(239, 68, 68, 0.12);  border-color: rgba(239, 68, 68, 0.3); }
+.session-block-footer-card.session-rpe-4 { background: rgba(0, 0, 0, 0.5);        border-color: rgba(255, 255, 255, 0.08); }
 
 .session-block-footer-card-header {
     display: flex;
@@ -857,8 +956,21 @@
     transition: border-color var(--transition);
     width: 100%;
 }
+/* The selector takes the same RPE tint as the exercise cards (.session-rpe-1..4). A gradient
+   layer sits over --bg-deep so the tint stays opaque on top of the tinted footer card. */
+.session-rpe-select.session-rpe-1 { background: linear-gradient(rgba(52, 211, 153, 0.12), rgba(52, 211, 153, 0.12)), var(--bg-deep); border-color: rgba(52, 211, 153, 0.3); }
+.session-rpe-select.session-rpe-2 { background: linear-gradient(rgba(251, 191, 36, 0.12), rgba(251, 191, 36, 0.12)), var(--bg-deep); border-color: rgba(251, 191, 36, 0.3); }
+.session-rpe-select.session-rpe-3 { background: linear-gradient(rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.12)), var(--bg-deep); border-color: rgba(239, 68, 68, 0.3); }
+.session-rpe-select.session-rpe-4 { background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), var(--bg-deep); border-color: rgba(255, 255, 255, 0.08); }
 .session-rpe-select:focus { outline: none; border-color: var(--accent); }
+/* Locked until every serie of the block is checked (see blockFinished in AthleteMySession). */
+.session-rpe-select:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .session-block-footer-field .session-exercise-input-comment {
     width: 100%;
+}
+/* Session summary comment: a multi-line box, taller than the one-line exercise comments. */
+.session-summary-comment {
+    min-height: 120px; resize: vertical;
+    font-family: inherit; line-height: 1.4;
 }

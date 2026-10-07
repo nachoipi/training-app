@@ -1,7 +1,8 @@
 // Fixed top header strip. Mirrors the sidebar-header height (64px) and sits
 // to the right of the sidebar on desktop, full-width on mobile. Shows the
 // user's name + role badge on the left of the avatar; clicking anywhere on
-// the strip navigates to the 'profile' section.
+// the strip navigates to the 'profile' section. Hidden on mobile for athletes
+// (their profile entry is the avatar in BottomNav) — see TopBar.css.
 import React from 'react';
 import { Icon } from '../Icon/index.jsx';
 import './TopBar.css';
@@ -15,7 +16,7 @@ export function TopBar({ user, activeSection, onNavigate, sidebarCollapsed }) {
 
     return (
         <header
-            className={`top-bar ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
+            className={`top-bar ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${user.role === 'athlete' ? 'top-bar--athlete' : ''}`}
             onClick={() => onNavigate('profile')}
             role="button"
             tabIndex={0}

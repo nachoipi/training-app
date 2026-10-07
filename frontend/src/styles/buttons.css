@@ -16,7 +16,15 @@
     white-space: nowrap;
 }
 
+.btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+
 .btn-primary { background: var(--accent); color: #0a0b0d; }
+/* Outline option button (EDITAR on completed sessions): no fill, full-contrast text and border
+   (white on the dark theme). */
+.btn-light { background: transparent; color: var(--text-primary); border: 1px solid var(--text-primary); }
+.btn-light:hover { background: var(--bg-card-hover); }
+/* Pressed (EDITAR while editing is on): solid fill so it clearly reads as active. */
+.btn-light[aria-pressed="true"], .btn-light[aria-pressed="true"]:hover { background: var(--text-primary); color: var(--bg-deep); }
 .btn-primary:hover {
     background: #c8e030;
     box-shadow: 0 4px 20px var(--accent-glow-strong);

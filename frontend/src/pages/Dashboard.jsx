@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react';
+// App shell for authenticated users. Loads every domain collection from the API,
+// owns the `activeSection` navigation state and the CRUD handlers, and passes
+// both down to Main (screens), Header/BottomNav/TopBar (navigation) and modals.
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Header/index.jsx';
 import { Main } from '../components/Main/index.jsx';
@@ -19,13 +22,37 @@ import { sessionService } from '../services/sessionService.js';
 import { exerciseService } from '../services/exerciseService.js';
 import { logout as doLogout } from '../services/authService.js';
 
+// Sections that can be restored on refresh, per role. Detail screens (athlete profile, plan
+// editor, session) also need their selection restored; see loadNav / the restore effect below.
+const NAV_SECTIONS = {
+    athlete: ['my-dashboard', 'my-plan', 'my-sessions', 'my-session', 'routines', 'sessions', 'progress', 'exercises', 'profile'],
+    trainer: ['athletes', 'athlete-profile', 'athlete-planification', 'routines', 'sessions', 'progress', 'exercises', 'profile'],
+};
+
+// Reads the last screen the user was on (saved per user id) so a page refresh lands there
+// instead of on the default section. Falls back to the role default when nothing valid is saved.
+function loadNav() {
+    const u = getCurrentUser();
+    const role = u?.role === 'athlete' ? 'athlete' : 'trainer';
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(`fitcore_nav_${u?.id}`)); } catch { /* ignore corrupt value */ }
+    let section = saved && NAV_SECTIONS[role].includes(saved.section)
+        ? saved.section
+        : (role === 'athlete' ? 'my-dashboard' : 'routines');
+    // Detail screens are useless without the data they were opened with.
+    if ((section === 'athlete-profile' || section === 'athlete-planification') && !saved?.athlete) section = 'athletes';
+    if (section === 'my-session' && !saved?.session) section = 'my-plan';
+    return { section, athlete: saved?.athlete ?? null, planId: saved?.planId ?? null, session: saved?.session ?? null };
+}
+
 export default function Dashboard() {
     const navigate = useNavigate();
+    const [nav0] = useState(loadNav);
     const [user, setUser]               = useState(null);
     const [routines, setRoutines]       = useState([]);
     const [sessions, setSessions]       = useState([]);
     const [exercises, setExercises]     = useState([]);
-    const [activeSection, setSection]   = useState('routines');
+    const [activeSection, setSection]   = useState(nav0.section);
     const [collapsed, setCollapsed]     = useState(false);
     const [muscleFilter, setMuscleFilter] = useState('all');
     const [progressPeriod, setProgressPeriod] = useState(30);
@@ -37,8 +64,9 @@ export default function Dashboard() {
         localStorage.setItem('fitcore_theme', theme);
     }, [theme]);
 
-    const [selectedAthlete, setSelectedAthlete]         = useState(null);
+    const [selectedAthlete, setSelectedAthlete]         = useState(nav0.athlete);
     const [planifications, setPlanifications]           = useState([]);
+    const [plansLoaded, setPlansLoaded]                 = useState(false);
     const [selectedPlanification, setSelectedPlanification] = useState(null);
     const [sessionLogs, setSessionLogs]                 = useState([]);
     const [selectedSession, setSelectedSession]         = useState(null);
@@ -57,7 +85,6 @@ export default function Dashboard() {
     useEffect(() => {
         const userData = getCurrentUser();
         setUser(userData);
-        if (userData && userData.role === 'athlete') setSection('my-plan');
 
         // Load all domain data from the API. The DB is the only source of truth
         // now — no localStorage fallback. Each call is independent so we let
@@ -75,13 +102,45 @@ export default function Dashboard() {
             .catch(err => showToast(err.message, 'error'));
 
         planificationService.list()
-            .then(r => setPlanifications(r.data))
-            .catch(err => showToast(err.message, 'error'));
+            .then(r => { setPlanifications(r.data); setPlansLoaded(true); })
+            .catch(err => { setPlansLoaded(true); showToast(err.message, 'error'); });
 
         sessionLogService.list()
             .then(r => setSessionLogs(r.data))
             .catch(() => setSessionLogs([]));
     }, []);
+
+    // Selections that reference a planification (plan editor, open session) can only be
+    // resolved once the plans are loaded; until then `restoring` blocks persistence so the
+    // saved values are not overwritten with nulls.
+    const restoring = useRef(!!(nav0.planId || nav0.session));
+    useEffect(() => {
+        if (!restoring.current || !plansLoaded) return;
+        if (nav0.planId) setSelectedPlanification(planifications.find(p => p.id === nav0.planId) ?? null);
+        if (nav0.session) {
+            const plan = planifications.find(p => p.id === nav0.session.planId);
+            const days = plan ? (plan.weekDays?.[nav0.session.week - 1] ?? plan.days ?? []) : [];
+            const day = days.find(d => d.dayNumber === nav0.session.dayNumber);
+            if (plan && day) setSelectedSession({ plan, week: nav0.session.week, day, from: nav0.session.from });
+            else setSection('my-plan');
+        }
+        restoring.current = false;
+    }, [plansLoaded]);
+
+    // Remember where the user is so a refresh brings them back to the same screen.
+    useEffect(() => {
+        if (!user || restoring.current) return;
+        try {
+            localStorage.setItem(`fitcore_nav_${user.id}`, JSON.stringify({
+                section: activeSection,
+                athlete: selectedAthlete,
+                planId: selectedPlanification?.id ?? null,
+                session: selectedSession
+                    ? { planId: selectedSession.plan.id, week: selectedSession.week, dayNumber: selectedSession.day.dayNumber, from: selectedSession.from }
+                    : null,
+            }));
+        } catch { /* storage full/blocked: refresh just lands on the default screen */ }
+    }, [user, activeSection, selectedAthlete, selectedPlanification, selectedSession]);
 
     // Receive the updated user blob from the Profile screen so the sidebar
     // and BottomNav re-render with the new name/avatar without a reload.
@@ -106,6 +165,15 @@ export default function Dashboard() {
         } catch (err) { showToast(err.message, 'error'); return; }
         setSelectedSession(null);
         setSection('my-sessions');
+    }
+
+    // Duplicates a planification (optionally for another athlete) by POSTing a deep copy of
+    // its weeks/days. Session logs are not copied: the new plan starts with no progress.
+    async function handleCopyPlanification({ plan, athleteId, name }) {
+        const weekDays = structuredClone(plan.weekDays ?? Array.from({ length: plan.weeks }, () => plan.days ?? []));
+        const created = await planificationService.create({ athleteId, name, weeks: plan.weeks, weekDays });
+        setPlanifications(ps => [...ps, created]);
+        showToast('Planificación copiada');
     }
 
     async function handleSaveRoutine(routine) {
@@ -193,6 +261,7 @@ export default function Dashboard() {
             />
 
             <Main
+                className={user?.role === 'athlete' ? 'main--athlete' : ''}
                 activeSection={activeSection}
                 routines={routines}
                 sessions={sessions}
@@ -216,6 +285,7 @@ export default function Dashboard() {
                 onOpenAthleteProfile={athlete => { setSelectedAthlete(athlete); setSection('athlete-profile'); }}
                 onOpenPlanification={() => { setSelectedPlanification(null); setSection('athlete-planification'); }}
                 onViewPlanification={plan => { setSelectedPlanification(plan); setSection('athlete-planification'); }}
+                onCopyPlanification={handleCopyPlanification}
                 onDeletePlanification={async id => {
                     if (!confirm('¿Eliminar esta planificación?')) return;
                     try {
@@ -242,7 +312,8 @@ export default function Dashboard() {
                 onNavigate={setSection}
                 selectedSession={selectedSession}
                 sessionLogs={sessionLogs}
-                onOpenSession={({ plan, week, day }) => { setSelectedSession({ plan, week, day }); setSection('my-session'); }}
+                // `from` remembers the screen the session was opened from so Back can return there.
+                onOpenSession={({ plan, week, day }) => { setSelectedSession({ plan, week, day, from: activeSection }); setSection('my-session'); }}
                 onSaveSessionLog={handleSaveSessionLog}
                 onProfileUpdated={handleProfileUpdated}
                 theme={theme}

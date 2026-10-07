@@ -1,9 +1,14 @@
 // Trainer-side athlete profile. Shows stats, assigned planifications, a plan
 // session grid (weeks × days with RPE colouring), and the full session history
 // accordion where each completed log expands to show prescribed vs actual loads.
-import React, { useState } from 'react';
+// Expanded history cards also show the athlete's session summary (date/time, duration,
+// self-evaluation, effort, comment) when they filled it in.
+// Each assigned plan can also be copied (same or another athlete) via the Copiar dialog.
+import React, { useState, useEffect } from 'react';
+import { userService } from '../../services/userService.js';
 import { formatDate, formatCarga } from '../../utils/helpers.js';
 import { StatCard } from '../Common/index.jsx';
+import { SELF_EVALUATION_LABELS } from '../../utils/constants.js';
 
 const RPE_CLASSES = { '1': 'session-rpe-1', '2': 'session-rpe-2', '3': 'session-rpe-3', '4': 'session-rpe-4' };
 const RPE_LABELS  = { '1': 'RPE 1', '2': 'RPE 2', '3': 'RPE 3', '4': 'RPE 4' };
@@ -14,13 +19,63 @@ function findDay(plan, week, dayNumber) {
     return days.find(d => d.dayNumber === dayNumber) ?? null;
 }
 
-export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, onOpenPlanification, onViewPlanification, onDeletePlanification, onShowToast }) {
+// Rows for the athlete's "Resumen de la sesión" (log.sessionSummary). Only filled fields are
+// returned, so an empty/missing summary yields [] and the block is not rendered.
+function summaryRows(summary) {
+    if (!summary) return [];
+    const rows = [];
+    if (summary.dateTime) {
+        const d = new Date(summary.dateTime);
+        rows.push(['Fecha y hora', Number.isNaN(d.getTime()) ? summary.dateTime : d.toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })]);
+    }
+    if (summary.durationMin) rows.push(['Duración', `${summary.durationMin} min`]);
+    if (summary.selfEvaluation) rows.push(['Autoevaluación', `${summary.selfEvaluation}/5 · ${SELF_EVALUATION_LABELS[summary.selfEvaluation] || ''}`.replace(/ · $/, '')]);
+    if (summary.effortLevel) rows.push(['Esfuerzo de la sesión', `${summary.effortLevel}/10`]);
+    if (summary.comment) rows.push(['Comentario', `"${summary.comment}"`]);
+    return rows;
+}
+
+export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, onOpenPlanification, onViewPlanification, onDeletePlanification, onCopyPlanification, onShowToast }) {
     const athletePlanIds = new Set(planifications.map(p => p.id));
     const completedLogs = (sessionLogs || [])
         .filter(l => athletePlanIds.has(l.planId) && l.completed)
         .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
 
     const [expandedLogId, setExpandedLogId] = useState(null);
+
+    // Copy dialog: `copyFrom` is the plan being copied (null = closed). The athlete list is
+    // fetched when the dialog opens so the plan can be copied to any of the trainer's athletes.
+    const [copyFrom, setCopyFrom] = useState(null);
+    const [copyName, setCopyName] = useState('');
+    const [copyTarget, setCopyTarget] = useState(athlete.id);
+    const [allAthletes, setAllAthletes] = useState([]);
+    const [copying, setCopying] = useState(false);
+
+    useEffect(() => {
+        if (!copyFrom) return;
+        userService.listAthletes()
+            .then(r => setAllAthletes(r.data))
+            .catch(err => onShowToast && onShowToast(err.message, 'error'));
+    }, [copyFrom]);
+
+    function openCopy(plan) {
+        setCopyFrom(plan);
+        setCopyName(`${plan.name} (copia)`);
+        setCopyTarget(athlete.id);
+    }
+
+    async function confirmCopy() {
+        if (!copyName.trim()) { onShowToast('Ingresá un nombre para la copia', 'error'); return; }
+        setCopying(true);
+        try {
+            await onCopyPlanification({ plan: copyFrom, athleteId: copyTarget, name: copyName.trim() });
+            setCopyFrom(null);
+        } catch (err) {
+            onShowToast(err.message, 'error');
+        } finally {
+            setCopying(false);
+        }
+    }
 
     return (
         <section className="section">
@@ -71,6 +126,12 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                                         onClick={() => onViewPlanification(p)}
                                     >
                                         Ver
+                                    </button>
+                                    <button
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => openCopy(p)}
+                                    >
+                                        Copiar
                                     </button>
                                     <button
                                         className="btn btn-secondary btn-sm"
@@ -237,6 +298,17 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                                                     )}
                                                 </>
                                             )}
+                                            {summaryRows(log.sessionSummary).length > 0 && (
+                                                <div className="session-history-comments">
+                                                    <div className="session-history-comment-name">Resumen de la sesión</div>
+                                                    {summaryRows(log.sessionSummary).map(([label, value]) => (
+                                                        <div key={label} className="session-history-comment-row">
+                                                            <span className="session-history-comment-name">{label}</span>
+                                                            <span className="session-history-comment-text" style={label === 'Comentario' ? undefined : { fontStyle: 'normal' }}>{value}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -245,6 +317,36 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                     </div>
                 )}
             </div>
+
+            {copyFrom && (
+                <div className="modal-overlay open" onClick={e => { if (e.target === e.currentTarget && !copying) setCopyFrom(null); }}>
+                    <div className="modal">
+                        <div className="modal-header"><h2>Copiar planificación</h2></div>
+                        <div className="modal-body">
+                            <div className="form-group">
+                                <label className="form-label">Nombre de la copia</label>
+                                <input className="form-input" value={copyName} onChange={e => setCopyName(e.target.value)} />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Copiar a</label>
+                                <select className="form-input" value={copyTarget} onChange={e => setCopyTarget(e.target.value)}>
+                                    {allAthletes.length === 0 && <option value={athlete.id}>{athlete.name}</option>}
+                                    {allAthletes.map(a => (
+                                        <option key={a.id} value={a.id}>{a.name}{a.id === athlete.id ? ' (este alumno)' : ''}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <p className="profile-empty">Se copian semanas, días, bloques y ejercicios. El progreso del alumno no se copia.</p>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-secondary btn-sm" onClick={() => setCopyFrom(null)} disabled={copying}>Cancelar</button>
+                            <button className="btn btn-primary btn-sm" onClick={confirmCopy} disabled={copying}>
+                                {copying ? 'Copiando…' : 'Copiar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </section>
     );
 }

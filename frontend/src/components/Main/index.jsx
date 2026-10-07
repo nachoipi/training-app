@@ -1,3 +1,6 @@
+// Section router for the main content area. Dashboard.jsx owns all state and
+// the `activeSection` string; this component only picks which screen to render
+// and forwards the relevant props/handlers.
 import React from 'react';
 import {
     RoutinesSection,
@@ -8,6 +11,7 @@ import {
 import { AthletesSection } from './AthletesSection.jsx';
 import { AthleteProfile } from './AthleteProfile.jsx';
 import { AthletePlanification } from './AthletePlanification.jsx';
+import { AthleteDashboard } from './AthleteDashboard.jsx';
 import { AthleteMyPlan } from './AthleteMyPlan.jsx';
 import { AthleteMySessions } from './AthleteMySessions.jsx';
 import { AthleteMySession } from './AthleteMySession.jsx';
@@ -36,6 +40,7 @@ export function Main({
     onOpenAthleteProfile,
     onOpenPlanification,
     onViewPlanification,
+    onCopyPlanification,
     onDeletePlanification,
     onSavePlanification,
     planifications,
@@ -86,8 +91,17 @@ export function Main({
                     onDeleteExercise={onDeleteExercise}
                 />
             )}
+            {activeSection === 'my-dashboard' && (
+                <AthleteDashboard
+                    user={user}
+                    planifications={planifications}
+                    sessionLogs={sessionLogs}
+                    onOpenSession={onOpenSession}
+                    onNavigate={onNavigate}
+                />
+            )}
             {activeSection === 'my-plan' && (
-                <AthleteMyPlan planifications={planifications} sessionLogs={sessionLogs} />
+                <AthleteMyPlan planifications={planifications} sessionLogs={sessionLogs} onOpenSession={onOpenSession} />
             )}
             {activeSection === 'my-sessions' && (
                 <AthleteMySessions planifications={planifications} sessionLogs={sessionLogs} onOpenSession={onOpenSession} />
@@ -102,7 +116,7 @@ export function Main({
                         l.week === selectedSession.week &&
                         l.dayNumber === selectedSession.day.dayNumber
                     ) || null}
-                    onBack={() => onNavigate('my-sessions')}
+                    onBack={() => onNavigate(selectedSession.from === 'my-plan' ? 'my-plan' : 'my-sessions')}
                     onSave={onSaveSessionLog}
                     onShowToast={onShowToast}
                 />
@@ -128,6 +142,7 @@ export function Main({
                     onBack={() => onNavigate('athletes')}
                     onOpenPlanification={onOpenPlanification}
                     onViewPlanification={onViewPlanification}
+                    onCopyPlanification={onCopyPlanification}
                     onDeletePlanification={onDeletePlanification}
                     onShowToast={onShowToast}
                 />

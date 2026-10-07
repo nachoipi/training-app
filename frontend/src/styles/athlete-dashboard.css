@@ -1,0 +1,46 @@
+/* Athlete "Inicio" screen (components/Main/AthleteDashboard.jsx). Reuses the
+   global .stats-row / .stat-card styles from stats.css; only dashboard-specific
+   blocks live here. Colors come from variables.css so both themes work. */
+
+.dash-hero {
+    background: var(--bg-card);
+    border: 1px solid var(--accent-glow-strong);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+}
+.dash-hero-label { font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+.dash-hero-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; color: var(--text-primary); }
+
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+.dash-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.dash-card-title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; color: var(--text-primary); }
+
+.dash-week-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 0.85rem; }
+.dash-week-label { width: 80px; color: var(--text-secondary); }
+.dash-week-count { width: 36px; text-align: right; color: var(--text-secondary); }
+.dash-bar { flex: 1; height: 8px; background: var(--bg-input); border-radius: 4px; overflow: hidden; }
+.dash-bar-fill { height: 100%; background: var(--accent); transition: width var(--transition); }
+
+.dash-activity-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.dash-activity-row:last-child { border-bottom: none; }
+.dash-activity-name { font-size: 0.9rem; color: var(--text-primary); }
+.dash-activity-date { font-size: 0.75rem; color: var(--text-secondary); }
+.dash-rpe-badge { font-size: 0.72rem; padding: 3px 8px; border-radius: var(--radius-xs); }
+
+.dash-links { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Desktop already has Mi Plan / Mis Sesiones in the sidebar, so the shortcuts are mobile-only. */
+@media (min-width: 769px) {
+    .dash-links { display: none; }
+}
+
+/* Single column on phones; the BottomNav already provides the primary nav. */
+@media (max-width: 768px) {
+    .dash-grid { grid-template-columns: 1fr; }
+    .dash-hero-title { font-size: 1.3rem; }
+}
