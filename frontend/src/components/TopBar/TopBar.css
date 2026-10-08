@@ -81,4 +81,9 @@
     .top-bar-name { font-size: 1rem; }
     .top-bar-role { font-size: 0.8rem; }
     .top-bar-avatar { width: 48px; height: 48px; font-size: 1.4rem; }
+
+    /* Athletes drop the strip on mobile; .main--athlete (set by Dashboard.jsx
+       on <Main>) removes the matching top padding so no empty gap remains. */
+    .top-bar--athlete { display: none; }
+    .main-content.main--athlete { padding-top: 0; }
 }

@@ -9,7 +9,8 @@ export function Header({ user, activeSection, onNavigate, collapsed, onToggle })
 
     const navItems = [
         ...(isTrainer ? [{ section: 'athletes',    icon: 'users',          label: 'Alumnos' }] : []),
-        ...(isAthlete ? [{ section: 'my-plan',     icon: 'calendar',       label: 'Mi Plan' }] : []),
+        ...(isAthlete ? [{ section: 'my-dashboard', icon: 'home',        label: 'Inicio' }] : []),
+        ...(isAthlete ? [{ section: 'my-plan',    icon: 'calendar',       label: 'Mi Plan' }] : []),
         ...(isAthlete ? [{ section: 'my-sessions', icon: 'calendar-check', label: 'Mis Sesiones' }] : []),
         { section: 'routines',  icon: 'clipboard', label: 'Rutinas' },
         { section: 'sessions',  icon: 'barbell',   label: 'Registro' },

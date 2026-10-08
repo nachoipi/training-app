@@ -55,4 +55,23 @@
         font-family: var(--font-display);
         font-weight: 600;
     }
+
+    /* Round profile button (athletes). Ring turns accent when Mi Perfil is open. */
+    .bottom-nav-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: var(--bg-card);
+        color: var(--text-primary);
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .bottom-nav-item.active .bottom-nav-avatar {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--accent);
+    }
 }

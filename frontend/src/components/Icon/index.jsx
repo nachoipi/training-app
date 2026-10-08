@@ -9,6 +9,13 @@ import React from 'react';
 // single <svg> with consistent attributes so every icon looks visually
 // uniform (line-art, stroke-only, rounded caps).
 const REGISTRY = {
+    home: () => (
+        <>
+            <path d="M3 11l9-8 9 8" />
+            <path d="M5 10v10h14V10" />
+            <path d="M10 20v-6h4v6" />
+        </>
+    ),
     // Calendars / time
     calendar: () => (
         <>
