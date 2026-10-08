@@ -1,0 +1,47 @@
+/* Trainer "Inicio" screen (components/Main/TrainerDashboard.jsx), the session-review box
+   (SessionLogDetail.jsx) and the coach-feedback banner on the athlete's session screen.
+   Reuses global .stats-row/.stat-card and the .session-history-* classes; colors come
+   from variables.css so both themes work. */
+
+.trainer-feed { display: flex; flex-direction: column; gap: 8px; }
+
+.trainer-feed-card {
+    display: flex; align-items: center; gap: 12px;
+    width: 100%; padding: 12px 14px; text-align: left; cursor: pointer;
+    background: var(--bg-card); color: var(--text);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    transition: border-color var(--transition);
+}
+.trainer-feed-card:hover { border-color: var(--border-light); }
+/* Unreviewed sessions get an accent edge so they stand out in the list. */
+.trainer-feed-card.is-new { border-left: 3px solid var(--accent); }
+
+.trainer-feed-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.trainer-feed-title { display: flex; align-items: center; gap: 8px; }
+.trainer-feed-athlete { font-weight: 700; font-size: 0.95rem; }
+.trainer-feed-badge {
+    font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 2px 6px; border-radius: 999px; background: var(--accent); color: #000;
+}
+.trainer-feed-meta { font-size: 0.78rem; color: var(--text-muted); }
+.trainer-feed-note {
+    font-size: 0.8rem; color: var(--text-secondary); font-style: italic;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Back button + detail header on the session-detail screen. */
+.session-detail-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.session-detail-title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; padding: 14px 16px 0; }
+
+/* Coach review box inside the session detail. */
+.session-review-textarea { width: 100%; resize: vertical; margin: 6px 0 8px; }
+.session-review-actions { display: flex; align-items: center; gap: 10px; }
+.session-review-state { font-size: 0.78rem; color: var(--text-muted); }
+
+/* Read-only coach comment shown to the athlete inside their session. */
+.trainer-feedback-banner { margin-bottom: 16px; }
+.trainer-feedback-text { margin: 6px 0 0; font-style: italic; color: var(--text-secondary); }
+
+@media (max-width: 768px) {
+    .trainer-feed-card { padding: 10px 12px; }
+}

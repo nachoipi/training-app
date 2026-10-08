@@ -4,38 +4,14 @@
 // Expanded history cards also show the athlete's session summary (date/time, duration,
 // self-evaluation, effort, comment) when they filled it in.
 // Each assigned plan can also be copied (same or another athlete) via the Copiar dialog.
+// The expanded history body is the shared SessionLogDetail (also used by the trainer dashboard).
 import React, { useState, useEffect } from 'react';
 import { userService } from '../../services/userService.js';
 import { formatDate, formatCarga } from '../../utils/helpers.js';
 import { StatCard } from '../Common/index.jsx';
-import { SELF_EVALUATION_LABELS } from '../../utils/constants.js';
+import { SessionLogDetail, RPE_CLASSES } from './SessionLogDetail.jsx';
 
-const RPE_CLASSES = { '1': 'session-rpe-1', '2': 'session-rpe-2', '3': 'session-rpe-3', '4': 'session-rpe-4' };
-const RPE_LABELS  = { '1': 'RPE 1', '2': 'RPE 2', '3': 'RPE 3', '4': 'RPE 4' };
-
-// Return the day object from a planification for a given (week, dayNumber) pair.
-function findDay(plan, week, dayNumber) {
-    const days = plan.weekDays?.[week - 1] ?? plan.days ?? [];
-    return days.find(d => d.dayNumber === dayNumber) ?? null;
-}
-
-// Rows for the athlete's "Resumen de la sesión" (log.sessionSummary). Only filled fields are
-// returned, so an empty/missing summary yields [] and the block is not rendered.
-function summaryRows(summary) {
-    if (!summary) return [];
-    const rows = [];
-    if (summary.dateTime) {
-        const d = new Date(summary.dateTime);
-        rows.push(['Fecha y hora', Number.isNaN(d.getTime()) ? summary.dateTime : d.toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })]);
-    }
-    if (summary.durationMin) rows.push(['Duración', `${summary.durationMin} min`]);
-    if (summary.selfEvaluation) rows.push(['Autoevaluación', `${summary.selfEvaluation}/5 · ${SELF_EVALUATION_LABELS[summary.selfEvaluation] || ''}`.replace(/ · $/, '')]);
-    if (summary.effortLevel) rows.push(['Esfuerzo de la sesión', `${summary.effortLevel}/10`]);
-    if (summary.comment) rows.push(['Comentario', `"${summary.comment}"`]);
-    return rows;
-}
-
-export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, onOpenPlanification, onViewPlanification, onDeletePlanification, onCopyPlanification, onShowToast }) {
+export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, onOpenPlanification, onViewPlanification, onDeletePlanification, onCopyPlanification, onReviewSessionLog, onShowToast }) {
     const athletePlanIds = new Set(planifications.map(p => p.id));
     const completedLogs = (sessionLogs || [])
         .filter(l => athletePlanIds.has(l.planId) && l.completed)
@@ -213,7 +189,6 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                     <div className="session-history-list">
                         {completedLogs.map(log => {
                             const plan = planifications.find(p => p.id === log.planId);
-                            const day  = plan ? findDay(plan, log.week, log.dayNumber) : null;
                             const isOpen = expandedLogId === log.id;
 
                             return (
@@ -236,81 +211,7 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                                         </svg>
                                     </button>
 
-                                    {isOpen && (
-                                        <div className="session-history-card-body">
-                                            {!day ? (
-                                                <p className="session-history-no-detail">Día no encontrado en la planificación.</p>
-                                            ) : day.blocks.flatMap(b => b.exercises).length === 0 ? (
-                                                <p className="session-history-no-detail">Sin ejercicios en este día.</p>
-                                            ) : (
-                                                <>
-                                                    <div className="session-history-table-header">
-                                                        <span>Ejercicio</span>
-                                                        <span>Prescripto</span>
-                                                        <span>Realizado</span>
-                                                        <span>RPE</span>
-                                                    </div>
-                                                    {day.blocks.flatMap(b => b.exercises).map(ex => {
-                                                        const summary  = (log.exerciseSummaries || []).find(s => s.position === ex.position);
-                                                        const serieRows = (log.exercises || []).filter(e => e.position === ex.position);
-                                                        const rpeKey   = summary?.rpe || '';
-                                                        const rpeClass = RPE_CLASSES[rpeKey] || '';
-
-                                                        // Build "actualReps @ actualCarga" strings per serie, skip blanks.
-                                                        const actualParts = serieRows
-                                                            .sort((a, b) => a.serieIndex - b.serieIndex)
-                                                            .map(e => {
-                                                                const r = e.actualReps  !== '' && e.actualReps  != null ? e.actualReps  : '—';
-                                                                const c = e.actualCarga !== '' && e.actualCarga != null ? e.actualCarga : null;
-                                                                return c ? `${r} @ ${c}` : `${r}`;
-                                                            });
-                                                        const actualStr = actualParts.length ? actualParts.join(' / ') : '—';
-
-                                                        return (
-                                                            <div key={ex.position} className={`session-history-table-row ${rpeClass}`}>
-                                                                <span className="session-history-ex-name">{ex.exerciseName || '—'}</span>
-                                                                <span className="session-history-prescribed">
-                                                                    {ex.series || '—'} × {ex.reps || '—'}
-                                                                    {ex.carga ? ` @ ${formatCarga(ex)}` : ''}
-                                                                </span>
-                                                                <span className="session-history-actual">{actualStr}</span>
-                                                                <span className="session-history-rpe">
-                                                                    {rpeKey
-                                                                        ? <span className={`session-history-rpe-badge ${rpeClass}`}>{RPE_LABELS[rpeKey]}</span>
-                                                                        : <span className="session-history-rpe-none">—</span>
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                    {completedLogs.find(l => l.id === log.id)?.exerciseSummaries?.some(s => s.comment) && (
-                                                        <div className="session-history-comments">
-                                                            {(log.exerciseSummaries || []).filter(s => s.comment).map(s => {
-                                                                const ex = day.blocks.flatMap(b => b.exercises).find(e => e.position === s.position);
-                                                                return (
-                                                                    <div key={s.position} className="session-history-comment-row">
-                                                                        <span className="session-history-comment-name">{ex?.exerciseName || '—'}</span>
-                                                                        <span className="session-history-comment-text">"{s.comment}"</span>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
-                                                </>
-                                            )}
-                                            {summaryRows(log.sessionSummary).length > 0 && (
-                                                <div className="session-history-comments">
-                                                    <div className="session-history-comment-name">Resumen de la sesión</div>
-                                                    {summaryRows(log.sessionSummary).map(([label, value]) => (
-                                                        <div key={label} className="session-history-comment-row">
-                                                            <span className="session-history-comment-name">{label}</span>
-                                                            <span className="session-history-comment-text" style={label === 'Comentario' ? undefined : { fontStyle: 'normal' }}>{value}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                    {isOpen && <SessionLogDetail log={log} plan={plan} onReview={onReviewSessionLog} />}
                                 </div>
                             );
                         })}

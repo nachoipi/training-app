@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { getSessionLogs, saveSessionLog } from '../controllers/sessionLog.controller.js';
+import { getSessionLogs, saveSessionLog, reviewSessionLog } from '../controllers/sessionLog.controller.js';
 import { uploadExerciseVideo, deleteExerciseVideo } from '../controllers/sessionLogVideo.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware.js';
 
@@ -24,6 +24,8 @@ const router = Router();
 router.use(requireAuth);
 router.get('/',  getSessionLogs);
 router.post('/', requireRole('athlete'), saveSessionLog);
+// Trainer marks a completed session as reviewed (+ optional comment the athlete sees).
+router.patch('/review', requireRole('trainer'), reviewSessionLog);
 
 // Wraps the multer middleware so MulterError (e.g. LIMIT_FILE_SIZE,
 // unsupported mime type) surfaces as a clean 400/413 with a Spanish message
