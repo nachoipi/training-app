@@ -3,7 +3,8 @@
 // 'my-session'). Renders blocks → series → per-exercise cards with media tile,
 // reps/carga steppers, done checkbox and the trainer's prescription comment.
 // Per-exercise RPE + athlete comment stay in the block footer. Persists via
-// onSave({ ...log }) provided by Dashboard.
+// onSave({ ...log }) provided by Dashboard. When the coach reviewed the session
+// (sessionLog.trainerComment, stored outside the payload) a read-only banner shows it.
 import React, { useState, useEffect } from 'react';
 import { uid, formatCarga } from '../../utils/helpers.js';
 import { MUSCLE_LABELS, EQUIPMENT_LABELS, SELF_EVALUATION_LABELS } from '../../utils/constants.js';
@@ -551,6 +552,12 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
             </div>
 
             <div className="session-window-body">
+                {sessionLog?.trainerComment && (
+                    <div className="plan-session-block trainer-feedback-banner">
+                        <div className="plan-session-block-label">Comentario de tu coach</div>
+                        <p className="trainer-feedback-text">"{sessionLog.trainerComment}"</p>
+                    </div>
+                )}
                 {day.blocks.map(block => {
                     const allSameSeries = block.exercises.length > 0 &&
                         block.exercises.every(ex => ex.series === block.exercises[0].series);

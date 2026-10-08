@@ -15,6 +15,7 @@ import { AthleteDashboard } from './AthleteDashboard.jsx';
 import { AthleteMyPlan } from './AthleteMyPlan.jsx';
 import { AthleteMySessions } from './AthleteMySessions.jsx';
 import { AthleteMySession } from './AthleteMySession.jsx';
+import { TrainerDashboard, TrainerSessionDetail } from './TrainerDashboard.jsx';
 import { Profile } from './Profile.jsx';
 
 export function Main({
@@ -53,6 +54,9 @@ export function Main({
     theme,
     onToggleTheme,
     onLogout,
+    selectedLogKey,
+    onOpenSessionDetail,
+    onReviewSessionLog,
     className,
 }) {
     return (
@@ -131,6 +135,30 @@ export function Main({
                     onLogout={onLogout}
                 />
             )}
+            {activeSection === 'trainer-dashboard' && (
+                <TrainerDashboard
+                    user={user}
+                    planifications={planifications}
+                    sessionLogs={sessionLogs}
+                    onOpenSessionDetail={onOpenSessionDetail}
+                    onNavigate={onNavigate}
+                    onShowToast={onShowToast}
+                />
+            )}
+            {activeSection === 'session-detail' && selectedLogKey && (() => {
+                const log = sessionLogs.find(l =>
+                    l.planId === selectedLogKey.planId && l.week === selectedLogKey.week && l.dayNumber === selectedLogKey.dayNumber);
+                if (!log) return null;
+                return (
+                    <TrainerSessionDetail
+                        log={log}
+                        plan={planifications.find(p => p.id === log.planId)}
+                        onBack={() => onNavigate('trainer-dashboard')}
+                        onReview={onReviewSessionLog}
+                        onShowToast={onShowToast}
+                    />
+                );
+            })()}
             {activeSection === 'athletes' && (
                 <AthletesSection onShowToast={onShowToast} onOpenAthleteProfile={onOpenAthleteProfile} />
             )}
@@ -143,6 +171,7 @@ export function Main({
                     onOpenPlanification={onOpenPlanification}
                     onViewPlanification={onViewPlanification}
                     onCopyPlanification={onCopyPlanification}
+                    onReviewSessionLog={onReviewSessionLog}
                     onDeletePlanification={onDeletePlanification}
                     onShowToast={onShowToast}
                 />

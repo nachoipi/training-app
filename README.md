@@ -91,6 +91,12 @@ Workflow order: **start-task → investigate → plan → testing → commit →
 
 ## Changelog
 
+### 2026-10-08
+- **Trainer dashboard ("Inicio")**: New default landing screen for trainers (`TrainerDashboard.jsx`, `trainer-dashboard` section; "Inicio" added to the sidebar and the mobile BottomNav). Stat cards (sessions awaiting review, sessions this week, active athletes) and a "Sesiones recientes" feed of the latest completed sessions across athletes, each with athlete, plan, week/day, average RPE, the athlete's comment and a "Nuevo" badge until reviewed. Feed is derived client-side from the existing `GET /api/session-logs`.
+- **Session detail + review**: Clicking a feed card opens `session-detail` (`TrainerSessionDetail`) with the plan-vs-actual table, per-exercise comments and the athlete's summary, plus a coach review box ("Marcar como revisada" + comment). The table body was extracted from `AthleteProfile` into the shared `SessionLogDetail.jsx`, so the profile's history accordion shows the same detail and review box.
+- **Coach comment for the athlete**: Reviewed sessions show a "Comentario de tu coach" banner at the top of the athlete's session screen.
+- **Backend**: `PATCH /api/session-logs/review` (trainer only; body `{ planId, week, dayNumber, comment? }`, comment ≤ 1000 chars). New `session_logs.reviewed_at` / `trainer_comment` columns live outside `payload` so the athlete's save upsert can't erase them. **Apply `database/migrations/2026-10-08_session_log_review.sql` on existing databases before deploying.**
+
 ### 2026-10-05 → 2026-10-07
 - **Athlete dashboard ("Inicio")**: New default landing screen for athletes (`AthleteDashboard.jsx`, `my-dashboard` section). Shows the next pending session with a "Realizar sesión" shortcut, plan progress %, sessions completed this week, completed/total sessions, average RPE, per-week progress bars and the last 5 completed sessions. Derived entirely client-side from `planifications` + `sessionLogs` (no backend changes). The "Ver Mi Plan" / "Mis Sesiones" shortcut buttons at the bottom of the dashboard are mobile-only (desktop has them in the sidebar). Mobile BottomNav gains an "Inicio" tab; Mis Sesiones stays reachable from the dashboard link and the desktop sidebar.
 - **Athlete mobile chrome**: On ≤768px the athlete TopBar is hidden (no empty top gap), the "Ejercicios" tab is removed from the BottomNav (and "Sesiones" is swapped for "Mi Plan"), and the Ejercicios slot is now the round profile avatar (opens Mi Perfil, accent ring when active). Trainers and desktop are unchanged.

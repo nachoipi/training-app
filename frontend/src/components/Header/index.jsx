@@ -8,6 +8,7 @@ export function Header({ user, activeSection, onNavigate, collapsed, onToggle })
     const isAthlete = user && user.role === 'athlete';
 
     const navItems = [
+        ...(isTrainer ? [{ section: 'trainer-dashboard', icon: 'home', label: 'Inicio' }] : []),
         ...(isTrainer ? [{ section: 'athletes',    icon: 'users',          label: 'Alumnos' }] : []),
         ...(isAthlete ? [{ section: 'my-dashboard', icon: 'home',        label: 'Inicio' }] : []),
         ...(isAthlete ? [{ section: 'my-plan',    icon: 'calendar',       label: 'Mi Plan' }] : []),

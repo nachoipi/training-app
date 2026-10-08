@@ -50,6 +50,12 @@ function uploadVideo({ file, planId, planName, exerciseName, week, dayNumber, po
 
 export const sessionLogService = {
     list: () => apiFetch(SESSION_LOGS),
+    // Trainer only: marks a completed session as reviewed and stores a comment.
+    // Keyed by plan/week/day because the log `id` the UI sees is the payload's uid.
+    review: ({ planId, week, dayNumber, comment }) => apiFetch(`${SESSION_LOGS}/review`, {
+        method: 'PATCH',
+        body: JSON.stringify({ planId, week, dayNumber, comment }),
+    }),
     save: (log) => apiFetch(SESSION_LOGS, { method: 'POST', body: JSON.stringify(log) }),
     uploadVideo,
     deleteVideo: (path) => apiFetch(`${SESSION_LOGS}/video`, {

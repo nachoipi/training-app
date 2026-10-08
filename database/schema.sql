@@ -86,6 +86,10 @@ CREATE TABLE session_logs (
     week        INTEGER      NOT NULL,
     day_number  INTEGER      NOT NULL,
     payload     JSONB,
+    -- Trainer review state lives outside `payload` because the athlete's save
+    -- upsert overwrites the whole payload (see migrations/2026-10-08_session_log_review.sql).
+    reviewed_at     TIMESTAMPTZ,
+    trainer_comment TEXT,
     updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
     CONSTRAINT uq_athlete_plan_week_day UNIQUE (athlete_id, plan_id, week, day_number)
 );

@@ -26,7 +26,7 @@ import { logout as doLogout } from '../services/authService.js';
 // editor, session) also need their selection restored; see loadNav / the restore effect below.
 const NAV_SECTIONS = {
     athlete: ['my-dashboard', 'my-plan', 'my-sessions', 'my-session', 'routines', 'sessions', 'progress', 'exercises', 'profile'],
-    trainer: ['athletes', 'athlete-profile', 'athlete-planification', 'routines', 'sessions', 'progress', 'exercises', 'profile'],
+    trainer: ['trainer-dashboard', 'session-detail', 'athletes', 'athlete-profile', 'athlete-planification', 'routines', 'sessions', 'progress', 'exercises', 'profile'],
 };
 
 // Reads the last screen the user was on (saved per user id) so a page refresh lands there
@@ -38,11 +38,12 @@ function loadNav() {
     try { saved = JSON.parse(localStorage.getItem(`fitcore_nav_${u?.id}`)); } catch { /* ignore corrupt value */ }
     let section = saved && NAV_SECTIONS[role].includes(saved.section)
         ? saved.section
-        : (role === 'athlete' ? 'my-dashboard' : 'routines');
+        : (role === 'athlete' ? 'my-dashboard' : 'trainer-dashboard');
     // Detail screens are useless without the data they were opened with.
     if ((section === 'athlete-profile' || section === 'athlete-planification') && !saved?.athlete) section = 'athletes';
     if (section === 'my-session' && !saved?.session) section = 'my-plan';
-    return { section, athlete: saved?.athlete ?? null, planId: saved?.planId ?? null, session: saved?.session ?? null };
+    if (section === 'session-detail' && !saved?.logKey) section = 'trainer-dashboard';
+    return { section, athlete: saved?.athlete ?? null, planId: saved?.planId ?? null, session: saved?.session ?? null, logKey: saved?.logKey ?? null };
 }
 
 export default function Dashboard() {
@@ -70,6 +71,9 @@ export default function Dashboard() {
     const [selectedPlanification, setSelectedPlanification] = useState(null);
     const [sessionLogs, setSessionLogs]                 = useState([]);
     const [selectedSession, setSelectedSession]         = useState(null);
+    // {planId, week, dayNumber} of the log open in the trainer's session-detail screen. A key
+    // (not the log) so the screen always reads the live entry from sessionLogs after a review.
+    const [selectedLogKey, setSelectedLogKey]           = useState(nav0.logKey);
 
     const [routineModal, setRoutineModal]           = useState({ open: false, editing: null });
     const [sessionModal, setSessionModal]           = useState(false);
@@ -138,9 +142,10 @@ export default function Dashboard() {
                 session: selectedSession
                     ? { planId: selectedSession.plan.id, week: selectedSession.week, dayNumber: selectedSession.day.dayNumber, from: selectedSession.from }
                     : null,
+                logKey: selectedLogKey,
             }));
         } catch { /* storage full/blocked: refresh just lands on the default screen */ }
-    }, [user, activeSection, selectedAthlete, selectedPlanification, selectedSession]);
+    }, [user, activeSection, selectedAthlete, selectedPlanification, selectedSession, selectedLogKey]);
 
     // Receive the updated user blob from the Profile screen so the sidebar
     // and BottomNav re-render with the new name/avatar without a reload.
@@ -165,6 +170,19 @@ export default function Dashboard() {
         } catch (err) { showToast(err.message, 'error'); return; }
         setSelectedSession(null);
         setSection('my-sessions');
+    }
+
+    // Trainer marks a completed session as reviewed (+ optional comment). The server returns
+    // the flattened log; swapping it in place keeps the "Nuevo" badge and detail in sync.
+    async function handleReviewSessionLog(log, comment) {
+        try {
+            const saved = await sessionLogService.review({
+                planId: log.planId, week: log.week, dayNumber: log.dayNumber, comment,
+            });
+            setSessionLogs(prev => prev.map(l =>
+                l.planId === saved.planId && l.week === saved.week && l.dayNumber === saved.dayNumber ? saved : l));
+            showToast('Sesión revisada');
+        } catch (err) { showToast(err.message, 'error'); }
     }
 
     // Duplicates a planification (optionally for another athlete) by POSTing a deep copy of
@@ -319,6 +337,12 @@ export default function Dashboard() {
                 theme={theme}
                 onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
                 onLogout={handleLogout}
+                selectedLogKey={selectedLogKey}
+                onOpenSessionDetail={log => {
+                    setSelectedLogKey({ planId: log.planId, week: log.week, dayNumber: log.dayNumber });
+                    setSection('session-detail');
+                }}
+                onReviewSessionLog={handleReviewSessionLog}
             />
 
             <BottomNav

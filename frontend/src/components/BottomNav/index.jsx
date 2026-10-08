@@ -19,6 +19,7 @@ const ATHLETE_ITEMS = [
 // First pass for trainers — these will be refined per the "Mejoras a Coach"
 // block in TODO.html.
 const TRAINER_ITEMS = [
+    { section: 'trainer-dashboard', icon: 'home', label: 'Inicio' },
     { section: 'athletes',  icon: 'users',     label: 'Alumnos' },
     { section: 'routines',  icon: 'clipboard', label: 'Rutinas' },
     { section: 'exercises', icon: 'dumbbell',  label: 'Ejercicios' },
