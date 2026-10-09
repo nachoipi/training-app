@@ -1,6 +1,7 @@
 /* Top header strip. Fixed position, 64px tall (matches .sidebar-header). On
    desktop it starts where the sidebar ends; on mobile (sidebar hidden) it
-   spans the full width. Clicking anywhere navigates to the profile screen. */
+   spans the full width. Left: screen title slot (SectionTitle portal). Right:
+   profile block (name/avatar → profile screen), then the bell/chat buttons. */
 .top-bar {
     position: fixed;
     top: 0;
@@ -14,8 +15,43 @@
     gap: 14px;
     padding: 0 20px;
     background: var(--bg-deep);
-    cursor: pointer;
     transition: left 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.top-bar-title {
+    flex: 1;
+    min-width: 0;
+    margin-right: auto;
+}
+.top-bar-title-text {
+    font-family: var(--font-display);
+    font-size: 1.7rem;
+    font-weight: 800;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.top-bar-title-sub {
+    margin-top: 3px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 300;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Clickable name + avatar block (opens the profile screen). */
+.top-bar-profile {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
     -webkit-tap-highlight-color: transparent;
 }
 
@@ -57,7 +93,7 @@
     transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.top-bar:hover .top-bar-avatar {
+.top-bar-profile:hover .top-bar-avatar {
     transform: scale(1.04);
     border-color: var(--accent);
 }
@@ -65,6 +101,48 @@
 .top-bar-avatar.active {
     border-color: var(--accent);
     box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Bell + chat buttons to the right of the avatar. */
+.top-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.top-bar-icon-btn {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+.top-bar-icon-btn:hover,
+.top-bar-icon-btn.active {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.top-bar-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--red);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Push main content below the TopBar. */
@@ -82,8 +160,12 @@
     .top-bar-role { font-size: 0.8rem; }
     .top-bar-avatar { width: 48px; height: 48px; font-size: 1.4rem; }
 
-    /* Athletes drop the strip on mobile; .main--athlete (set by Dashboard.jsx
-       on <Main>) removes the matching top padding so no empty gap remains. */
-    .top-bar--athlete { display: none; }
-    .main-content.main--athlete { padding-top: 0; }
+    .top-bar-icon-btn { width: 40px; height: 40px; }
+
+    /* Slim bar on mobile for both roles: title + bell + chat. The name/avatar
+       move to the BottomNav avatar, so the top-bar copy is hidden. */
+    .top-bar-profile { display: none; }
+    .top-bar-title-text { font-size: 1.35rem; }
+    .top-bar-title-sub { font-size: 0.72rem; margin-top: 2px; }
+}
 }

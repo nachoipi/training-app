@@ -11,6 +11,7 @@ import { Icon } from '../Icon/index.jsx';
 import { SessionLogDetail } from './SessionLogDetail.jsx';
 import { userService } from '../../services/userService.js';
 import '../../styles/trainer-dashboard.css';
+import { SectionTitle } from '../TopBar/SectionTitle.jsx';
 
 const FEED_LIMIT = 20;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -44,11 +45,8 @@ export function TrainerDashboard({ user, planifications = [], sessionLogs = [], 
 
     return (
         <section className="section">
+            <SectionTitle title={`Hola, ${user?.name?.split(' ')[0] || 'coach'}`} subtitle="Lo último que hicieron tus alumnos" />
             <div className="section-header">
-                <div>
-                    <h1 className="section-title">Hola, {user?.name?.split(' ')[0] || 'coach'}</h1>
-                    <p className="section-subtitle">Lo último que hicieron tus alumnos</p>
-                </div>
                 <div className="section-header-actions">
                     <button className="btn btn-secondary" onClick={() => onNavigate('athletes')}>
                         <Icon name="users" size={16} /> Ver alumnos

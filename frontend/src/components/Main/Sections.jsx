@@ -5,6 +5,7 @@ import { RoutineCard, SessionCard, ExerciseCard } from '../Cards/index.jsx';
 import { BarChart, DurationChart, Heatmap } from '../Charts/index.jsx';
 import { Icon } from '../Icon/index.jsx';
 import { DAYS } from '../../utils/constants.js';
+import { SectionTitle } from '../TopBar/SectionTitle.jsx';
 
 export function RoutinesSection({ routines, sessions, user, onNewRoutine, onOpenDetail }) {
     const lastSession = [...sessions].sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -13,11 +14,8 @@ export function RoutinesSection({ routines, sessions, user, onNewRoutine, onOpen
 
     return (
         <section className="section">
+            <SectionTitle title="Rutinas" subtitle="Organizá tus planes de entrenamiento" />
             <div className="section-header">
-                <div>
-                    <h1 className="section-title">Rutinas</h1>
-                    <p className="section-subtitle">Organizá tus planes de entrenamiento</p>
-                </div>
                 {isTrainer && (
                     <button className="btn btn-primary" onClick={onNewRoutine}>+ Nueva Rutina</button>
                 )}
@@ -64,11 +62,8 @@ export function SessionsSection({ sessions, onLogSession, onDeleteSession }) {
 
     return (
         <section className="section">
+            <SectionTitle title="Registro" subtitle="Seguí cada sesión de entrenamiento" />
             <div className="section-header">
-                <div>
-                    <h1 className="section-title">Registro</h1>
-                    <p className="section-subtitle">Seguí cada sesión de entrenamiento</p>
-                </div>
                 <button className="btn btn-primary" onClick={onLogSession}>+ Registrar Sesión</button>
             </div>
 
@@ -106,11 +101,8 @@ export function ProgressSection({ sessions, progressPeriod, onChangePeriod }) {
 
     return (
         <section className="section">
+            <SectionTitle title="Progreso" subtitle="Visualizá tu evolución en el tiempo" />
             <div className="section-header">
-                <div>
-                    <h1 className="section-title">Progreso</h1>
-                    <p className="section-subtitle">Visualizá tu evolución en el tiempo</p>
-                </div>
                 <select
                     className="select-filter"
                     value={progressPeriod}
@@ -174,11 +166,8 @@ export function ExercisesSection({ exercises, user, muscleFilter, onFilterChange
 
     return (
         <section className="section">
+            <SectionTitle title="Ejercicios" subtitle="Biblioteca de ejercicios disponibles" />
             <div className="section-header">
-                <div>
-                    <h1 className="section-title">Ejercicios</h1>
-                    <p className="section-subtitle">Biblioteca de ejercicios disponibles</p>
-                </div>
                 {isTrainer && (
                     <button className="btn btn-primary" onClick={onNewExercise}>+ Agregar Ejercicio</button>
                 )}

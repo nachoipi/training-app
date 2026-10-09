@@ -5,9 +5,9 @@ import React from 'react';
 import { Icon } from '../Icon/index.jsx';
 import './BottomNav.css';
 
-// Athletes have no TopBar on mobile, so their profile entry point is the round
-// avatar button rendered as the last tab (see below). Trainers still use the
-// TopBar avatar. Icon names point at components/Icon's registry.
+// On mobile the TopBar shows only the screen title + bell + chat (no avatar),
+// so the profile entry point for BOTH roles is the round avatar button rendered
+// as the last tab (see below). Icon names point at components/Icon's registry.
 const ATHLETE_ITEMS = [
     // Mis Sesiones has no tab here; it is reached from the Inicio dashboard link.
     { section: 'my-dashboard', icon: 'home',          label: 'Inicio' },
@@ -29,8 +29,7 @@ const TRAINER_ITEMS = [
 
 export function BottomNav({ user, activeSection, onNavigate }) {
     if (!user) return null;
-    const isTrainer = user.role === 'trainer';
-    const navItems = isTrainer ? TRAINER_ITEMS : ATHLETE_ITEMS;
+    const navItems = user.role === 'trainer' ? TRAINER_ITEMS : ATHLETE_ITEMS;
     // Same initial/emoji fallback the TopBar uses, so the avatar looks identical.
     const initial = user.avatar || (user.name?.[0] || '?').toUpperCase();
 
@@ -46,16 +45,14 @@ export function BottomNav({ user, activeSection, onNavigate }) {
                     <span className="bottom-nav-label">{item.label}</span>
                 </button>
             ))}
-            {!isTrainer && (
-                <button
+            <button
                     className={`bottom-nav-item ${activeSection === 'profile' ? 'active' : ''}`}
                     onClick={() => onNavigate('profile')}
                     title="Mi Cuenta"
                     aria-label="Mi Cuenta"
                 >
                     <span className="bottom-nav-avatar">{initial}</span>
-                </button>
-            )}
+            </button>
         </nav>
     );
 }

@@ -335,6 +335,7 @@ const DAYS = [
       { text: 'Filtros y ordenamiento en la lista de Alumnos', detail: 'Filtrar por adherencia / última sesión / objetivo; ordenar por nombre o actividad', cats: ['fe','be'] },
       { text: 'Acciones rápidas desde la tarjeta de alumno', detail: 'Crear planificación, enviar nota, ver última sesión sin entrar al perfil', cats: ['fe'] },
       { text: 'Vista previa de la rutina desde el perfil del atleta', detail: 'Expandir las rutinas asignadas con sus ejercicios sin abrir un modal', cats: ['fe'] },
+      { text: 'Historial de notificaciones', detail: 'Hoy una notificación se borra al leerla (click o "Limpiar") para mantener la campana corta. Agregar un historial: pasar a soft-delete (columna read_at en notifications, que la lista de la campana filtre las no leídas) y una pantalla/sección con las leídas, paginada, con purga automática de las más viejas. Aplica a coach y atleta.', cats: ['be','fe','db'] },
       { text: 'Slim down del JWT a { userId, role, exp }', detail: 'Sacar name/email/avatar del token y leerlos siempre desde la DB en cada request. Evita el re-issue del token en updates de perfil y reduce la superficie de claims stale.', cats: ['be'] },
     ]
   },

@@ -27,6 +27,17 @@ export const SessionLogModel = {
         return query(`${SELECT} WHERE athlete_id = $1 ORDER BY updated_at DESC`, [athleteId]);
     },
 
+    // Current row for a plan/week/day (optionally one athlete), used by the
+    // controller to compare state BEFORE a write and notify only on transitions.
+    find: async ({ athleteId, planId, week, dayNumber }) => {
+        const rows = await query(
+            `${SELECT} WHERE plan_id = $1 AND week = $2 AND day_number = $3
+                          AND ($4::varchar IS NULL OR athlete_id = $4) LIMIT 1`,
+            [planId, week, dayNumber, athleteId ?? null]
+        );
+        return rows[0] || null;
+    },
+
     // ON CONFLICT only sets `payload`: review columns are deliberately left
     // untouched so re-saving a session never un-reviews it or drops the comment.
     upsert: async (log) => {

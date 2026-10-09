@@ -1,12 +1,17 @@
 // App shell for authenticated users. Loads every domain collection from the API,
 // owns the `activeSection` navigation state and the CRUD handlers, and passes
 // both down to Main (screens), Header/BottomNav/TopBar (navigation) and modals.
+// Also owns the notification / chat panels opened from the TopBar and the polled
+// unread counts (useInbox).
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Header/index.jsx';
 import { Main } from '../components/Main/index.jsx';
 import { BottomNav } from '../components/BottomNav/index.jsx';
 import { TopBar } from '../components/TopBar/index.jsx';
+import { NotificationPanel } from '../components/Notifications/NotificationPanel.jsx';
+import { ChatPanel } from '../components/Chat/ChatPanel.jsx';
+import { useInbox } from '../hooks/useInbox.js';
 import { Toast } from '../components/Common/index.jsx';
 import {
     ModalRoutine,
@@ -74,6 +79,12 @@ export default function Dashboard() {
     // {planId, week, dayNumber} of the log open in the trainer's session-detail screen. A key
     // (not the log) so the screen always reads the live entry from sessionLogs after a review.
     const [selectedLogKey, setSelectedLogKey]           = useState(nav0.logKey);
+
+    // Which top-bar panel is open ('notifications' | 'chat' | null) + polled unread counts.
+    const [panel, setPanel] = useState(null);
+    const { counts: inboxCounts, refresh: refreshInbox } = useInbox(!!user);
+    // Navigating anywhere (sidebar, bottom nav, a notification) closes the open panel.
+    useEffect(() => { setPanel(null); }, [activeSection]);
 
     const [routineModal, setRoutineModal]           = useState({ open: false, editing: null });
     const [sessionModal, setSessionModal]           = useState(false);
@@ -194,6 +205,36 @@ export default function Dashboard() {
         showToast('Planificación copiada');
     }
 
+    // Clicking a notification: refetch the data it refers to (plans / logs may have changed
+    // since the last load), then jump to the matching screen. Falls back to Mi Plan when the
+    // exact session can't be resolved (e.g. the plan was edited or deleted meanwhile).
+    async function handleOpenNotification(n) {
+        setPanel(null);
+        const { planId, week, dayNumber } = n.data ?? {};
+        let plans = planifications;
+        try {
+            const [p, l] = await Promise.all([planificationService.list(), sessionLogService.list()]);
+            plans = p.data;
+            setPlanifications(p.data);
+            setSessionLogs(l.data);
+        } catch { /* keep what we have */ }
+
+        if (n.type === 'session_completed') {
+            setSelectedLogKey({ planId, week, dayNumber });
+            setSection('session-detail');
+        } else if (n.type === 'session_reviewed') {
+            const plan = plans.find(p => p.id === planId);
+            const days = plan ? (plan.weekDays?.[week - 1] ?? plan.days ?? []) : [];
+            const day = days.find(d => d.dayNumber === dayNumber);
+            if (plan && day) {
+                setSelectedSession({ plan, week, day, from: 'my-plan' });
+                setSection('my-session');
+            } else setSection('my-plan');
+        } else {
+            setSection('my-plan');
+        }
+    }
+
     async function handleSaveRoutine(routine) {
         try {
             if (routine.id) {
@@ -279,7 +320,6 @@ export default function Dashboard() {
             />
 
             <Main
-                className={user?.role === 'athlete' ? 'main--athlete' : ''}
                 activeSection={activeSection}
                 routines={routines}
                 sessions={sessions}
@@ -356,6 +396,23 @@ export default function Dashboard() {
                 activeSection={activeSection}
                 onNavigate={setSection}
                 sidebarCollapsed={collapsed}
+                counts={inboxCounts}
+                panel={panel}
+                onTogglePanel={name => setPanel(p => p === name ? null : name)}
+            />
+            <NotificationPanel
+                open={panel === 'notifications'}
+                count={inboxCounts.notifications}
+                onClose={() => setPanel(null)}
+                onSelect={handleOpenNotification}
+                onChanged={refreshInbox}
+            />
+            <ChatPanel
+                open={panel === 'chat'}
+                user={user}
+                count={inboxCounts.messages}
+                onClose={() => setPanel(null)}
+                onChanged={refreshInbox}
             />
 
             <ModalRoutine

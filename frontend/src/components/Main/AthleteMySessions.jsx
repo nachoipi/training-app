@@ -1,4 +1,5 @@
 import React from 'react';
+import { SectionTitle } from '../TopBar/SectionTitle.jsx';
 
 export function AthleteMySessions({ planifications, sessionLogs, onOpenSession }) {
     function isCompleted(planId, week, dayNumber) {
@@ -7,12 +8,7 @@ export function AthleteMySessions({ planifications, sessionLogs, onOpenSession }
 
     return (
         <section className="section">
-            <div className="section-header">
-                <div>
-                    <h1 className="section-title">Mis Sesiones</h1>
-                    <p className="section-subtitle">Sesiones creadas por tu entrenador</p>
-                </div>
-            </div>
+            <SectionTitle title="Mis Sesiones" subtitle="Sesiones creadas por tu entrenador" />
 
             {planifications.length === 0 ? (
                 <p className="profile-empty">Todavía no tenés sesiones asignadas.</p>

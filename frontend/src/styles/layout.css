@@ -19,11 +19,15 @@
 .section-header {
     display: flex;
     align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 26px;
+    /* The title now lives in the TopBar (SectionTitle), so this row only holds
+       the screen's action buttons / filters, pushed to the right. */
+    justify-content: flex-end;
+    margin-bottom: 20px;
     gap: 16px;
     flex-wrap: wrap;
 }
+/* Screens whose actions are role-gated can end up with an empty row. */
+.section-header:empty { display: none; }
 
 .section-title {
     font-family: var(--font-display);

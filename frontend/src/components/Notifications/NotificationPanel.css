@@ -1,0 +1,102 @@
+/* Shared popover/sheet chrome for the notification and chat panels (.inbox-*),
+   plus the notification list items. Desktop: popover under the TopBar, right
+   aligned. Mobile (<=768px): full-screen sheet above the BottomNav (z 200) but
+   below modals (z 1000). */
+.inbox-panel {
+    position: fixed;
+    top: 72px;
+    right: 20px;
+    width: 380px;
+    max-height: calc(100vh - 96px);
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    z-index: 300;
+    overflow: hidden;
+}
+
+.inbox-panel-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+}
+.inbox-panel-head h3 {
+    flex: 1;
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    letter-spacing: 0.04em;
+    color: var(--text-primary);
+}
+.inbox-icon-btn,
+.inbox-link-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    padding: 4px;
+}
+.inbox-link-btn { font-size: 0.85rem; color: var(--accent); }
+.inbox-icon-btn:hover { color: var(--text-primary); }
+
+.inbox-panel-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+.inbox-empty {
+    padding: 32px 20px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.notif-item {
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    color: var(--text-primary);
+    cursor: pointer;
+    font: inherit;
+}
+.notif-item:hover { background: var(--bg-card-hover); }
+.notif-item-icon {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--accent-glow);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.notif-item-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.notif-item-text strong { font-weight: 600; font-size: 0.95rem; }
+.notif-item-text span { font-size: 0.85rem; color: var(--text-secondary); overflow-wrap: anywhere; }
+.notif-item-time { flex-shrink: 0; font-size: 0.75rem; color: var(--text-muted); }
+
+@media (max-width: 768px) {
+    .inbox-panel {
+        inset: 0;
+        width: auto;
+        max-height: none;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        z-index: 300;
+    }
+}

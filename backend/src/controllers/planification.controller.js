@@ -1,4 +1,8 @@
+// Request handlers for /api/planifications: list (role-scoped), create, update,
+// delete. Create/update also notify the athlete (notify.service.js), collapsed
+// to one unread entry per plan.
 import { PlanificationModel } from '../models/planification.model.js';
+import { notifyPlanChange } from '../services/notify.service.js';
 import { enrichPlanifications } from '../services/planification.enrich.service.js';
 
 export const getPlanifications = async (req, res, next) => {
@@ -23,6 +27,7 @@ export const createPlanification = async (req, res, next) => {
             athleteId, name, weeks, weekDays,
             createdBy: req.user.userId,
         });
+        await notifyPlanChange({ athleteId: plan.athleteId, planId: plan.id, planName: plan.name, created: true });
         res.status(201).json(plan);
     } catch (err) { next(err); }
 };
@@ -31,6 +36,8 @@ export const updatePlanification = async (req, res, next) => {
     try {
         const updated = await PlanificationModel.update(req.params.id, req.body);
         if (!updated) return res.status(404).json({ error: 'Planificación no encontrada' });
+        // Repeated edits collapse into the same unread notification (dedupe key).
+        await notifyPlanChange({ athleteId: updated.athleteId, planId: updated.id, planName: updated.name, created: false });
         res.json(updated);
     } catch (err) { next(err); }
 };

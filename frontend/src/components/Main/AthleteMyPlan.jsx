@@ -9,6 +9,7 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../Icon/index.jsx';
 import { formatCarga } from '../../utils/helpers.js';
+import { SectionTitle } from '../TopBar/SectionTitle.jsx';
 
 const RPE_CLASSES = { '1': 'session-rpe-1', '2': 'session-rpe-2', '3': 'session-rpe-3', '4': 'session-rpe-4' };
 
@@ -167,12 +168,7 @@ function PlanWeek({ number, days, logForDay, nextDayNumber, onStartSession }) {
 export function AthleteMyPlan({ planifications, sessionLogs = [], onOpenSession }) {
     return (
         <section className="section">
-            <div className="section-header">
-                <div>
-                    <h1 className="section-title">Mi Plan</h1>
-                    <p className="section-subtitle">Sesiones asignadas por tu entrenador</p>
-                </div>
-            </div>
+            <SectionTitle title="Mi Plan" subtitle="Sesiones asignadas por tu entrenador" />
 
             {planifications.length === 0 ? (
                 <p className="profile-empty">Todavía no tenés una planificación asignada.</p>
