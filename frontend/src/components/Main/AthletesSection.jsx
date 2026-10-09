@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { formatDate } from '../../utils/helpers.js';
 import { StatCard } from '../Common/index.jsx';
 import { userService } from '../../services/userService.js';
+import { SectionTitle } from '../TopBar/SectionTitle.jsx';
 
 export function AthletesSection({ onShowToast, onOpenAthleteProfile }) {
     const [viewMode, setViewMode] = useState('list');
@@ -19,11 +20,8 @@ export function AthletesSection({ onShowToast, onOpenAthleteProfile }) {
 
     return (
         <section className="section">
+            <SectionTitle title="Alumnos" subtitle="Gestioná tus atletas y su progreso" />
             <div className="section-header">
-                <div>
-                    <h1 className="section-title">Alumnos</h1>
-                    <p className="section-subtitle">Gestioná tus atletas y su progreso</p>
-                </div>
                 <div className="section-header-actions">
                     <div className="view-toggle">
                         <button

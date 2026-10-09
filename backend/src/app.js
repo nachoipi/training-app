@@ -1,3 +1,5 @@
+// Express app: mounts every /api router (plus the notifications, chat and inbox
+// routers), serves the built frontend in production and wires error handling.
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -13,6 +15,9 @@ import userRoutes          from './routes/user.routes.js';
 import statsRoutes         from './routes/stats.routes.js';
 import healthRoutes        from './routes/health.routes.js';
 import mediaProxyRoutes    from './routes/mediaProxy.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
+import chatRoutes         from './routes/chat.routes.js';
+import inboxRoutes        from './routes/inbox.routes.js';
 import errorMiddleware     from './middlewares/error.middleware.js';
 
 const app = express();
@@ -29,6 +34,9 @@ app.use('/api/athletes',       athleteRoutes);
 app.use('/api/users',          userRoutes);
 app.use('/api/stats',          statsRoutes);
 app.use('/api/media',          mediaProxyRoutes);
+app.use('/api/notifications',  notificationRoutes);
+app.use('/api/chat',           chatRoutes);
+app.use('/api/inbox',          inboxRoutes);
 app.use('/api',                healthRoutes);
 
 // Serve the built frontend when present (production deploys where backend

@@ -1,0 +1,115 @@
+/* Chat panel specifics (shared popover chrome lives in
+   Notifications/NotificationPanel.css as .inbox-*). */
+.chat-panel { height: 520px; }
+
+.chat-conv {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+}
+.chat-conv:hover { background: var(--bg-card-hover); }
+.chat-conv-avatar {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+.chat-conv-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.chat-conv-text span {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.chat-conv-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 0.75rem; color: var(--text-muted); }
+
+.chat-thread { display: flex; flex-direction: column; gap: 8px; padding: 14px; }
+.chat-bubble {
+    max-width: 80%;
+    padding: 8px 12px;
+    border-radius: 14px;
+    font-size: 0.92rem;
+    line-height: 1.35;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+.chat-bubble time { font-size: 0.68rem; opacity: 0.6; align-self: flex-end; }
+.chat-bubble.mine { align-self: flex-end; background: var(--accent); color: #0a0b0d; border-bottom-right-radius: 4px; }
+.chat-bubble.theirs { align-self: flex-start; background: var(--bg-card); color: var(--text-primary); border-bottom-left-radius: 4px; }
+
+.chat-error { margin: 0; padding: 4px 14px; color: var(--red); font-size: 0.8rem; }
+
+.chat-compose {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+}
+.chat-compose textarea {
+    flex: 1;
+    resize: none;
+    max-height: 96px;
+    padding: 9px 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 16px; /* >=16px stops iOS zooming into the field */
+}
+.chat-send {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent);
+    color: #0a0b0d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.chat-send:disabled { opacity: 0.4; cursor: default; }
+.chat-counter { position: absolute; right: 60px; top: -16px; font-size: 0.7rem; color: var(--text-muted); }
+
+/* Unread count pill, shared by the conversation list. */
+.inbox-badge {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--red);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 768px) {
+    .chat-panel { height: auto; }
+    .chat-bubble { max-width: 88%; }
+}

@@ -2,6 +2,8 @@
 -- Apply with: psql "$DATABASE_URL" -f database/schema.sql
 -- Portable across Supabase and GCP Cloud SQL for Postgres.
 
+DROP TABLE IF EXISTS notifications  CASCADE;
+DROP TABLE IF EXISTS messages       CASCADE;
 DROP TABLE IF EXISTS session_logs   CASCADE;
 DROP TABLE IF EXISTS sessions       CASCADE;
 DROP TABLE IF EXISTS planifications CASCADE;
@@ -109,6 +111,39 @@ CREATE TRIGGER trg_session_logs_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION set_updated_at();
 
+-- Notification centre + chat (migrations/2026-10-08_notifications_chat.sql).
+-- notifications holds UNREAD rows only (reading = delete); the partial unique
+-- index on dedupe_key collapses repeated events into one entry per user.
+CREATE TABLE notifications (
+    id          BIGSERIAL    PRIMARY KEY,
+    user_id     VARCHAR(32)  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type        VARCHAR(32)  NOT NULL,
+    title       VARCHAR(160) NOT NULL,
+    body        TEXT,
+    data        JSONB        NOT NULL DEFAULT '{}'::jsonb,
+    dedupe_key  VARCHAR(120),
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_notifications_user_created
+    ON notifications (user_id, created_at DESC);
+CREATE UNIQUE INDEX uq_notifications_dedupe
+    ON notifications (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
+
+CREATE TABLE messages (
+    id            BIGSERIAL    PRIMARY KEY,
+    sender_id     VARCHAR(32)  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    recipient_id  VARCHAR(32)  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body          TEXT         NOT NULL CHECK (char_length(body) BETWEEN 1 AND 1000),
+    created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    read_at       TIMESTAMPTZ
+);
+
+CREATE INDEX idx_messages_recipient_unread
+    ON messages (recipient_id, read_at);
+CREATE INDEX idx_messages_pair
+    ON messages (LEAST(sender_id, recipient_id), GREATEST(sender_id, recipient_id), id);
+
 -- Lock down PostgREST exposure on Supabase. The backend runs as the postgres
 -- superuser and bypasses RLS, so app behaviour is unchanged. Without policies,
 -- anon/authenticated PostgREST requests get a default deny.
@@ -118,3 +153,5 @@ ALTER TABLE routines       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE planifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE session_logs   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages       ENABLE ROW LEVEL SECURITY;

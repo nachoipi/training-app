@@ -7,6 +7,7 @@ import React from 'react';
 import { Icon } from '../Icon/index.jsx';
 import { formatDate } from '../../utils/helpers.js';
 import '../../styles/athlete-dashboard.css';
+import { SectionTitle } from '../TopBar/SectionTitle.jsx';
 
 const RPE_LABELS = { '1': 'Fácil', '2': 'Moderado', '3': 'Difícil', '4': 'Máximo' };
 
@@ -60,14 +61,8 @@ export function AthleteDashboard({ user, planifications = [], sessionLogs = [], 
     const firstName = (user?.name || '').split(' ')[0];
     const plan = getActivePlan(planifications, sessionLogs);
 
-    const header = (
-        <div className="section-header">
-            <div>
-                <h1 className="section-title">Hola{firstName ? `, ${firstName}` : ''}</h1>
-                <p className="section-subtitle">Tu resumen de entrenamiento</p>
-            </div>
-        </div>
-    );
+    // Title lives in the TopBar (SectionTitle portal), not in the page.
+    const header = <SectionTitle title={`Hola${firstName ? `, ${firstName}` : ''}`} subtitle="Tu resumen de entrenamiento" />;
 
     if (!plan) {
         return (
