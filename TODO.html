@@ -115,10 +115,10 @@ const DAYS = [
     tag: 'feature',
     tasks: [
       { text: 'Flujo "Nueva planificación" desde la ficha del atleta', detail: 'Botón visible en la tarjeta/perfil del alumno que abre el editor de plan directamente asociado a ese athlete_id — hoy hay que crearla suelta y vincularla a mano.', cats: ['fe'] },
-      { text: 'Editor de planificación con días, bloques y ejercicios coherentes', detail: 'Asegurar que el editor permita: elegir semanas, agregar días, dentro de cada día agregar bloques (calentamiento / principal / accesorios) y dentro de cada bloque ejercicios con series × reps × carga objetivo y descanso.', cats: ['fe','be'] },
-      { text: 'Notas del trainer por día y por ejercicio', detail: 'Campo libre que el atleta verá al entrenar ("RIR 2", "técnica lenta en la bajada", "si te sobra energía sumá una serie").', cats: ['fe','be'] },
-      { text: 'Estado de la planificación (borrador / publicada)', detail: 'El atleta sólo ve planificaciones publicadas. Mientras el trainer arma, queda en borrador. Endpoint PATCH /api/planifications/:id/publish.', cats: ['be','db','fe'] },
-      { text: 'Confirmación de asignación + feedback al trainer', detail: 'Al publicar: toast "Plan asignado a {atleta}" y la planificación aparece en la home del atleta la próxima vez que entre.', cats: ['fe'] },
+      { text: 'Editor de planificación con días, bloques y ejercicios coherentes', detail: 'El editor permite elegir semanas, agregar días, dentro de cada día agregar bloques (A–E) y dentro de cada bloque ejercicios con series × reps × medida × carga objetivo. Descanso y tipos de bloque (calentamiento / principal / accesorios) pasaron a la fase "Live training".', cats: ['fe','be'], done: true },
+      { text: 'Notas del trainer por día y por ejercicio', detail: 'Campo libre que el atleta verá al entrenar ("RIR 2", "técnica lenta en la bajada", "si te sobra energía sumá una serie"). Por ejercicio: campo Comentario. Por día: textarea "Comentario del día" en el editor (day.comentario, JSONB en week_days), mostrado al atleta como "Nota del día" al abrir la sesión.', cats: ['fe','be'], done: true },
+      { text: 'Estado de la planificación (borrador / publicada)', detail: 'El atleta sólo ve planificaciones publicadas. Mientras el trainer arma, queda en borrador. Columna planifications.status (draft/published; migración 2026-10-26_planification_status.sql, los planes existentes quedan publicados), PATCH /api/planifications/:id/publish (idempotente), el atleta no los lista ni puede loguear sesiones contra un borrador. Editor: "Guardar borrador" / "Guardar y publicar"; ficha del alumno: badge Borrador/Publicada + botón Publicar.', cats: ['be','db','fe'], done: true },
+      { text: 'Confirmación de asignación + feedback al trainer', detail: 'Al publicar: toast "Plan asignado a {atleta}" y la planificación aparece en la home del atleta la próxima vez que entre.', cats: ['fe'], done: true },
     ]
   },
   {
@@ -126,7 +126,7 @@ const DAYS = [
     title: 'Atleta recibe el plan y entrena',
     tag: 'feature',
     tasks: [
-      { text: 'Home del atleta destaca el próximo entrenamiento', detail: 'Card grande con el día de hoy (o el próximo planificado): bloques, ejercicios, notas del coach, botón "Empezar entrenamiento".', cats: ['fe'] },
+      { text: 'Home del atleta destaca el próximo entrenamiento', detail: 'Card grande con el día de hoy (o el próximo planificado): bloques, ejercicios, notas del coach, botón "Empezar entrenamiento". Implementado en el hero de AthleteDashboard (nota del día, bloques con ejercicios y series×reps).', cats: ['fe'], done: true },
       { text: 'Pantalla "Entrenar" guiada ejercicio por ejercicio', detail: 'Vista que recorre los bloques y ejercicios del día, mostrando objetivo (series × reps × carga sugerida) y permitiendo loguear lo realizado en cada serie.', cats: ['fe'] },
       { text: 'Persistencia incremental en session_logs.payload', detail: 'Cada cambio del atleta (set completado, carga, RPE) se guarda al toque vía PATCH /api/session-logs/:id — si cierra la app vuelve donde estaba.', cats: ['be','fe'] },
       { text: 'Cerrar sesión con comentario y RPE global', detail: 'Al terminar el día: modal "¿Cómo te fue?" con RPE 1-10, comentario libre y marca de sesión completada. Esto es lo que llega al trainer.', cats: ['fe','be'] },
@@ -165,6 +165,17 @@ const DAYS = [
       { text: 'Hilo de comentarios por sesión completada', detail: 'Tanto el trainer como el atleta pueden responderse sobre una sesión puntual (no es chat libre, es contextual a la sesión).', cats: ['fe','be','db'] },
       { text: 'Badge de "comentarios sin leer" en ambos lados', detail: 'El atleta ve cuando el trainer le dejó feedback; el trainer ve cuando el atleta respondió.', cats: ['fe','be'] },
       { text: 'Notificaciones in-app mínimas (sólo para el loop)', detail: 'Eventos: plan asignado, plan modificado, sesión completada, comentario nuevo. Nada más todavía — push y email quedan para extras.', cats: ['db','be','fe'] },
+    ]
+  },
+
+  {
+    day: 'Live training',
+    title: 'Entrenamiento en vivo (atleta en cancha)',
+    tag: 'feature',
+    tasks: [
+      { text: 'Modal por ejercicio en curso, recorriendo cada bloque', detail: 'Cuando el atleta está en la cancha, un modal sobre el ejercicio que está haciendo, navegando todos los bloques del día (ejercicio actual, siguiente, series restantes).', cats: ['fe'] },
+      { text: 'Campo de descanso por ejercicio/bloque', detail: 'El trainer define el descanso (segundos) en el editor; en vivo el modal muestra un temporizador de descanso entre series.', cats: ['fe','be'] },
+      { text: 'Tipos de bloque (calentamiento / principal / accesorios)', detail: 'Hoy los bloques sólo son A–E. Agregar un tipo por bloque en el editor y mostrarlo como etiqueta en la vista en vivo.', cats: ['fe','be'] },
     ]
   },
 
@@ -355,12 +366,23 @@ const DAYS = [
 
 const KEY = 'fitcore_todo_v1';
 let state = JSON.parse(localStorage.getItem(KEY) || '{}');
+// v2: "Live training" was inserted at index 5, so saved checks of later sections move down by one.
+if (state.__v !== 2) {
+  const next = { __v: 2 };
+  Object.keys(state).forEach(k => {
+    const [d, t] = k.split('-').map(Number);
+    if (Number.isNaN(d) || Number.isNaN(t)) return;
+    next[`${d >= 5 ? d + 1 : d}-${t}`] = state[k];
+  });
+  state = next;
+  localStorage.setItem(KEY, JSON.stringify(state));
+}
 
 function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
 
 function taskId(dayIdx, taskIdx) { return `${dayIdx}-${taskIdx}`; }
 
-function isDone(dayIdx, taskIdx) { return !!state[taskId(dayIdx, taskIdx)]; }
+function isDone(dayIdx, taskIdx) { return !!(DAYS[dayIdx].tasks[taskIdx].done || state[taskId(dayIdx, taskIdx)]); }
 
 function toggle(dayIdx, taskIdx) {
   const id = taskId(dayIdx, taskIdx);

@@ -34,7 +34,7 @@ export const saveSessionLog = async (req, res, next) => {
         const { planId, week, dayNumber, ...payloadFields } = req.body;
         // An athlete can only log against their own plans.
         const plan = planId ? await PlanificationModel.findById(planId) : null;
-        if (!plan || plan.athleteId !== req.user.userId) {
+        if (!plan || plan.athleteId !== req.user.userId || plan.status !== 'published') {
             return res.status(404).json({ error: 'Planificación no encontrada' });
         }
         const log = {

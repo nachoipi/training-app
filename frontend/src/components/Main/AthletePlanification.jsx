@@ -55,10 +55,14 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
         return initWeekDays(savedWeeks, template);
     });
 
+    // New plans and drafts can be published from the footer; published ones just save.
+    const isPublished = planification?.status === 'published';
+
     const trainingDays = weekDays[0]?.length ?? 3;
 
     const [collapsedWeeks, setCollapsedWeeks] = useState({});
     const [collapsedDays, setCollapsedDays] = useState({});
+    const [commentOpen, setCommentOpen] = useState({});
 
     function toggleWeek(weekIdx) {
         setCollapsedWeeks(prev => ({ ...prev, [weekIdx]: !prev[weekIdx] }));
@@ -93,6 +97,14 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
                 return [...weekDayList, ...added];
             }
             return weekDayList.slice(0, count);
+        }));
+    }
+
+    // ── Day operations ────────────────────────────────────────────────
+    function updateDayComment(weekIdx, dayIdx, value) {
+        setWeekDays(prev => prev.map((weekDayList, wi) => {
+            if (wi !== weekIdx) return weekDayList;
+            return weekDayList.map((d, i) => (i === dayIdx ? { ...d, comentario: value } : d));
         }));
     }
 
@@ -194,7 +206,7 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
     }
 
     // ── Save ─────────────────────────────────────────────────────────
-    function handleSave() {
+    function handleSave(publish = false) {
         if (!planName.trim()) { onShowToast('Ingresá un nombre para el plan', 'error'); return; }
         for (let wi = 0; wi < weekDays.length; wi++) {
             for (const day of weekDays[wi]) {
@@ -213,7 +225,7 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
                 }
             }
         }
-        onSave({ id: planification?.id, athleteId: athlete.id, name: planName.trim(), weeks, weekDays });
+        onSave({ id: planification?.id, athleteId: athlete.id, name: planName.trim(), weeks, weekDays, publish });
     }
 
     return (
@@ -394,6 +406,34 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
                             </button>
                         </div>
                     ))}
+
+                    {!isDayCollapsed && (day.comentario || commentOpen[`${weekIdx}-${dayIdx}`] ? (
+                        <div className="planification-day-comment-wrap">
+                            <textarea
+                                className="planification-input planification-day-comment"
+                                rows={2}
+                                maxLength={500}
+                                placeholder="Comentario del día (opcional, lo verá el atleta al entrenar)"
+                                value={day.comentario ?? ''}
+                                onChange={e => updateDayComment(weekIdx, dayIdx, e.target.value)}
+                            />
+                            <button
+                                className="planification-remove-btn"
+                                title="Quitar comentario"
+                                onClick={() => {
+                                    updateDayComment(weekIdx, dayIdx, '');
+                                    setCommentOpen(prev => ({ ...prev, [`${weekIdx}-${dayIdx}`]: false }));
+                                }}
+                            >×</button>
+                        </div>
+                    ) : (
+                        <button
+                            className="planification-add-exercise-btn"
+                            onClick={() => setCommentOpen(prev => ({ ...prev, [`${weekIdx}-${dayIdx}`]: true }))}
+                        >
+                            + Comentario del día
+                        </button>
+                    ))}
                 </div>
                 );
             })}
@@ -404,7 +444,14 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
             {/* Footer */}
             <div className="planification-footer">
                 <button className="btn btn-secondary" onClick={onBack}>Cancelar</button>
-                <button className="btn btn-primary" onClick={handleSave}>Guardar Planificación</button>
+                {isPublished ? (
+                    <button className="btn btn-primary" onClick={() => handleSave(false)}>Guardar Planificación</button>
+                ) : (
+                    <>
+                        <button className="btn btn-secondary" onClick={() => handleSave(false)}>Guardar borrador</button>
+                        <button className="btn btn-primary" onClick={() => handleSave(true)}>Guardar y publicar</button>
+                    </>
+                )}
             </div>
         </section>
     );

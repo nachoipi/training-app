@@ -91,6 +91,11 @@ Workflow order: **start-task → investigate → plan → testing → commit →
 
 ## Changelog
 
+### 2026-10-27 (Fase 1: draft / published plans)
+- **Draft / published planifications**: new `planifications.status` (`draft` | `published`; migration `2026-10-26_planification_status.sql` backfills existing plans as published). New plans start as drafts and are invisible to the athlete (not listed, and `saveSessionLog` answers 404). `PATCH /api/planifications/:id/publish` (trainer only, ownership-scoped, idempotent) publishes and sends the "plan assigned" notification; creating a draft no longer notifies, and edits only notify once the plan is published. `status` in a PUT body is ignored. Editor footer: "Guardar borrador" / "Guardar y publicar"; the athlete profile shows a Borrador/Publicada badge and a "Publicar" button on drafts; the toast reads "Plan asignado a {atleta}".
+- **Day comment**: optional "Comentario del día" at the bottom of each day in the plan editor (`day.comentario` inside `week_days` JSONB). The athlete sees it as "Nota del día" in the session screen (centered, same spacing as the coach-comment banner) and on the Inicio hero.
+- **Athlete Inicio hero**: the next session card now lists its blocks and exercises (series×reps) and the button reads "Empezar entrenamiento".
+
 ### 2026-10-09 (trainer ↔ athlete link)
 - **Each athlete has their own trainer**: new `users.trainer_id`. Trainers now only see and manage their own athletes' planifications, session logs, routines, sessions, stats and chat; reviewing or editing anything of another trainer's athlete answers 404. The exercise catalog stays shared. Chat/notification pairing now uses the real link instead of "creator of the latest plan".
 - **Adding athletes**: "+ Agregar Alumno" on Alumnos opens a modal to link an existing athlete without a trainer by email, or to generate a single-use invitation link (7 days, revocable, pending list). The athlete opens `/invite/<token>`, creates their own profile and is linked automatically. Public invite routes are rate limited per IP.

@@ -43,6 +43,7 @@ export function Main({
     onViewPlanification,
     onCopyPlanification,
     onDeletePlanification,
+    onPublishPlanification,
     onSavePlanification,
     planifications,
     onNavigate,
@@ -173,6 +174,7 @@ export function Main({
                     onCopyPlanification={onCopyPlanification}
                     onReviewSessionLog={onReviewSessionLog}
                     onDeletePlanification={onDeletePlanification}
+                    onPublishPlanification={onPublishPlanification}
                     onShowToast={onShowToast}
                 />
             )}
