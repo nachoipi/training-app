@@ -86,6 +86,8 @@ CREATE TABLE planifications (
     name        VARCHAR(120) NOT NULL,
     weeks       INTEGER      NOT NULL DEFAULT 4,
     week_days   JSONB,
+    -- Athletes only see 'published' plans (migrations/2026-10-26_planification_status.sql).
+    status      VARCHAR(16)  NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 

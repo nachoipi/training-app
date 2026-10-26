@@ -11,7 +11,7 @@ import { formatDate, formatCarga, collapseUnilateral } from '../../utils/helpers
 import { StatCard } from '../Common/index.jsx';
 import { SessionLogDetail, RPE_CLASSES } from './SessionLogDetail.jsx';
 
-export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, onOpenPlanification, onViewPlanification, onDeletePlanification, onCopyPlanification, onReviewSessionLog, onShowToast }) {
+export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, onOpenPlanification, onViewPlanification, onDeletePlanification, onPublishPlanification, onCopyPlanification, onReviewSessionLog, onShowToast }) {
     const athletePlanIds = new Set(planifications.map(p => p.id));
     const completedLogs = (sessionLogs || [])
         .filter(l => athletePlanIds.has(l.planId) && l.completed)
@@ -91,12 +91,25 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                         {planifications.map(p => (
                             <div key={p.id} className="assigned-routine-row">
                                 <div className="assigned-routine-info">
-                                    <span className="assigned-routine-name">{p.name}</span>
+                                    <span className="assigned-routine-name">
+                                        {p.name}
+                                        <span className={`plan-status-badge plan-status-badge--${p.status === 'draft' ? 'draft' : 'published'}`}>
+                                            {p.status === 'draft' ? 'Borrador' : 'Publicada'}
+                                        </span>
+                                    </span>
                                     <span className="assigned-routine-meta">
                                         {p.weeks} semanas · {(p.weekDays?.[0] ?? p.days ?? []).length} días
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', gap: 8 }}>
+                                    {p.status === 'draft' && (
+                                        <button
+                                            className="btn btn-primary btn-sm"
+                                            onClick={() => onPublishPlanification(p)}
+                                        >
+                                            Publicar
+                                        </button>
+                                    )}
                                     <button
                                         className="btn btn-secondary btn-sm"
                                         onClick={() => onViewPlanification(p)}

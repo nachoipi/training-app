@@ -553,9 +553,15 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
 
             <div className="session-window-body">
                 {sessionLog?.trainerComment && (
-                    <div className="plan-session-block trainer-feedback-banner">
+                    <div className="plan-session-block trainer-feedback-banner" style={{ marginBottom: 16 }}>
                         <div className="plan-session-block-label">Comentario de tu coach</div>
                         <p className="trainer-feedback-text">"{sessionLog.trainerComment}"</p>
+                    </div>
+                )}
+                {day.comentario?.trim() && (
+                    <div className="plan-session-block trainer-feedback-banner" style={{ marginBottom: 16 }}>
+                        <div className="plan-session-block-label">Nota del día</div>
+                        <p className="trainer-feedback-text">{day.comentario.trim()}</p>
                     </div>
                 )}
                 {day.blocks.map(block => {

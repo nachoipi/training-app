@@ -8,6 +8,7 @@ const SELECT = `
            name,
            weeks,
            week_days  AS "weekDays",
+           status,
            created_at AS "createdAt"
       FROM planifications`;
 
@@ -19,7 +20,8 @@ export const PlanificationModel = {
                 `${SELECT} WHERE athlete_id IN (SELECT id FROM users WHERE trainer_id = $1)
                   ORDER BY created_at DESC`, [trainerId]);
         }
-        return query(`${SELECT} WHERE athlete_id = $1 ORDER BY created_at DESC`, [athleteId]);
+        // Athletes never see drafts.
+        return query(`${SELECT} WHERE athlete_id = $1 AND status = 'published' ORDER BY created_at DESC`, [athleteId]);
     },
 
     findById: async (id) => {
@@ -32,7 +34,7 @@ export const PlanificationModel = {
             `INSERT INTO planifications (id, athlete_id, created_by, name, weeks, week_days)
              VALUES ($1, $2, $3, $4, $5, $6::jsonb)
              RETURNING id, athlete_id AS "athleteId", created_by AS "createdBy",
-                       name, weeks, week_days AS "weekDays", created_at AS "createdAt"`,
+                       name, weeks, week_days AS "weekDays", status, created_at AS "createdAt"`,
             [uid(), athleteId, createdBy, name, weeks ?? 4, JSON.stringify(weekDays ?? [])]
         );
         return rows[0];
@@ -59,8 +61,20 @@ export const PlanificationModel = {
             `UPDATE planifications SET ${sets.join(', ')}
               WHERE id = $${params.length}
              RETURNING id, athlete_id AS "athleteId", created_by AS "createdBy",
-                       name, weeks, week_days AS "weekDays", created_at AS "createdAt"`,
+                       name, weeks, week_days AS "weekDays", status, created_at AS "createdAt"`,
             params
+        );
+        return rows[0] || null;
+    },
+
+    // draft -> published. Returns the row, or null when the id does not exist.
+    publish: async (id) => {
+        const rows = await query(
+            `UPDATE planifications SET status = 'published'
+              WHERE id = $1
+             RETURNING id, athlete_id AS "athleteId", created_by AS "createdBy",
+                       name, weeks, week_days AS "weekDays", status, created_at AS "createdAt"`,
+            [id]
         );
         return rows[0] || null;
     },

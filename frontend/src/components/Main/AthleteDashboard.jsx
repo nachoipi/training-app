@@ -101,11 +101,29 @@ export function AthleteDashboard({ user, planifications = [], sessionLogs = [], 
                 {next ? (
                     <>
                         <div className="dash-hero-title">Próxima sesión: Semana {next.week} · Día {next.day.dayNumber}</div>
+                        {next.day.comentario?.trim() && (
+                            <p className="dash-hero-note">{next.day.comentario.trim()}</p>
+                        )}
+                        <div className="dash-hero-blocks">
+                            {next.day.blocks.map(block => (
+                                <div key={block.label} className="dash-hero-block">
+                                    <span className="dash-hero-block-label">Bloque {block.label}</span>
+                                    <ul className="dash-hero-exercises">
+                                        {block.exercises.filter(ex => ex.exerciseName).map(ex => (
+                                            <li key={ex.position}>
+                                                <span>{ex.exerciseName}</span>
+                                                <span className="dash-hero-ex-meta">{ex.series}×{ex.reps}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
                         <button
                             className="btn btn-primary"
                             onClick={() => onOpenSession({ plan, week: next.week, day: next.day })}
                         >
-                            Realizar sesión
+                            Empezar entrenamiento
                         </button>
                     </>
                 ) : (

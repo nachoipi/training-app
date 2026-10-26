@@ -352,19 +352,28 @@ export default function Dashboard() {
                         showToast('Planificación eliminada');
                     } catch (err) { showToast(err.message, 'error'); }
                 }}
-                onSavePlanification={async plan => {
+                onSavePlanification={async ({ publish, ...plan }) => {
                     try {
-                        if (plan.id) {
-                            const updated = await planificationService.update(plan.id, plan);
-                            setPlanifications(ps => ps.map(p => p.id === updated.id ? updated : p));
-                            showToast('Planificación actualizada');
-                        } else {
-                            const created = await planificationService.create(plan);
-                            setPlanifications(ps => [...ps, created]);
-                            showToast('Planificación guardada');
-                        }
+                        let saved = plan.id
+                            ? await planificationService.update(plan.id, plan)
+                            : await planificationService.create(plan);
+                        const wasPublished = saved.status === 'published';
+                        if (publish && !wasPublished) saved = await planificationService.publish(saved.id);
+                        setPlanifications(ps => ps.some(p => p.id === saved.id)
+                            ? ps.map(p => p.id === saved.id ? saved : p)
+                            : [...ps, saved]);
+                        showToast(publish && !wasPublished
+                            ? `Plan asignado a ${selectedAthlete?.name ?? 'el alumno'}`
+                            : wasPublished ? 'Planificación actualizada' : 'Borrador guardado');
                         setSelectedPlanification(null);
                         setSection('athlete-profile');
+                    } catch (err) { showToast(err.message, 'error'); }
+                }}
+                onPublishPlanification={async plan => {
+                    try {
+                        const published = await planificationService.publish(plan.id);
+                        setPlanifications(ps => ps.map(p => p.id === published.id ? published : p));
+                        showToast(`Plan asignado a ${selectedAthlete?.name ?? 'el alumno'}`);
                     } catch (err) { showToast(err.message, 'error'); }
                 }}
                 onNavigate={setSection}

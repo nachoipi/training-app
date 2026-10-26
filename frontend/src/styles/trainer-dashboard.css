@@ -40,7 +40,7 @@
 
 /* Read-only coach comment shown to the athlete inside their session. */
 .trainer-feedback-banner { margin-bottom: 16px; }
-.trainer-feedback-text { margin: 6px 0 0; font-style: italic; color: var(--text-secondary); }
+.trainer-feedback-text { margin: 6px 0 0; font-style: italic; color: var(--text-secondary); text-align: center; }
 
 @media (max-width: 768px) {
     .trainer-feed-card { padding: 10px 12px; }
