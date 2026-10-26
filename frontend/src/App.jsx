@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/Home.jsx';
 import Login from './pages/Login.jsx';
+import InviteSignup from './pages/InviteSignup.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import { isAuthenticated } from './services/authService.js';
 
@@ -12,6 +13,7 @@ export default function App() {
     return (
         <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/invite/:token" element={<InviteSignup />} />
             <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
             <Route path="/" element={<Home />} />
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -17,12 +17,15 @@ const SELECT = `
       FROM session_logs`;
 
 export const SessionLogModel = {
-    findAll: async ({ athleteId, isTrainer, filterAthleteId } = {}) => {
+    // Trainers get logs of their own athletes only; `filterAthleteId` narrows
+    // within that set (a foreign id simply yields an empty list).
+    findAll: async ({ athleteId, isTrainer, trainerId, filterAthleteId } = {}) => {
         if (isTrainer) {
-            if (filterAthleteId) {
-                return query(`${SELECT} WHERE athlete_id = $1 ORDER BY updated_at DESC`, [filterAthleteId]);
-            }
-            return query(`${SELECT} ORDER BY updated_at DESC`);
+            return query(
+                `${SELECT} WHERE athlete_id IN (SELECT id FROM users WHERE trainer_id = $1)
+                            AND ($2::varchar IS NULL OR athlete_id = $2)
+                  ORDER BY updated_at DESC`,
+                [trainerId, filterAthleteId ?? null]);
         }
         return query(`${SELECT} WHERE athlete_id = $1 ORDER BY updated_at DESC`, [athleteId]);
     },
@@ -60,17 +63,18 @@ export const SessionLogModel = {
     // table's natural key (plan + week + day) because the id the frontend sees is
     // the payload's own uid, not this row's BIGSERIAL id. COALESCE keeps the
     // first review time when the trainer later edits the comment.
-    review: async ({ planId, week, dayNumber, comment }) => {
+    // `athleteId` (the plan's athlete) pins the row to one athlete.
+    review: async ({ athleteId, planId, week, dayNumber, comment }) => {
         const rows = await query(
             `UPDATE session_logs
                 SET reviewed_at = COALESCE(reviewed_at, now()),
                     trainer_comment = $4
-              WHERE plan_id = $1 AND week = $2 AND day_number = $3
+              WHERE plan_id = $1 AND week = $2 AND day_number = $3 AND athlete_id = $5
              RETURNING id, athlete_id AS "athleteId", plan_id AS "planId",
                        week, day_number AS "dayNumber", payload,
                        reviewed_at AS "reviewedAt", trainer_comment AS "trainerComment",
                        updated_at AS "updatedAt"`,
-            [planId, week, dayNumber, comment]
+            [planId, week, dayNumber, comment, athleteId]
         );
         return rows[0] || null;
     },

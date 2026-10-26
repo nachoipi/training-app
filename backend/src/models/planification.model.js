@@ -12,8 +12,13 @@ const SELECT = `
       FROM planifications`;
 
 export const PlanificationModel = {
-    findAll: async ({ athleteId, isTrainer } = {}) => {
-        if (isTrainer) return query(`${SELECT} ORDER BY created_at DESC`);
+    // Trainers only see plans of their own athletes (users.trainer_id).
+    findAll: async ({ athleteId, isTrainer, trainerId } = {}) => {
+        if (isTrainer) {
+            return query(
+                `${SELECT} WHERE athlete_id IN (SELECT id FROM users WHERE trainer_id = $1)
+                  ORDER BY created_at DESC`, [trainerId]);
+        }
         return query(`${SELECT} WHERE athlete_id = $1 ORDER BY created_at DESC`, [athleteId]);
     },
 

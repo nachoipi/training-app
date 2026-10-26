@@ -1,7 +1,7 @@
 // Request handlers for /api/chat: conversation list, thread, send and
 // mark-read for the 1-to-1 trainer/athlete chat. Authorisation is the pairing
-// rule in MessageModel.arePaired (athlete's trainer = creator of their latest
-// plan); anything outside a valid pair is a 403.
+// rule in MessageModel.arePaired (athlete's trainer = users.trainer_id);
+// anything outside a valid pair is a 403.
 import { MessageModel } from '../models/message.model.js';
 import { query } from '../config/db.js';
 

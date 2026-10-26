@@ -13,12 +13,17 @@ const SELECT = `
            created_at   AS "createdAt"
       FROM sessions`;
 
+// A trainer's session scope: their own plus those of their athletes ($1 = trainer id).
+const TRAINER_SCOPE = `(user_id = $1 OR user_id IN (SELECT id FROM users WHERE trainer_id = $1))`;
+
 export const SessionModel = {
     findAll: async ({ userId, isTrainer, from, to, filterUserId } = {}) => {
         const where = [];
         const params = [];
-        if (!isTrainer) { params.push(userId); where.push(`user_id = $${params.length}`); }
-        else if (filterUserId) { params.push(filterUserId); where.push(`user_id = $${params.length}`); }
+        params.push(userId);
+        if (!isTrainer) where.push(`user_id = $1`);
+        else where.push(`${TRAINER_SCOPE}`);
+        if (isTrainer && filterUserId) { params.push(filterUserId); where.push(`user_id = $${params.length}`); }
         if (from) { params.push(from); where.push(`date >= $${params.length}`); }
         if (to)   { params.push(to);   where.push(`date <= $${params.length}`); }
 
@@ -59,7 +64,7 @@ export const SessionModel = {
     },
 
     allForUser: async (userId, isTrainer) => {
-        if (isTrainer) return query(`${SELECT} ORDER BY date DESC`);
+        if (isTrainer) return query(`${SELECT} WHERE ${TRAINER_SCOPE} ORDER BY date DESC`, [userId]);
         return query(`${SELECT} WHERE user_id = $1 ORDER BY date DESC`, [userId]);
     },
 };

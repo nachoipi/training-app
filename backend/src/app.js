@@ -22,6 +22,8 @@ import errorMiddleware     from './middlewares/error.middleware.js';
 
 const app = express();
 
+// Behind Render's proxy: trust one hop so req.ip (rate limiter) is the client IP.
+app.set('trust proxy', 1);
 app.use(express.json());
 
 app.use('/api/auth',           authRoutes);

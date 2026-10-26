@@ -12,9 +12,12 @@ const SELECT = `
            created_at  AS "createdAt"
       FROM routines`;
 
+// A trainer's routine scope: their own plus those of their athletes.
+const TRAINER_SCOPE = `(user_id = $1 OR user_id IN (SELECT id FROM users WHERE trainer_id = $1))`;
+
 export const RoutineModel = {
     findAll: async ({ userId, isTrainer } = {}) => {
-        if (isTrainer) return query(`${SELECT} ORDER BY created_at DESC`);
+        if (isTrainer) return query(`${SELECT} WHERE ${TRAINER_SCOPE} ORDER BY created_at DESC`, [userId]);
         return query(`${SELECT} WHERE user_id = $1 ORDER BY created_at DESC`, [userId]);
     },
 
@@ -78,8 +81,11 @@ export const RoutineModel = {
         return rows.length > 0;
     },
 
-    count: async () => {
-        const rows = await query(`SELECT COUNT(*)::int AS count FROM routines`);
+    // Routines visible to the caller (same scope as findAll).
+    count: async ({ userId, isTrainer }) => {
+        const rows = await query(
+            `SELECT COUNT(*)::int AS count FROM routines
+              WHERE ${isTrainer ? TRAINER_SCOPE : 'user_id = $1'}`, [userId]);
         return rows[0].count;
     },
 };

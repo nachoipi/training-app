@@ -18,8 +18,30 @@ CREATE TABLE users (
     role          VARCHAR(16)  NOT NULL CHECK (role IN ('trainer', 'athlete')),
     name          VARCHAR(120) NOT NULL,
     avatar        VARCHAR(8),
-    created_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
+    -- The athlete's own trainer (athletes only; NULL = not linked yet). Every
+    -- trainer-side query is scoped through this column.
+    trainer_id    VARCHAR(32)  REFERENCES users(id) ON DELETE SET NULL,
+    created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    CONSTRAINT chk_trainer_only_athletes CHECK (trainer_id IS NULL OR role = 'athlete')
 );
+
+CREATE INDEX idx_users_trainer ON users (trainer_id);
+
+-- Single-use invitation links a trainer hands to a not-yet-registered athlete.
+-- Only the sha256 of the random token is stored, never the token itself.
+CREATE TABLE athlete_invites (
+    id          BIGSERIAL    PRIMARY KEY,
+    trainer_id  VARCHAR(32)  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  CHAR(64)     NOT NULL UNIQUE,
+    email       VARCHAR(255),
+    name        VARCHAR(120),
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    expires_at  TIMESTAMPTZ  NOT NULL,
+    used_at     TIMESTAMPTZ,
+    used_by     VARCHAR(32)  REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_athlete_invites_trainer ON athlete_invites (trainer_id);
 
 -- Exercise catalog. Muscle tagging is now an array (primary/secondary) instead
 -- of the single VARCHAR `muscle` column the table originally had — see
@@ -155,3 +177,4 @@ ALTER TABLE sessions       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE session_logs   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE athlete_invites ENABLE ROW LEVEL SECURITY;

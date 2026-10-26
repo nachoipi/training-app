@@ -3,7 +3,7 @@
 // backend — never trusted for authorisation here, only inspected so the UI can
 // decide whether to show the login screen or the dashboard.
 import { apiFetch } from '../api/httpClient.js';
-import { AUTH_LOGIN, AUTH_LOGOUT, AUTH_ME } from '../api/endpoints.js';
+import { AUTH_LOGIN, AUTH_LOGOUT, AUTH_ME, AUTH_INVITE, AUTH_REGISTER_ATHLETE } from '../api/endpoints.js';
 
 const TOKEN_KEY = 'fitcore_token';
 const USER_KEY  = 'fitcore_user';
@@ -14,6 +14,21 @@ export async function login(email, password) {
     const data = await apiFetch(AUTH_LOGIN, {
         method: 'POST',
         body: JSON.stringify({ email: email.trim(), password }),
+    });
+    localStorage.setItem(TOKEN_KEY, data.token);
+    localStorage.setItem(USER_KEY,  JSON.stringify(data.user));
+    return data;
+}
+
+// Public invite flow: validate the link (-> { trainerName, name?, email? }) and
+// create the athlete's own profile, linked to the inviting trainer. Signup logs
+// the new athlete in exactly like login does.
+export const getInvite = (token) => apiFetch(`${AUTH_INVITE}/${encodeURIComponent(token)}`);
+
+export async function registerAthlete({ token, name, email, password }) {
+    const data = await apiFetch(AUTH_REGISTER_ATHLETE, {
+        method: 'POST',
+        body: JSON.stringify({ token, name, email, password }),
     });
     localStorage.setItem(TOKEN_KEY, data.token);
     localStorage.setItem(USER_KEY,  JSON.stringify(data.user));
