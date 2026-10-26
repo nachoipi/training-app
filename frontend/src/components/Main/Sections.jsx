@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { formatDate, calcStreak } from '../../utils/helpers.js';
 import { StatCard, EmptyState } from '../Common/index.jsx';
-import { RoutineCard, SessionCard, ExerciseCard } from '../Cards/index.jsx';
+import { RoutineCard, SessionCard, ExerciseRow } from '../Cards/index.jsx';
 import { BarChart, DurationChart, Heatmap } from '../Charts/index.jsx';
 import { Icon } from '../Icon/index.jsx';
-import { DAYS } from '../../utils/constants.js';
+import { DAYS, TYPE_ICONS, EQUIPMENT_OPTIONS, MUSCLE_OPTIONS } from '../../utils/constants.js';
 import { SectionTitle } from '../TopBar/SectionTitle.jsx';
 
 export function RoutinesSection({ routines, sessions, user, onNewRoutine, onOpenDetail }) {
@@ -150,19 +150,41 @@ export function ProgressSection({ sessions, progressPeriod, onChangePeriod }) {
 
 export function ExercisesSection({ exercises, user, muscleFilter, onFilterChange, onNewExercise, onEditExercise, onDeleteExercise }) {
     const [search, setSearch] = useState('');
+    const [sortDir, setSortDir] = useState('asc'); // name column: 'asc' = A→Z, 'desc' = Z→A
+    const [typeFilter, setTypeFilter] = useState('all');
+    const [equipmentFilter, setEquipmentFilter] = useState('all');
     const isTrainer = user && user.role === 'trainer';
-    const muscles = ['all', 'pecho', 'espalda', 'piernas', 'hombros', 'brazos', 'core'];
-    const muscleLabels = { all: 'Todos', pecho: 'Pecho', espalda: 'Espalda', piernas: 'Piernas', hombros: 'Hombros', brazos: 'Brazos', core: 'Core' };
 
-    // Matches the chip against either primary or secondary muscles so a chest
-    // exercise that also targets shoulders shows up under the Hombros chip.
-    const filtered = exercises.filter(e => {
-        const tags = [...(e.primaryMuscles || []), ...(e.secondaryMuscles || [])];
-        const matchMuscle = muscleFilter === 'all' || tags.includes(muscleFilter);
-        const haystack = `${e.name} ${e.secondName || ''} ${e.desc || ''}`.toLowerCase();
-        const matchSearch = !search || haystack.includes(search.toLowerCase());
-        return matchMuscle && matchSearch;
-    });
+    const filtersActive = muscleFilter !== 'all' || typeFilter !== 'all' || equipmentFilter !== 'all' || search !== '';
+    const clearFilters = () => {
+        setSearch('');
+        setTypeFilter('all');
+        setEquipmentFilter('all');
+        onFilterChange('all');
+    };
+
+    // The muscle filter matches either primary or secondary muscles so a chest
+    // exercise that also targets shoulders shows up under Hombros.
+    const filtered = exercises
+        .filter(e => {
+            const tags = [...(e.primaryMuscles || []), ...(e.secondaryMuscles || [])];
+            const haystack = `${e.name} ${e.secondName || ''} ${e.desc || ''}`.toLowerCase();
+            return (muscleFilter === 'all' || tags.includes(muscleFilter))
+                && (typeFilter === 'all' || e.type === typeFilter)
+                && (equipmentFilter === 'all' || e.equipment === equipmentFilter)
+                && (!search || haystack.includes(search.toLowerCase()));
+        })
+        .sort((a, b) => {
+            const cmp = a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
+            return sortDir === 'asc' ? cmp : -cmp;
+        });
+
+    const filterSelect = (label, value, onChange, options) => (
+        <select className="exercise-filter-select" aria-label={`Filtrar por ${label}`} value={value} onChange={e => onChange(e.target.value)}>
+            <option value="all">{label}: todos</option>
+            {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+    );
 
     return (
         <section className="section">
@@ -184,25 +206,32 @@ export function ExercisesSection({ exercises, user, muscleFilter, onFilterChange
                         onChange={e => setSearch(e.target.value)}
                     />
                 </div>
-                <div className="filter-chips">
-                    {muscles.map(m => (
-                        <button
-                            key={m}
-                            className={`chip ${muscleFilter === m ? 'active' : ''}`}
-                            onClick={() => onFilterChange(m)}
-                        >
-                            {muscleLabels[m]}
-                        </button>
-                    ))}
-                </div>
+            </div>
+
+            <div className="exercises-count">
+                <span>{filtered.length === exercises.length ? `${exercises.length} ejercicios` : `${filtered.length} de ${exercises.length} ejercicios`}</span>
+                {filtersActive && <button className="exercises-clear" onClick={clearFilters}>Limpiar filtros</button>}
+            </div>
+
+            <div className="exercise-list-head">
+                <button
+                    className="exercise-sort-btn"
+                    onClick={() => setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))}
+                    aria-label={`Ordenar por nombre, ${sortDir === 'asc' ? 'de la A a la Z' : 'de la Z a la A'}`}
+                >
+                    Ejercicio <span className="exercise-sort-dir">{sortDir === 'asc' ? 'A → Z' : 'Z → A'}</span>
+                </button>
+                {filterSelect('Tipo', typeFilter, setTypeFilter, Object.entries(TYPE_ICONS).map(([value, t]) => ({ value, label: t.label })))}
+                {filterSelect('Equipamiento', equipmentFilter, setEquipmentFilter, EQUIPMENT_OPTIONS)}
+                {filterSelect('Músculo', muscleFilter, onFilterChange, MUSCLE_OPTIONS)}
             </div>
 
             {filtered.length === 0 ? (
                 <EmptyState icon="search" title="Sin resultados" subtitle="Probá con otro filtro" />
             ) : (
-                <div className="exercises-grid">
+                <div className="exercises-rows">
                     {filtered.map(e => (
-                        <ExerciseCard
+                        <ExerciseRow
                             key={e.id}
                             exercise={e}
                             canEdit={isTrainer && !e.builtIn}
@@ -216,4 +245,3 @@ export function ExercisesSection({ exercises, user, muscleFilter, onFilterChange
         </section>
     );
 }
-

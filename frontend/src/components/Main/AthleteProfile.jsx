@@ -7,7 +7,7 @@
 // The expanded history body is the shared SessionLogDetail (also used by the trainer dashboard).
 import React, { useState, useEffect } from 'react';
 import { userService } from '../../services/userService.js';
-import { formatDate, formatCarga } from '../../utils/helpers.js';
+import { formatDate, formatCarga, collapseUnilateral } from '../../utils/helpers.js';
 import { StatCard } from '../Common/index.jsx';
 import { SessionLogDetail, RPE_CLASSES } from './SessionLogDetail.jsx';
 
@@ -149,7 +149,7 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                                                     <div className="plan-session-card-blocks">
                                                         {day.blocks.map(block => (
                                                             <div key={block.label} className="plan-session-block">
-                                                                {block.exercises.map((ex, i) => {
+                                                                {collapseUnilateral(block.exercises, log).map((ex, i) => {
                                                                     const rpeKey = log?.exerciseSummaries?.find(s => s.position === ex.position)?.rpe || '';
                                                                     const rpeClass = RPE_CLASSES[rpeKey] || '';
                                                                     return (

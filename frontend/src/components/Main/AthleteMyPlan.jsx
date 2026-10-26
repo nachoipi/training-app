@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../Icon/index.jsx';
-import { formatCarga } from '../../utils/helpers.js';
+import { formatCarga, collapseUnilateral } from '../../utils/helpers.js';
 import { SectionTitle } from '../TopBar/SectionTitle.jsx';
 
 const RPE_CLASSES = { '1': 'session-rpe-1', '2': 'session-rpe-2', '3': 'session-rpe-3', '4': 'session-rpe-4' };
@@ -101,7 +101,7 @@ function PlanDay({ day, log, isNext, weekDone, onStart }) {
                         // supersets read clearly; a dotted line separates the exercises inside it.
                         <div key={block.label} className="plan-session-block">
                             <div className="plan-session-block-label">Bloque {block.label}</div>
-                            {block.exercises.map((ex, i) => (
+                            {collapseUnilateral(block.exercises, log).map((ex, i) => (
                                 <ExerciseRow key={i} ex={ex} rpeClass={rpeClassFor(log, ex)} />
                             ))}
                         </div>

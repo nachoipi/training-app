@@ -49,58 +49,35 @@ export function SessionCard({ session, onDelete }) {
     );
 }
 
-export function ExerciseCard({ exercise, canEdit, canDelete, onEdit, onDelete }) {
+// One line per exercise in the Ejercicios list (columns match .exercise-list-head).
+export function ExerciseRow({ exercise, canEdit, canDelete, onEdit, onDelete }) {
     const primary = exercise.primaryMuscles || [];
     const secondary = exercise.secondaryMuscles || [];
-    const equipmentLabel = exercise.equipment ? (EQUIPMENT_LABELS[exercise.equipment] || exercise.equipment) : null;
+    const equipmentLabel = exercise.equipment ? (EQUIPMENT_LABELS[exercise.equipment] || exercise.equipment) : '—';
+    const typeInfo = TYPE_ICONS[exercise.type];
 
     return (
-        <div className="exercise-card">
-            <div className="exercise-card-top">
-                <div className="exercise-card-name-block">
-                    <div className="exercise-card-name">{exercise.name}</div>
-                    {exercise.secondName && (
-                        <div className="exercise-card-second-name">{exercise.secondName}</div>
-                    )}
-                </div>
-                <div className="muscle-badge-group">
-                    {primary.map(m => (
-                        <span key={`p-${m}`} className={`muscle-badge muscle-${m}`}>{MUSCLE_LABELS[m] || m}</span>
-                    ))}
-                </div>
+        <div className="exercise-list-row">
+            <div className="exercise-list-row-name exercise-card-name-block">
+                <div className="exercise-card-name">{exercise.name}</div>
+                {exercise.secondName && <div className="exercise-card-second-name">{exercise.secondName}</div>}
             </div>
-            <div className="exercise-card-meta">
-                <span className="exercise-type-tag">
-                    {TYPE_ICONS[exercise.type] ? (
-                        <><Icon name={TYPE_ICONS[exercise.type].icon} size={14} /> {TYPE_ICONS[exercise.type].label}</>
-                    ) : exercise.type}
-                </span>
-                {equipmentLabel && (
-                    <span className="exercise-equipment-tag">
-                        <Icon name="wrench" size={14} /> {equipmentLabel}
-                    </span>
-                )}
+            <span className="exercise-type-tag exercise-list-row-type">
+                {typeInfo ? <><Icon name={typeInfo.icon} size={14} /> {typeInfo.label}</> : exercise.type}
+            </span>
+            <span className="exercise-equipment-tag exercise-list-row-equipment">{equipmentLabel}</span>
+            <div className="muscle-badge-group exercise-list-row-muscles">
+                {primary.map(m => (
+                    <span key={`p-${m}`} className={`muscle-badge muscle-${m}`}>{MUSCLE_LABELS[m] || m}</span>
+                ))}
+                {secondary.map(m => (
+                    <span key={`s-${m}`} className={`muscle-badge muscle-badge--secondary muscle-${m}`}>{MUSCLE_LABELS[m] || m}</span>
+                ))}
             </div>
-            {secondary.length > 0 && (
-                <div className="muscle-badge-group muscle-badge-group--secondary">
-                    {secondary.map(m => (
-                        <span key={`s-${m}`} className={`muscle-badge muscle-badge--secondary muscle-${m}`}>{MUSCLE_LABELS[m] || m}</span>
-                    ))}
-                </div>
-            )}
-            {exercise.desc && <p className="exercise-desc">{exercise.desc}</p>}
             {(canEdit || canDelete) && (
-                <div className="exercise-card-actions">
-                    {canEdit && (
-                        <button className="btn btn-secondary btn-sm" onClick={() => onEdit(exercise)}>
-                            Editar
-                        </button>
-                    )}
-                    {canDelete && (
-                        <button className="btn btn-danger btn-sm" onClick={() => onDelete(exercise.id)}>
-                            Eliminar
-                        </button>
-                    )}
+                <div className="exercise-card-actions exercise-list-row-actions">
+                    {canEdit && <button className="btn btn-secondary btn-sm" onClick={() => onEdit(exercise)}>Editar</button>}
+                    {canDelete && <button className="btn btn-danger btn-sm" onClick={() => onDelete(exercise.id)}>Eliminar</button>}
                 </div>
             )}
         </div>
