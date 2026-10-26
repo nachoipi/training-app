@@ -11,7 +11,7 @@ export const getStats = async (req, res, next) => {
         const mySessions = await SessionModel.allForUser(req.user.userId, req.user.role === 'trainer');
         const recent = mySessions.filter(s => s.date >= cutoffStr);
         const totalMinutes = recent.reduce((s, se) => s + (se.duration || 0), 0);
-        const totalRoutines = await RoutineModel.count();
+        const totalRoutines = await RoutineModel.count({ userId: req.user.userId, isTrainer: req.user.role === 'trainer' });
 
         res.json({
             totalSessions: mySessions.length,

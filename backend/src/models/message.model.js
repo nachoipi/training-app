@@ -2,33 +2,20 @@
 // rule that decides who may talk to whom. Used by chat.controller.js and the
 // inbox summary.
 //
-// Pairing rule: an athlete's trainer is the `created_by` of their MOST RECENT
-// planification; a trainer's athletes are those whose latest plan they created.
-// There is deliberately no fallback to "any trainer", so the demo trainer and
-// the test trainer never see each other's athletes.
+// Pairing rule: an athlete's trainer is `users.trainer_id`; a trainer's
+// athletes are the users linked to them. There is no fallback to "any trainer".
 import { query } from '../config/db.js';
-
-// One row per athlete with the trainer who owns their latest plan.
-const LATEST_TRAINER = `
-    SELECT DISTINCT ON (athlete_id) athlete_id, created_by AS trainer_id
-      FROM planifications
-     ORDER BY athlete_id, created_at DESC`;
+import { UserModel } from './user.model.js';
 
 const MSG_COLS = `id, sender_id AS "senderId", recipient_id AS "recipientId",
                   body, created_at AS "createdAt", read_at AS "readAt"`;
 
 export const MessageModel = {
-    // Trainer id paired with this athlete, or null when they have no plan yet.
-    trainerOfAthlete: async (athleteId) => {
-        const rows = await query(
-            `SELECT created_by AS "trainerId" FROM planifications
-              WHERE athlete_id = $1 ORDER BY created_at DESC LIMIT 1`, [athleteId]);
-        return rows[0]?.trainerId ?? null;
-    },
+    // Trainer id paired with this athlete, or null when they are not linked yet.
+    trainerOfAthlete: (athleteId) => UserModel.trainerIdOf(athleteId),
 
     // Single authorisation check used before reading/writing a thread.
-    arePaired: async (trainerId, athleteId) =>
-        (await MessageModel.trainerOfAthlete(athleteId)) === trainerId,
+    arePaired: (trainerId, athleteId) => UserModel.ownsAthlete(trainerId, athleteId),
 
     // Trainer's chat list: every athlete they own, with last message + unread
     // count; conversations with activity first, then the rest alphabetically.
@@ -36,8 +23,7 @@ export const MessageModel = {
         `SELECT u.id, u.name, u.avatar,
                 lm.body AS "lastBody", lm.created_at AS "lastAt", lm.sender_id AS "lastSenderId",
                 COALESCE(un.n, 0)::int AS unread
-           FROM (${LATEST_TRAINER}) lt
-           JOIN users u ON u.id = lt.athlete_id
+           FROM users u
            LEFT JOIN LATERAL (
                 SELECT body, created_at, sender_id FROM messages m
                  WHERE (m.sender_id = u.id AND m.recipient_id = $1)
@@ -46,7 +32,7 @@ export const MessageModel = {
            LEFT JOIN LATERAL (
                 SELECT COUNT(*) AS n FROM messages m
                  WHERE m.sender_id = u.id AND m.recipient_id = $1 AND m.read_at IS NULL) un ON true
-          WHERE lt.trainer_id = $1
+          WHERE u.role = 'athlete' AND u.trainer_id = $1
           ORDER BY lm.created_at DESC NULLS LAST, u.name`, [trainerId]),
 
     // Messages between two users, oldest first. `afterId` makes polling cheap.

@@ -1,6 +1,8 @@
 export const AUTH_LOGIN  = '/api/auth/login';
 export const AUTH_ME     = '/api/auth/me';
 export const AUTH_LOGOUT = '/api/auth/logout';
+export const AUTH_INVITE = '/api/auth/invite';            // GET /:token (public)
+export const AUTH_REGISTER_ATHLETE = '/api/auth/register-athlete';
 
 export const EXERCISES      = '/api/exercises';
 export const ROUTINES       = '/api/routines';

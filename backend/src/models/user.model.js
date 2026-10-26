@@ -1,6 +1,8 @@
 // User data layer. Queries the `users` table for the auth, athletes, and
 // profile flows. All write paths go through here so the controllers stay free
-// of raw SQL.
+// of raw SQL. Also owns the trainer <-> athlete link (`users.trainer_id`): the
+// ownership helpers below are the single source of truth for "is this athlete
+// mine?" and are read from the DB per request (the JWT does not carry it).
 import { query } from '../config/db.js';
 
 export const UserModel = {
@@ -67,7 +69,8 @@ export const UserModel = {
         return rows[0] || null;
     },
 
-    findAthletes: async () => {
+    // Only the trainer's own athletes (users.trainer_id = trainerId).
+    findAthletes: async (trainerId) => {
         return query(
             `SELECT u.id,
                     u.name,
@@ -79,9 +82,10 @@ export const UserModel = {
                FROM users u
                LEFT JOIN sessions s ON s.user_id = u.id
                LEFT JOIN routines r ON r.user_id = u.id
-              WHERE u.role = 'athlete'
+              WHERE u.role = 'athlete' AND u.trainer_id = $1
               GROUP BY u.id, u.name, u.email, u.avatar
-              ORDER BY u.name`
+              ORDER BY u.name`,
+            [trainerId]
         ).then((rows) =>
             rows.map((r) => ({
                 ...r,
@@ -89,5 +93,38 @@ export const UserModel = {
                 routines: Number(r.routines),
             }))
         );
+    },
+
+    // True when `athleteId` is an athlete linked to `trainerId`. Controllers
+    // answer 404 (never 403) on false so foreign ids cannot be probed.
+    ownsAthlete: async (trainerId, athleteId) => {
+        if (!trainerId || !athleteId) return false;
+        const rows = await query(
+            `SELECT 1 FROM users WHERE id = $1 AND role = 'athlete' AND trainer_id = $2 LIMIT 1`,
+            [String(athleteId), trainerId]
+        );
+        return rows.length > 0;
+    },
+
+    // The athlete's trainer id, or null when unlinked (or not an athlete).
+    trainerIdOf: async (athleteId) => {
+        const rows = await query(
+            `SELECT trainer_id AS "trainerId" FROM users WHERE id = $1 AND role = 'athlete' LIMIT 1`,
+            [athleteId]
+        );
+        return rows[0]?.trainerId ?? null;
+    },
+
+    // Links an EXISTING athlete that has no trainer yet. The single UPDATE with
+    // `trainer_id IS NULL` makes it race-safe; returns null when the email is
+    // unknown, not an athlete, or already taken (callers must not reveal which).
+    linkAthleteByEmail: async (trainerId, email) => {
+        const rows = await query(
+            `UPDATE users SET trainer_id = $1
+              WHERE LOWER(email) = LOWER($2) AND role = 'athlete' AND trainer_id IS NULL
+              RETURNING id, name, email, avatar`,
+            [trainerId, String(email).trim()]
+        );
+        return rows[0] || null;
     },
 };

@@ -3,16 +3,22 @@ import { formatDate } from '../../utils/helpers.js';
 import { StatCard } from '../Common/index.jsx';
 import { userService } from '../../services/userService.js';
 import { SectionTitle } from '../TopBar/SectionTitle.jsx';
+import { AddAthleteModal } from '../Modals/AddAthleteModal.jsx';
 
 export function AthletesSection({ onShowToast, onOpenAthleteProfile }) {
     const [viewMode, setViewMode] = useState('list');
     const [athletes, setAthletes] = useState([]);
 
-    useEffect(() => {
-        userService.listAthletes()
-            .then(r => setAthletes(r.data))
-            .catch(err => onShowToast && onShowToast(err.message, 'error'));
-    }, []);
+    const [addOpen, setAddOpen] = useState(false);
+    // Avoids flashing the empty state before the first response arrives.
+    const [loaded, setLoaded] = useState(false);
+
+    const load = () => userService.listAthletes()
+        .then(r => setAthletes(r.data))
+        .catch(err => onShowToast && onShowToast(err.message, 'error'))
+        .finally(() => setLoaded(true));
+
+    useEffect(() => { load(); }, []);
 
     const today = new Date().toISOString().slice(0, 10);
     const activeToday = athletes.filter(a => a.lastSession === today).length;
@@ -45,7 +51,7 @@ export function AthletesSection({ onShowToast, onOpenAthleteProfile }) {
                             </svg>
                         </button>
                     </div>
-                    <button className="btn btn-primary" onClick={() => onShowToast('Próximamente: invitar nuevo alumno')}>
+                    <button className="btn btn-primary" onClick={() => setAddOpen(true)}>
                         + Agregar Alumno
                     </button>
                 </div>
@@ -56,6 +62,13 @@ export function AthletesSection({ onShowToast, onOpenAthleteProfile }) {
                 <StatCard value={activeToday} label="Entrenaron hoy" accent="green" />
                 <StatCard value={totalSessions} label="Sesiones totales" accent="blue" />
             </div>
+
+            {loaded && athletes.length === 0 && (
+                <div className="empty-state" style={{ textAlign: 'center', padding: '40px 16px', opacity: 0.8 }}>
+                    <p style={{ marginBottom: 12 }}>Todavía no tenés alumnos. Agregá uno con su email o invitalo con un link.</p>
+                    <button className="btn btn-primary" onClick={() => setAddOpen(true)}>+ Agregar Alumno</button>
+                </div>
+            )}
 
             {viewMode === 'grid' ? (
                 <div className="athletes-grid">
@@ -125,6 +138,12 @@ export function AthletesSection({ onShowToast, onOpenAthleteProfile }) {
                     ))}
                 </div>
             )}
+            <AddAthleteModal
+                open={addOpen}
+                onClose={() => setAddOpen(false)}
+                onLinked={load}
+                onShowToast={onShowToast}
+            />
         </section>
     );
 }
