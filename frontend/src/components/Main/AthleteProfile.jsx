@@ -6,7 +6,7 @@
 // Each assigned plan can also be copied (same or another athlete) via the Copiar dialog.
 import React, { useState, useEffect } from 'react';
 import { userService } from '../../services/userService.js';
-import { formatDate, formatCarga } from '../../utils/helpers.js';
+import { formatDate, formatCarga, collapseUnilateral } from '../../utils/helpers.js';
 import { StatCard } from '../Common/index.jsx';
 import { SELF_EVALUATION_LABELS } from '../../utils/constants.js';
 
@@ -173,7 +173,7 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                                                     <div className="plan-session-card-blocks">
                                                         {day.blocks.map(block => (
                                                             <div key={block.label} className="plan-session-block">
-                                                                {block.exercises.map((ex, i) => {
+                                                                {collapseUnilateral(block.exercises, log).map((ex, i) => {
                                                                     const rpeKey = log?.exerciseSummaries?.find(s => s.position === ex.position)?.rpe || '';
                                                                     const rpeClass = RPE_CLASSES[rpeKey] || '';
                                                                     return (

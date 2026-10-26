@@ -315,8 +315,15 @@
         display: grid;
         grid-template-columns: repeat(var(--days, 1), minmax(0, 1fr));
         gap: 12px;
-        align-items: start;
+        align-items: stretch; /* every day card in a week takes the tallest one's height */
     }
+    /* Day card as a column: header + body fill, the Realizar/Ver Sesión button sits at the bottom. */
+    .plan-stack-day--static { display: flex; flex-direction: column; }
+    .plan-stack-day--static > .plan-stack-day-blocks { flex: 1; }
+    /* Spare height is shared by the blocks and, inside each, by its exercise tiles, so
+       there is no empty gap above the button when a sibling day is taller. */
+    .plan-stack-day--static > .plan-stack-day-blocks > .plan-session-block { flex: 1 1 auto; }
+    .plan-stack-day--static .plan-session-block > .plan-session-exercise { flex: 1 1 auto; justify-content: center; }
 }
 
 /* Each week is a card that wraps its title and day rows (Mi Plan). */
@@ -371,13 +378,19 @@
     display: none;
 }
 
-/* Mi Plan accordion (AthleteMyPlan PlanDay / PlanWeek). Day cards keep a
-   dark body (the shared green fill from .assigned-routine-row--completed is reset so
-   it can't be confused with the green RPE-tinted exercise rows); only the header of a
-   completed day in a not-yet-complete week gets the same green as a completed week.
-   The first block gets breathing room below the header divider. */
-.session-history-card.assigned-routine-row--completed { background: var(--bg-deep); }
-.plan-stack-day--solo-done > .session-history-card-header { background: var(--green-bg); }
+/* Mi Plan accordion (AthleteMyPlan PlanDay / PlanWeek). A completed day card is green
+   (header and body share the fill) while its exercise blocks stay dark. The
+   first block gets breathing room below the header divider. */
+.session-history-card.assigned-routine-row--completed { background: var(--green-bg); }
+.plan-stack-day--solo-done > .session-history-card-header { background: none; }
+/* The exercise blocks inside a green completed card keep the dark block color. */
+.session-history-card.assigned-routine-row--completed .plan-session-block {
+    background: linear-gradient(rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.02)), var(--bg-deep);
+}
+/* Compact day headers; the smaller check badge on completed days must not make them taller than pending ones. */
+.plan-stack-week .session-history-card > .session-history-card-header { min-height: 40px; padding-top: 6px; padding-bottom: 6px; box-sizing: border-box; }
+.plan-stack-week .session-history-card > .session-history-card-header .session-completed-check { width: 24px; height: 24px; font-size: 0.8rem; }
+.plan-stack-week .session-history-card > .session-history-card-header .session-completed-check svg { width: 14px; height: 14px; }
 /* Desktop days are always expanded: the header is a static label, not a toggle. */
 .plan-stack-day--static > .session-history-card-header { cursor: default; }
 .plan-stack-day--static:not(.plan-stack-day--solo-done) > .session-history-card-header:hover { background: none; }
@@ -387,9 +400,10 @@
     border-color: rgba(52, 211, 153, 0.35);
 }
 .session-history-card-body.plan-stack-day-blocks > .plan-stack-block:first-child,
-.session-history-card-body.plan-stack-day-blocks > .plan-session-block:first-child { margin-top: 12px; }
-/* Full-width Realizar/Ver Sesión buttons at the end of the day body: center their label. */
-.session-history-card-body.plan-stack-day-blocks > .btn { justify-content: center; }
+.session-history-card-body.plan-stack-day-blocks > .plan-session-block:first-child { margin-top: 8px; }
+/* Full-width Realizar/Ver Sesión buttons at the end of the day body: center their label and
+   give both variants (primary / success) the same height so they line up across days. */
+.session-history-card-body.plan-stack-day-blocks > .btn { justify-content: center; height: 34px; box-sizing: border-box; flex-shrink: 0; }
 
 .plan-stack-day-blocks { display: flex; flex-direction: column; gap: 12px; }
 

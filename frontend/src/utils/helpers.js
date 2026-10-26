@@ -35,6 +35,24 @@ export function formatCarga(ex) {
     return unit ? `${raw} ${unit}` : String(raw);
 }
 
+// Plan previews list an exercise once when the trainer entered it twice for
+// the two sides of a unilateral movement. Two entries of a block collapse
+// into the first one only when they are the same exercise with identical
+// series, reps, measure and load, and (for completed sessions) the athlete
+// rated both with the same RPE. Anything that differs stays visible.
+export function collapseUnilateral(exercises, log) {
+    const rpeOf = ex => log?.exerciseSummaries?.find(s => s.position === ex.position)?.rpe || '';
+    const seen = new Set();
+    return exercises.filter(ex => {
+        const id = ex.exerciseId || ex.exerciseName;
+        if (!id) return true;
+        const key = JSON.stringify([id, ex.series, ex.reps, ex.medida, ex.carga, rpeOf(ex)]);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
 export function calcStreak(sessions) {
     if (!sessions.length) return 0;
     const dates = [...new Set(sessions.map(s => s.date))].sort().reverse();
