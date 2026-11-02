@@ -183,6 +183,42 @@ export default function Dashboard() {
         setSection('my-sessions');
     }
 
+    // While an athlete is mid-training (the session screen reports it) the only ways out are
+    // finishing or discarding the session: the app-wide navigation is blocked meanwhile.
+    const trainingLockRef = useRef(false);
+    function guardedNav(section) {
+        if (trainingLockRef.current && section !== 'my-session') {
+            showToast('Terminá o descartá la sesión para salir', 'error');
+            return;
+        }
+        setSection(section);
+    }
+
+    // Athlete discards the session in progress: deletes its saved log and returns to Mis Sesiones.
+    async function handleDiscardSessionLog({ planId, week, dayNumber }) {
+        try {
+            await sessionLogService.discard({ planId, week, dayNumber });
+        } catch (err) { showToast(err.message, 'error'); return; }
+        setSessionLogs(prev => prev.filter(l => !(l.planId === planId && l.week === week && l.dayNumber === dayNumber)));
+        trainingLockRef.current = false;
+        setSelectedSession(null);
+        setSection('my-sessions');
+        showToast('Sesión descartada');
+    }
+
+    // Silent incremental save used by the session screen while an in-progress session is being
+    // filled in: merges the saved log into `sessionLogs` without navigating away or toasting
+    // on success (the screen ignores the new `sessionLog` prop for hydration, see AthleteMySession).
+    async function handleAutoSaveSessionLog(log) {
+        try {
+            const saved = await sessionLogService.save(log);
+            setSessionLogs(prev => {
+                const exists = prev.findIndex(l => l.planId === saved.planId && l.week === saved.week && l.dayNumber === saved.dayNumber);
+                return exists >= 0 ? prev.map((l, i) => i === exists ? saved : l) : [...prev, saved];
+            });
+        } catch (err) { showToast(err.message, 'error'); }
+    }
+
     // Trainer marks a completed session as reviewed (+ optional comment). The server returns
     // the flattened log; swapping it in place keeps the "Nuevo" badge and detail in sync.
     async function handleReviewSessionLog(log, comment) {
@@ -314,7 +350,7 @@ export default function Dashboard() {
             <Header
                 user={user}
                 activeSection={activeSection}
-                onNavigate={setSection}
+                onNavigate={guardedNav}
                 collapsed={collapsed}
                 onToggle={() => setCollapsed(c => !c)}
             />
@@ -382,6 +418,9 @@ export default function Dashboard() {
                 // `from` remembers the screen the session was opened from so Back can return there.
                 onOpenSession={({ plan, week, day }) => { setSelectedSession({ plan, week, day, from: activeSection }); setSection('my-session'); }}
                 onSaveSessionLog={handleSaveSessionLog}
+                onAutoSaveSessionLog={handleAutoSaveSessionLog}
+                onDiscardSessionLog={handleDiscardSessionLog}
+                onTrainingLock={locked => { trainingLockRef.current = locked; }}
                 onProfileUpdated={handleProfileUpdated}
                 theme={theme}
                 onToggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
@@ -397,13 +436,13 @@ export default function Dashboard() {
             <BottomNav
                 user={user}
                 activeSection={activeSection}
-                onNavigate={setSection}
+                onNavigate={guardedNav}
             />
 
             <TopBar
                 user={user}
                 activeSection={activeSection}
-                onNavigate={setSection}
+                onNavigate={guardedNav}
                 sidebarCollapsed={collapsed}
                 counts={inboxCounts}
                 panel={panel}

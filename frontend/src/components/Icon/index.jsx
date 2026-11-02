@@ -139,6 +139,37 @@ const REGISTRY = {
             <path d="M14 10l-7 7" />
         </>
     ),
+    'arrow-left': () => (
+        <>
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <path d="M11 6l-6 6 6 6" />
+        </>
+    ),
+    pencil: () => (
+        <>
+            <path d="M4 20l1-4L16 5l3 3L8 19z" />
+            <path d="M14 7l3 3" />
+        </>
+    ),
+    save: () => (
+        <>
+            <path d="M5 4h11l3 3v13H5z" />
+            <rect x="8" y="4" width="7" height="5" />
+            <rect x="8" y="14" width="8" height="6" />
+        </>
+    ),
+    pause: () => (
+        <>
+            <line x1="9" y1="6" x2="9" y2="18" />
+            <line x1="15" y1="6" x2="15" y2="18" />
+        </>
+    ),
+    stop: () => (
+        <rect x="6" y="6" width="12" height="12" rx="1" />
+    ),
+    play: () => (
+        <path d="M8 5l11 7-11 7z" />
+    ),
     close: () => (
         <>
             <line x1="6" y1="6" x2="18" y2="18" />

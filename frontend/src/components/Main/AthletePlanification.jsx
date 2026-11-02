@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-const BLOCK_LABELS = ['A', 'B', 'C', 'D', 'E'];
+import { EXERCISE_KIND_LABELS, EXERCISE_KIND_COLORS } from '../../utils/constants.js';
+
+// Kind options of the first column: the exercise kinds plus the rest row.
+const KIND_OPTIONS = [...Object.entries(EXERCISE_KIND_LABELS), ['rest', 'Descanso']];
+
+import { blockLabelAt, blockTitles } from '../../utils/helpers.js';
 const MEDIDA_OPTIONS = ['Distancia', 'Tiempo', 'Peso'];
 
-function makeExercise(blockLabel, position) {
+function makeExercise(blockLabel, position, kind = 'exercise') {
     return {
         position: `${blockLabel}${position}`,
+        kind,
         exerciseId: '',
         exerciseName: '',
         secondName: '',
@@ -19,6 +25,24 @@ function makeExercise(blockLabel, position) {
         reps: '',
         medida: 'Reps',
         carga: '',
+        comentario: '',
+    };
+}
+
+// A rest between exercises of a block, modelled as an exercise row so it is ordered with them.
+// Its length is the row's Carga with Medida Tiempo (m:ss, e.g. "2:00"). Older rests keep a
+// free-text `duration` instead (see restLabel in helpers.js). Session screens never log it.
+function makeRest(blockLabel, position, time = '2:00') {
+    return {
+        position: `${blockLabel}${position}`,
+        kind: 'rest',
+        isRest: true,
+        exerciseId: '',
+        exerciseName: 'Descanso',
+        series: '1',
+        reps: '',
+        medida: 'Tiempo',
+        carga: time,
         comentario: '',
     };
 }
@@ -45,7 +69,7 @@ function initWeekDays(weekCount, templateDays) {
     return Array.from({ length: weekCount }, () => deepCopyDays(templateDays));
 }
 
-export function AthletePlanification({ athlete, exercises, planification, onBack, onSave, onShowToast }) {
+export function AthletePlanification({ athlete, exercises, routines = [], planification, onBack, onSave, onShowToast }) {
     const [planName, setPlanName] = useState(planification?.name ?? '');
     const [weeks, setWeeks] = useState(planification?.weeks ?? 4);
     const [weekDays, setWeekDays] = useState(() => {
@@ -55,6 +79,15 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
         return initWeekDays(savedWeeks, template);
     });
 
+    // Unsaved-changes guard: `baseline` is the editor state as first loaded; leaving with a
+    // different state asks whether to save (Guardar / Salir sin guardar / Seguir editando).
+    const baseline = useRef(null);
+    const snapshot = JSON.stringify({ planName, weeks, weekDays });
+    if (baseline.current === null) baseline.current = snapshot;
+    const dirty = snapshot !== baseline.current;
+    const [leaveAsk, setLeaveAsk] = useState(false);
+    function requestBack() { if (dirty) setLeaveAsk(true); else onBack(); }
+
     // New plans and drafts can be published from the footer; published ones just save.
     const isPublished = planification?.status === 'published';
 
@@ -63,6 +96,12 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
     const [collapsedWeeks, setCollapsedWeeks] = useState({});
     const [collapsedDays, setCollapsedDays] = useState({});
     const [commentOpen, setCommentOpen] = useState({});
+
+    // Day the routine picker is open for: { weekIdx, dayIdx } or null; and the block being dragged.
+    const [routinePicker, setRoutinePicker] = useState(null);
+    const [dragBlock, setDragBlock] = useState(null);
+    // Collapsed blocks, keyed `${weekIdx}-${dayIdx}-${blockIdx}`.
+    const [collapsedBlocks, setCollapsedBlocks] = useState({});
 
     function toggleWeek(weekIdx) {
         setCollapsedWeeks(prev => ({ ...prev, [weekIdx]: !prev[weekIdx] }));
@@ -115,8 +154,9 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
             return weekDayList.map((d, i) => {
                 if (i !== dayIdx) return d;
                 const usedLabels = d.blocks.map(b => b.label);
-                const next = BLOCK_LABELS.find(l => !usedLabels.includes(l));
-                if (!next) return d;
+                let n = d.blocks.length;
+                while (usedLabels.includes(blockLabelAt(n))) n += 1;
+                const next = blockLabelAt(n);
                 return { ...d, blocks: [...d.blocks, makeBlock(next)] };
             });
         }));
@@ -133,7 +173,9 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
     }
 
     // ── Exercise operations ───────────────────────────────────────────
-    function addExercise(weekIdx, dayIdx, blockIdx) {
+    // `kind` is chosen from the block's "+" menu (exercise / warmup / cooldown / other); it is
+    // a per-exercise setting and editable afterwards from the row's Tipo select.
+    function addExercise(weekIdx, dayIdx, blockIdx, kind = 'exercise') {
         setWeekDays(prev => prev.map((weekDayList, wi) => {
             if (wi !== weekIdx) return weekDayList;
             return weekDayList.map((d, i) => {
@@ -143,11 +185,115 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
                     blocks: d.blocks.map((b, bi) => {
                         if (bi !== blockIdx) return b;
                         const pos = b.exercises.length + 1;
-                        return { ...b, exercises: [...b.exercises, makeExercise(b.label, pos)] };
+                        return { ...b, exercises: [...b.exercises, makeExercise(b.label, pos, kind)] };
                     }),
                 };
             });
         }));
+    }
+
+    // Importar rutina (per day): every block of the routine becomes its own NEW block at the
+    // end of the day — a routine never lands inside an existing block. Routine rows group by
+    // `block` (default 1). Catalog metadata is snapshotted when a row has an exerciseId (or its
+    // name matches the catalog); name-only rows keep just the name. If the day's only block is
+    // an untouched placeholder it is replaced. It is a copy: later routine edits don't change
+    // plans that already imported it.
+    function importRoutine(weekIdx, dayIdx, routine) {
+        const groups = {};
+        (routine.exercises || []).forEach(r => { (groups[r.block ?? 1] ||= []).push(r); });
+        const ordered = Object.keys(groups).sort((x, y) => Number(x) - Number(y)).map(k => groups[k]);
+        const day = weekDays[weekIdx][dayIdx];
+        const isBlank = e => !e.exerciseId && !e.exerciseName && !String(e.reps ?? '').trim();
+        const kept = day.blocks.length === 1 && day.blocks[0].exercises.every(isBlank) ? [] : day.blocks;
+        const added = ordered.map((rows, n) => {
+            const label = blockLabelAt(kept.length + n);
+            return {
+                label,
+                exercises: rows.map((r, i) => {
+                    if (r.isRest) return makeRest(label, i + 1, r.duration);
+                    const found = exercises.find(ex => ex.id === r.exerciseId) || exercises.find(ex => ex.name === r.name);
+                    return {
+                        ...makeExercise(label, i + 1, r.kind || 'exercise'),
+                        exerciseId: found?.id || '',
+                        exerciseName: found?.name || r.name || '',
+                        secondName: found?.secondName || '',
+                        equipment: found?.equipment || '',
+                        primaryMuscles: found?.primaryMuscles || [],
+                        secondaryMuscles: found?.secondaryMuscles || [],
+                        iconUrl: found?.iconUrl || '',
+                        videoUrl: found?.videoUrl || '',
+                        modelImageUrl: found?.modelImageUrl || '',
+                        series: String(r.sets ?? ''),
+                        reps: String(r.reps ?? ''),
+                        medida: r.medida || 'Reps',
+                        carga: r.carga ?? '',
+                        comentario: r.comentario || '',
+                    };
+                }),
+            };
+        });
+        setWeekDays(prev => prev.map((list, wi) => wi !== weekIdx ? list : list.map((d, i) =>
+            i !== dayIdx ? d : { ...d, blocks: [...kept, ...added] })));
+        setRoutinePicker(null);
+    }
+
+    // Drag & drop reordering of a day's blocks. Blocks are relabelled A, B, C… in their new
+    // order and their exercise positions follow (A1, B2…), because `position` is derived from
+    // the label and is the join key to session logs.
+    function reorderBlocks(weekIdx, dayIdx, from, to) {
+        if (from === to) return;
+        setWeekDays(prev => prev.map((list, wi) => wi !== weekIdx ? list : list.map((d, i) => {
+            if (i !== dayIdx) return d;
+            const blocks = [...d.blocks];
+            const [moved] = blocks.splice(from, 1);
+            blocks.splice(to, 0, moved);
+            return {
+                ...d,
+                blocks: blocks.map((b, bi) => ({
+                    ...b,
+                    label: blockLabelAt(bi),
+                    exercises: b.exercises.map((e, ei) => ({ ...e, position: `${blockLabelAt(bi)}${ei + 1}` })),
+                })),
+            };
+        })));
+    }
+
+    // Carga input driven by the row's Medida: the placeholder names the unit (Tiempo m:ss, Peso
+    // KG, Distancia MTS); Tiempo takes text (m:ss), everything else a number.
+    function cargaInput(ex, weekIdx, dayIdx, blockIdx, exIdx) {
+        const placeholder = { Tiempo: 'm:ss', Peso: 'KG', Distancia: 'MTS' }[ex.medida] || '0';
+        return (
+            <input
+                className="planification-input planification-num-input"
+                type={ex.medida === 'Tiempo' ? 'text' : 'number'}
+                {...(ex.medida === 'Tiempo' ? { inputMode: 'numeric', maxLength: 8 } : { min: 0, step: 'any' })}
+                placeholder={placeholder}
+                value={ex.carga ?? ''}
+                onChange={e => updateExercise(weekIdx, dayIdx, blockIdx, exIdx, 'carga', e.target.value)}
+            />
+        );
+    }
+
+    // The position label (A1, B2…) doubles as the Tipo selector: a badge in the kind's colour
+    // with a transparent native select on top, so it keeps its small size but opens the list
+    // of kinds (including Descanso) when clicked.
+    function kindSelect(ex, weekIdx, dayIdx, blockIdx, exIdx) {
+        const kind = ex.isRest ? 'rest' : (ex.kind || 'exercise');
+        return (
+            <label
+                className="planification-kind-badge"
+                style={{ background: EXERCISE_KIND_COLORS[kind] }}
+                title={`Tipo: ${(KIND_OPTIONS.find(([k]) => k === kind) || [])[1] || ''} (clic para cambiar)`}
+            >
+                {ex.position}
+                <select
+                    value={kind}
+                    onChange={e => updateExercise(weekIdx, dayIdx, blockIdx, exIdx, 'kind', e.target.value)}
+                >
+                    {KIND_OPTIONS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                </select>
+            </label>
+        );
     }
 
     function removeExercise(weekIdx, dayIdx, blockIdx, exIdx) {
@@ -182,6 +328,17 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
                             exercises: b.exercises.map((e, ei) => {
                                 if (ei !== exIdx) return e;
                                 const updated = { ...e, [field]: value };
+                                // Tiempo takes m:ss and the other medidas numbers, so crossing that line clears Carga.
+                                if (field === 'medida' && (value === 'Tiempo') !== (e.medida === 'Tiempo')) updated.carga = '';
+                                // Switching the first-column Tipo to/from Descanso converts the row.
+                                if (field === 'kind' && value === 'rest') {
+                                    Object.assign(updated, {
+                                        isRest: true, exerciseId: '', exerciseName: 'Descanso', series: '1', reps: '',
+                                        medida: 'Tiempo', carga: e.carga || e.duration || '2:00',
+                                    });
+                                } else if (field === 'kind' && e.isRest) {
+                                    Object.assign(updated, { isRest: false, exerciseName: '', series: '', duration: undefined, medida: 'Reps' });
+                                }
                                 // When the trainer picks an exercise, snapshot the catalog
                                 // metadata onto the planification so the athlete view can
                                 // render it offline (after the catalog row may have changed).
@@ -212,6 +369,13 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
             for (const day of weekDays[wi]) {
                 for (const block of day.blocks) {
                     for (const ex of block.exercises) {
+                        if (ex.isRest) {
+                            if (!String(ex.carga ?? ex.duration ?? '').trim()) {
+                                onShowToast(`Falta la duración del descanso en ${ex.position} (Semana ${wi + 1}, Día ${day.dayNumber})`, 'error');
+                                return;
+                            }
+                            continue;
+                        }
                         const seriesNum = Number(ex.series);
                         if (String(ex.series ?? '').trim() === '' || Number.isNaN(seriesNum) || seriesNum < 1) {
                             onShowToast(`SERIES debe ser mayor a 0 en ${ex.position} (Semana ${wi + 1}, Día ${day.dayNumber})`, 'error');
@@ -232,7 +396,7 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
         <section className="section">
             {/* Header */}
             <div className="athlete-profile-header">
-                <button className="athlete-profile-back-btn" onClick={onBack}>
+                <button className="athlete-profile-back-btn" onClick={requestBack}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                         <path d="M10.5 3L5.5 8l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
                     </svg>
@@ -303,7 +467,12 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
                     <div className="planification-day-header">
                         <span className="planification-day-label">DÍA {day.dayNumber}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {!isDayCollapsed && day.blocks.length < BLOCK_LABELS.length && (
+                            {!isDayCollapsed && routines.length > 0 && (
+                                <button className="btn btn-secondary btn-sm" onClick={() => setRoutinePicker({ weekIdx, dayIdx })}>
+                                    Importar rutina
+                                </button>
+                            )}
+                            {!isDayCollapsed && (
                                 <button className="btn btn-secondary btn-sm" onClick={() => addBlock(weekIdx, dayIdx)}>
                                     + Bloque
                                 </button>
@@ -322,16 +491,51 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
                     </div>
 
                     {!isDayCollapsed && day.blocks.map((block, blockIdx) => (
-                        <div key={blockIdx} className="planification-block">
+                        <div
+                            key={blockIdx}
+                            className="planification-block"
+                            onDragOver={e => { if (dragBlock && dragBlock.weekIdx === weekIdx && dragBlock.dayIdx === dayIdx) e.preventDefault(); }}
+                            onDrop={e => {
+                                e.preventDefault();
+                                if (dragBlock && dragBlock.weekIdx === weekIdx && dragBlock.dayIdx === dayIdx) reorderBlocks(weekIdx, dayIdx, dragBlock.from, blockIdx);
+                                setDragBlock(null);
+                            }}
+                        >
                             <div className="planification-block-header">
-                                <span className="planification-block-label">Bloque {block.label}</span>
                                 {day.blocks.length > 1 && (
-                                    <button className="planification-remove-btn" onClick={() => removeBlock(weekIdx, dayIdx, blockIdx)} title="Quitar bloque">×</button>
+                                    <span
+                                        className="planification-block-handle"
+                                        draggable
+                                        title="Arrastrá para reordenar el bloque"
+                                        onDragStart={e => {
+                                            setDragBlock({ weekIdx, dayIdx, from: blockIdx });
+                                            e.dataTransfer.effectAllowed = 'move';
+                                            e.dataTransfer.setDragImage(e.currentTarget.closest('.planification-block'), 0, 0);
+                                        }}
+                                        onDragEnd={() => setDragBlock(null)}
+                                    >⠿</span>
                                 )}
+                                <span className="planification-block-label">{blockTitles(day.blocks)[blockIdx]}</span>
+                                <div className="planification-block-actions">
+                                    <button
+                                        className="planification-collapse-btn"
+                                        onClick={() => setCollapsedBlocks(prev => ({ ...prev, [`${weekIdx}-${dayIdx}-${blockIdx}`]: !prev[`${weekIdx}-${dayIdx}-${blockIdx}`] }))}
+                                        title={collapsedBlocks[`${weekIdx}-${dayIdx}-${blockIdx}`] ? 'Expandir bloque' : 'Minimizar bloque'}
+                                    >
+                                        {collapsedBlocks[`${weekIdx}-${dayIdx}-${blockIdx}`]
+                                            ? <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                            : <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 10l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                        }
+                                    </button>
+                                    {day.blocks.length > 1 && (
+                                        <button className="planification-remove-btn" onClick={() => removeBlock(weekIdx, dayIdx, blockIdx)} title="Quitar bloque">×</button>
+                                    )}
+                                </div>
                             </div>
 
+                            {!collapsedBlocks[`${weekIdx}-${dayIdx}-${blockIdx}`] && (<>
                             <div className="planification-exercise-header">
-                                <span></span>
+                                <span>Tipo</span>
                                 <span>Ejercicio</span>
                                 <span>Series</span>
                                 <span>Reps</span>
@@ -341,15 +545,38 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
                                 <span></span>
                             </div>
 
-                            {block.exercises.map((ex, exIdx) => (
+                            {block.exercises.map((ex, exIdx) => ex.isRest ? (
+                                <div key={exIdx} className="planification-exercise-row planification-exercise-row--rest">
+                                    {kindSelect(ex, weekIdx, dayIdx, blockIdx, exIdx)}
+                                    <span className="planification-rest-label" style={{ background: EXERCISE_KIND_COLORS.rest }}>Descanso</span>
+                                    <select
+                                        className="planification-select planification-medida-select"
+                                        value={ex.medida ?? ''}
+                                        onChange={e => updateExercise(weekIdx, dayIdx, blockIdx, exIdx, 'medida', e.target.value)}
+                                    >
+                                        <option value="">Seleccionar</option>
+                                        {MEDIDA_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                    </select>
+                                    {cargaInput(ex, weekIdx, dayIdx, blockIdx, exIdx)}
+                                    <input
+                                        className="planification-input planification-comment-input"
+                                        type="text" placeholder="Comentario"
+                                        value={ex.comentario ?? ''}
+                                        onChange={e => updateExercise(weekIdx, dayIdx, blockIdx, exIdx, 'comentario', e.target.value)}
+                                    />
+                                    <button className="planification-remove-btn" onClick={() => removeExercise(weekIdx, dayIdx, blockIdx, exIdx)} title="Quitar descanso">×</button>
+                                </div>
+                            ) : (
                                 <div key={exIdx} className="planification-exercise-row">
-                                    <div className="planification-exercise-position">{ex.position}</div>
+                                    {kindSelect(ex, weekIdx, dayIdx, blockIdx, exIdx)}
                                     <select
                                         className="planification-select planification-exercise-select"
+                                        style={{ background: EXERCISE_KIND_COLORS[ex.kind || 'exercise'] }}
                                         value={ex.exerciseId}
                                         onChange={e => updateExercise(weekIdx, dayIdx, blockIdx, exIdx, 'exerciseId', e.target.value)}
                                     >
-                                        <option value="">Seleccionar ejercicio...</option>
+                                        {/* A name-only exercise (imported from a routine, not in the catalog) shows its name here. */}
+                                        <option value="">{ex.exerciseName || 'Seleccionar ejercicio...'}</option>
                                         {exercises.map(e => (
                                             <option key={e.id} value={e.id}>{e.name}</option>
                                         ))}
@@ -379,15 +606,7 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
                                             <option key={opt} value={opt}>{opt}</option>
                                         ))}
                                     </select>
-                                    <input
-                                        className="planification-input planification-num-input"
-                                        type="number"
-                                        min="0"
-                                        step="any"
-                                        placeholder="0"
-                                        value={ex.carga ?? ''}
-                                        onChange={e => updateExercise(weekIdx, dayIdx, blockIdx, exIdx, 'carga', e.target.value)}
-                                    />
+                                    {cargaInput(ex, weekIdx, dayIdx, blockIdx, exIdx)}
                                     <input
                                         className="planification-input planification-comment-input"
                                         type="text"
@@ -401,9 +620,11 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
                                 </div>
                             ))}
 
+                            {/* "+" adds a new row; its type is picked in the row's first column. */}
                             <button className="planification-add-exercise-btn" onClick={() => addExercise(weekIdx, dayIdx, blockIdx)}>
-                                + Ejercicio
+                                +
                             </button>
+                            </>)}
                         </div>
                     ))}
 
@@ -441,9 +662,47 @@ export function AthletePlanification({ athlete, exercises, planification, onBack
                 );
             })}
 
+            {routinePicker && (
+                <div className="modal-overlay open" onClick={e => e.target === e.currentTarget && setRoutinePicker(null)}>
+                    <div className="modal">
+                        <div className="modal-header"><h2>Importar rutina</h2></div>
+                        <div className="modal-body">
+                            {routines.map(r => (
+                                <button
+                                    key={r.id} type="button" className="btn btn-secondary"
+                                    style={{ display: 'block', width: '100%', textAlign: 'left', marginBottom: 8 }}
+                                    onClick={() => importRoutine(routinePicker.weekIdx, routinePicker.dayIdx, r)}
+                                >
+                                    {r.name} · {r.exercises.length} ejercicio{r.exercises.length !== 1 ? 's' : ''}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-secondary" onClick={() => setRoutinePicker(null)}>Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {leaveAsk && (
+                <div className="modal-overlay open">
+                    <div className="modal">
+                        <div className="modal-header"><h2>Cambios sin guardar</h2></div>
+                        <div className="modal-body">
+                            <p>Modificaste la planificación y todavía no la guardaste. ¿Querés guardarla antes de salir?</p>
+                        </div>
+                        <div className="modal-footer" style={{ flexWrap: 'wrap' }}>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setLeaveAsk(false)}>Seguir editando</button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => { setLeaveAsk(false); onBack(); }}>Salir sin guardar</button>
+                            <button className="btn btn-primary btn-sm" onClick={() => { setLeaveAsk(false); handleSave(false); }}>Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Footer */}
             <div className="planification-footer">
-                <button className="btn btn-secondary" onClick={onBack}>Cancelar</button>
+                <button className="btn btn-secondary" onClick={requestBack}>Cancelar</button>
                 {isPublished ? (
                     <button className="btn btn-primary" onClick={() => handleSave(false)}>Guardar Planificación</button>
                 ) : (

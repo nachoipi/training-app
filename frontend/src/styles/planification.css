@@ -97,9 +97,11 @@
 }
 
 .planification-block-header {
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: center; gap: 10px;
     margin-bottom: 10px;
 }
+/* Drag handle + label on the left; × on the right. */
+.planification-block-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 
 .planification-block-label {
     font-family: var(--font-display); font-size: 0.8rem; font-weight: 700;
@@ -109,7 +111,7 @@
 /* Exercise header */
 .planification-exercise-header {
     display: grid;
-    grid-template-columns: 36px minmax(160px, 1.3fr) 60px 60px 110px 60px 180px 28px;
+    grid-template-columns: 44px minmax(160px, 1.3fr) 60px 60px 110px 60px 180px 28px;
     gap: 8px; align-items: center;
     padding: 0 0 6px 0;
     font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
@@ -119,7 +121,7 @@
 /* Exercise row */
 .planification-exercise-row {
     display: grid;
-    grid-template-columns: 36px minmax(160px, 1.3fr) 60px 60px 110px 60px 180px 28px;
+    grid-template-columns: 44px minmax(160px, 1.3fr) 60px 60px 110px 60px 180px 28px;
     gap: 8px; align-items: center;
     margin-bottom: 6px;
 }
@@ -1004,3 +1006,128 @@
 }
 .plan-status-badge--draft { background: rgba(250,204,21,0.18); color: #facc15; }
 .plan-status-badge--published { background: rgba(74,222,128,0.18); color: #4ade80; }
+
+/* Pre-start session preview (AthleteMySession): accent block label, then plain exercise
+   names with reps / carga underneath. */
+.session-preview { display: grid; gap: 22px; padding: 4px 4px 12px; }
+.session-preview-label { margin-bottom: 8px; font-weight: 700; font-size: 16px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent, var(--primary, #c8f23a)); }
+.session-preview-exercise { margin-bottom: 12px; }
+.session-preview-name { font-size: 19px; line-height: 1.25; }
+.session-preview-detail { margin-top: 2px; font-size: 14px; opacity: .65; }
+
+/* Plan editor: rest rows (exercise-like) and the block drag handle. */
+.planification-rest-label { grid-column: 2 / 5; padding: 8px 10px; border-radius: 6px; }
+/* Position badge = Tipo selector: coloured by kind, native select stretched over it, invisible. */
+.planification-kind-badge { position: relative; display: flex; align-items: center; justify-content: center; height: 34px; border: 1px solid rgba(255,255,255,.18); border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+.planification-kind-badge select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.planification-rest-label { font-style: italic; opacity: .8; }
+.planification-block-handle { cursor: grab; user-select: none; opacity: .6; font-size: 18px; line-height: 1; }
+.planification-block-handle:active { cursor: grabbing; }
+
+.planification-add-menu { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+
+/* On phones the block's run-on "A + B + C" summary only repeats the overview and the serie
+   cards below, so it is hidden there. */
+@media (max-width: 768px) {
+    .session-block-summary { display: none; }
+}
+
+/* Serie cards: only the next exercise is expanded; the others are a compact tappable header. */
+.session-serie-card-toggle { cursor: pointer; }
+.session-serie-card.is-collapsed { padding-top: 10px; padding-bottom: 10px; opacity: .85; }
+
+/* Serie card: media uses the full card width, inputs below it; player-style controls at the bottom. */
+.session-serie-card-middle { flex-direction: column; }
+.session-serie-card-middle > .session-serie-card-media { width: 100%; height: auto; aspect-ratio: 16 / 9; max-height: 220px; }
+.session-serie-controls { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+.session-serie-control { width: 56px; height: 48px; border-radius: 12px; border: 1px solid var(--border, rgba(128,128,128,.4)); background: transparent; color: inherit; font-size: 1.1rem; cursor: pointer; }
+.session-serie-control--next { background: var(--accent, #d4f03c); border-color: var(--accent, #d4f03c); color: #111; }
+.session-serie-control:disabled { opacity: .35; cursor: not-allowed; }
+.session-serie-undo { flex-basis: 100%; background: none; border: 0; color: var(--text-secondary, #aaa); font-size: .75rem; text-decoration: underline; cursor: pointer; }
+
+.session-serie-control.is-paused { border-color: var(--accent, #d4f03c); color: var(--accent, #d4f03c); }
+/* Live training timer shown at the top of the open card. */
+.session-timer { display: flex; align-items: baseline; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 10px 0 6px; }
+.session-timer-label { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
+.session-timer-clock { font-family: var(--font-display, inherit); font-size: 2.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.session-timer--rest .session-timer-clock { color: var(--accent, #d4f03c); }
+
+/* No video: the media tile keeps the full width but is much shorter. */
+.session-serie-card-middle--compact > .session-serie-card-media { aspect-ratio: auto; height: 84px; }
+.session-rest-card { border-style: dashed; }
+/* The exercise or rest being trained: thin accent border. */
+.session-serie-card.is-current { border: 1px solid var(--accent, #d4f03c); }
+
+/* Scroll anchor for the current card / RPE cards: a small gap under the session header. */
+.session-serie-card, .session-block-footer { scroll-margin-top: calc(var(--block-title-h) + var(--serie-header-h) + 12px); }
+
+/* Session header: title + running clock + pause (round icon buttons share the top-bar aesthetic). */
+.session-clock { display: flex; align-items: center; gap: 10px; }
+.session-clock-time { font-family: var(--font-display, inherit); font-size: 1.1rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.session-window-header .session-window-title { flex: 1; min-width: 0; }
+/* Footer: round back arrow at the bottom left, actions (edit / save) at the right. */
+.session-window-footer { justify-content: space-between; align-items: center; }
+.session-window-footer-actions { display: flex; align-items: center; gap: 10px; }
+.top-bar-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Summary: time per exercise + total session time. */
+.session-times { display: grid; gap: 6px; margin-bottom: 14px; }
+.session-times-row { display: flex; justify-content: space-between; gap: 12px; font-size: .9rem; }
+.session-times-row b { font-variant-numeric: tabular-nums; }
+.session-times-total { padding-bottom: 6px; border-bottom: 1px solid var(--border, rgba(128,128,128,.25)); font-size: 1rem; }
+.top-bar-icon-btn.is-danger { color: #ef4444; border-color: #ef4444; background: rgba(239, 68, 68, .12); }
+
+/* Training list: the block title and the open serie's header stay pinned at the top while scrolling,
+   so the block, the serie and the exercise are always on screen together. Both bars bleed out over
+   their container's padding (negative margins) and are opaque, so nothing scrolls visibly beside or
+   above them. The serie bar sticks right under the title (top = title height). */
+.session-window-body { --block-title-h: 46px; --serie-header-h: 36px; }
+.session-window-body .plan-session-block-label.session-block-title {
+    position: sticky; top: 0; z-index: 3;
+    box-sizing: border-box; height: var(--block-title-h);
+    /* Pinned, it takes over the block's own top edge: same border and rounded corners, and it covers
+       the block's side borders, so the block still looks closed at the top while scrolling.
+       No line below the title. */
+    margin: -11px -13px 0; width: calc(100% + 26px);
+    display: flex; align-items: center; padding: 0 17px;
+    font-size: 1rem; letter-spacing: 0.08em; text-align: left;
+    background: var(--bg-card);
+    /* The upward shadow paints over any sliver of content that could show above the pinned bar. */
+    box-shadow: 0 -10px 0 var(--bg-surface);
+    border: 1px solid var(--border); border-bottom: 0;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.session-serie-group.is-open > .session-serie-header-toggle {
+    position: sticky; top: var(--block-title-h); z-index: 2;
+    box-sizing: border-box; height: var(--serie-header-h);
+    margin: -10px -12px 0; width: calc(100% + 24px); padding: 0 12px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+}
+
+/* No top padding on the scroll area, otherwise a 6px strip above the pinned bars lets content show through. */
+.session-window-body { padding-top: 0; }
+.session-window-body > :first-child { margin-top: 6px; }
+
+/* No divider lines under the session title or under the block title. */
+.session-window-header { border-bottom: none; background: var(--bg-surface); }
+
+/* Block recap shown while rating the RPEs. */
+.session-block-recap { display: grid; gap: 10px; padding: 12px; margin: 4px 0 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: rgba(255,255,255,.02); }
+.session-block-recap-title { font-family: var(--font-display); font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent, #d4f03c); }
+.session-block-recap-name { font-weight: 700; margin-bottom: 2px; }
+.session-block-recap-row { display: flex; justify-content: space-between; gap: 12px; font-size: .85rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+
+/* The RPE card still to be completed gets the same thin accent border as the current exercise. */
+.session-block-footer-card.is-current { border: 1px solid var(--accent, #d4f03c); }
+/* An expired rest: the clock turns red (and counts overtime). */
+.session-timer--rest.is-expired .session-timer-clock { color: #ef4444; }
+
+/* Rest card: a single compact row (name, clock, controls) instead of a tall panel. */
+.session-rest-row { display: flex; align-items: center; gap: 12px; }
+.session-rest-row .session-serie-card-name-block { flex: 1; min-width: 0; }
+.session-rest-clock { font-family: var(--font-display, inherit); font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--accent, #d4f03c); }
+.session-rest-row.is-expired .session-rest-clock { color: #ef4444; }
+.session-rest-controls { display: flex; gap: 8px; }
+.session-rest-controls .session-serie-control { width: 46px; height: 40px; }

@@ -51,6 +51,9 @@ export function Main({
     sessionLogs,
     onOpenSession,
     onSaveSessionLog,
+    onAutoSaveSessionLog,
+    onDiscardSessionLog,
+    onTrainingLock,
     onProfileUpdated,
     theme,
     onToggleTheme,
@@ -123,6 +126,9 @@ export function Main({
                     ) || null}
                     onBack={() => onNavigate(selectedSession.from === 'my-plan' ? 'my-plan' : 'my-sessions')}
                     onSave={onSaveSessionLog}
+                    onAutoSave={onAutoSaveSessionLog}
+                    onDiscard={onDiscardSessionLog}
+                    onTrainingLock={onTrainingLock}
                     onShowToast={onShowToast}
                 />
             )}
@@ -182,6 +188,7 @@ export function Main({
                 <AthletePlanification
                     athlete={selectedAthlete}
                     exercises={exercises}
+                    routines={routines}
                     planification={selectedPlanification}
                     onBack={() => onNavigate('athlete-profile')}
                     onSave={onSavePlanification}

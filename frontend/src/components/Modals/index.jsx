@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { uid } from '../../utils/helpers.js';
-import { INTENSITY_LABELS, DAYS, MUSCLE_OPTIONS, EQUIPMENT_OPTIONS } from '../../utils/constants.js';
+import { INTENSITY_LABELS, DAYS, MUSCLE_OPTIONS, EQUIPMENT_OPTIONS, EXERCISE_KIND_LABELS } from '../../utils/constants.js';
 import { Icon } from '../Icon/index.jsx';
+
+// Routine editor. Each exercise row mirrors a planification exercise (series, reps, medida,
+// carga) and a `block` number; a rest is a row with `isRest` + `duration` (e.g. "2:00"). Rows
+// sharing a block number become one plan block when the routine is imported into a day (see
+// AthletePlanification "Importar rutina"). `name` is free text with a
+// catalog datalist: exercises not in the (global) catalog can still be named without touching it.
+// Legacy rows ({name, sets, reps}) load with defaults for the new fields.
+const ROUTINE_MEDIDAS = ['Reps', 'Distancia', 'Tiempo', 'Peso'];
 
 export function ModalRoutine({ open, editing, exercises, onClose, onSave }) {
     const [name, setName]     = useState('');
@@ -14,7 +22,7 @@ export function ModalRoutine({ open, editing, exercises, onClose, onSave }) {
             setName(editing ? editing.name : '');
             setDesc(editing ? editing.desc || '' : '');
             setDays(editing ? [...(editing.days || [])] : []);
-            setExRows(editing ? editing.exercises.map(e => ({ ...e })) : []);
+            setExRows(editing ? editing.exercises.map(e => ({ medida: 'Reps', carga: '', comentario: '', block: 1, ...e })) : []);
         }
     }, [open, editing]);
 
@@ -23,7 +31,12 @@ export function ModalRoutine({ open, editing, exercises, onClose, onSave }) {
     }
 
     function addRow() {
-        setExRows(prev => [...prev, { name: '', sets: 3, reps: '10' }]);
+        setExRows(prev => [...prev, { kind: 'exercise', name: '', sets: 3, reps: '10', medida: 'Reps', carga: '', comentario: '', block: prev.length ? prev[prev.length - 1].block ?? 1 : 1 }]);
+    }
+
+    // A rest goes in the same block as the previous row, after the training exercises.
+    function addRest() {
+        setExRows(prev => [...prev, { isRest: true, kind: 'rest', name: 'Descanso', duration: '2:00', block: prev.length ? prev[prev.length - 1].block ?? 1 : 1 }]);
     }
 
     function updateRow(i, field, value) {
@@ -36,10 +49,18 @@ export function ModalRoutine({ open, editing, exercises, onClose, onSave }) {
 
     function handleSave() {
         if (!name.trim()) { alert('Ingresá un nombre para la rutina'); return; }
-        const validExercises = exRows.filter(r => r.name.trim()).map(r => ({
+        const validExercises = exRows.filter(r => r.isRest || r.name.trim()).map(r => r.isRest ? {
+            isRest: true, name: 'Descanso', duration: (r.duration || '').trim() || '2:00', block: parseInt(r.block) || 1,
+        } : ({
             name: r.name.trim(),
+            exerciseId: exercises.find(e => e.name === r.name.trim())?.id || r.exerciseId || '',
             sets: parseInt(r.sets) || 3,
             reps: r.reps || '10',
+            medida: r.medida || 'Reps',
+            carga: r.carga ?? '',
+            comentario: (r.comentario || '').trim(),
+            block: parseInt(r.block) || 1,
+            kind: r.kind || 'exercise',
         }));
         onSave({ id: editing ? editing.id : null, name: name.trim(), desc: desc.trim(), days, exercises: validExercises });
     }
@@ -90,14 +111,28 @@ export function ModalRoutine({ open, editing, exercises, onClose, onSave }) {
                     <div className="form-group">
                         <label className="form-label">Ejercicios</label>
                         <div className="exercises-in-routine">
-                            {exRows.map((row, i) => (
+                            {exRows.map((row, i) => row.isRest ? (
+                                <div key={i} className="exercise-row exercise-row--rest">
+                                    <span style={{ fontStyle: 'italic' }}>Descanso</span>
+                                    <input
+                                        type="text" placeholder="2:00"
+                                        value={row.duration ?? ''}
+                                        onChange={e => updateRow(i, 'duration', e.target.value)}
+                                    />
+                                    <input
+                                        type="number" min="1" placeholder="Bloque" title="Bloque"
+                                        value={row.block ?? 1}
+                                        onChange={e => updateRow(i, 'block', e.target.value)}
+                                    />
+                                    <button type="button" className="btn-remove-ex" onClick={() => removeRow(i)} aria-label="Quitar"><Icon name="close" size={14} /></button>
+                                </div>
+                            ) : (
                                 <div key={i} className="exercise-row">
-                                    <select value={row.name} onChange={e => updateRow(i, 'name', e.target.value)}>
-                                        <option value="">— Ejercicio —</option>
-                                        {exercises.map(e => (
-                                            <option key={e.id} value={e.name}>{e.name}</option>
-                                        ))}
-                                    </select>
+                                    <input
+                                        type="text" list="routine-exercise-names" placeholder="Ejercicio"
+                                        value={row.name}
+                                        onChange={e => updateRow(i, 'name', e.target.value)}
+                                    />
                                     <input
                                         type="number" placeholder="Series" min="1" max="20"
                                         value={row.sets}
@@ -108,12 +143,34 @@ export function ModalRoutine({ open, editing, exercises, onClose, onSave }) {
                                         value={row.reps}
                                         onChange={e => updateRow(i, 'reps', e.target.value)}
                                     />
+                                    <select value={row.medida || 'Reps'} onChange={e => updateRow(i, 'medida', e.target.value)}>
+                                        {ROUTINE_MEDIDAS.map(m => <option key={m} value={m}>{m}</option>)}
+                                    </select>
+                                    <input
+                                        type="text" placeholder="Carga"
+                                        value={row.carga ?? ''}
+                                        onChange={e => updateRow(i, 'carga', e.target.value)}
+                                    />
+                                    <select value={row.kind || 'exercise'} onChange={e => updateRow(i, 'kind', e.target.value)} title="Tipo de ejercicio">
+                                        {Object.entries(EXERCISE_KIND_LABELS).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                                    </select>
+                                    <input
+                                        type="number" min="1" placeholder="Bloque" title="Bloque"
+                                        value={row.block ?? 1}
+                                        onChange={e => updateRow(i, 'block', e.target.value)}
+                                    />
                                     <button type="button" className="btn-remove-ex" onClick={() => removeRow(i)} aria-label="Quitar"><Icon name="close" size={14} /></button>
                                 </div>
                             ))}
                         </div>
+                        <datalist id="routine-exercise-names">
+                            {exercises.map(e => <option key={e.id} value={e.name} />)}
+                        </datalist>
                         <button type="button" className="btn btn-secondary btn-sm" onClick={addRow}>
                             + Agregar ejercicio
+                        </button>{' '}
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={addRest}>
+                            + Descanso
                         </button>
                     </div>
                 </div>
@@ -149,8 +206,12 @@ export function ModalRoutineDetail({ open, routine, onClose, onEdit, onDelete })
                     {routine.exercises.map((ex, i) => (
                         <div key={i} className="detail-exercise-item">
                             <div className="det-ex-num">{i + 1}</div>
-                            <span className="det-ex-name">{ex.name}</span>
-                            <span className="det-ex-sets">{ex.sets} × {ex.reps}</span>
+                            <span className="det-ex-name">{ex.isRest ? 'Descanso' : ex.name}</span>
+                            <span className="det-ex-sets">
+                                {ex.isRest ? ex.duration : `${ex.sets} × ${ex.reps}`}
+                                {!ex.isRest && ex.carga ? ` · ${ex.carga}${{ Tiempo: '"', Peso: ' KG', Distancia: ' MTS.' }[ex.medida] || ''}` : ''}
+                                {(routine.exercises.some(e => (e.block ?? 1) !== 1)) ? ` · Bloque ${ex.block ?? 1}` : ''}
+                            </span>
                         </div>
                     ))}
                 </div>

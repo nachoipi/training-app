@@ -5,7 +5,8 @@
 
 import React from 'react';
 import { Icon } from '../Icon/index.jsx';
-import { formatDate } from '../../utils/helpers.js';
+import { formatDate, visibleInPlan } from '../../utils/helpers.js';
+import { DayOverview } from './DayOverview.jsx';
 import '../../styles/athlete-dashboard.css';
 import { SectionTitle } from '../TopBar/SectionTitle.jsx';
 
@@ -104,20 +105,8 @@ export function AthleteDashboard({ user, planifications = [], sessionLogs = [], 
                         {next.day.comentario?.trim() && (
                             <p className="dash-hero-note">{next.day.comentario.trim()}</p>
                         )}
-                        <div className="dash-hero-blocks">
-                            {next.day.blocks.map(block => (
-                                <div key={block.label} className="dash-hero-block">
-                                    <span className="dash-hero-block-label">Bloque {block.label}</span>
-                                    <ul className="dash-hero-exercises">
-                                        {block.exercises.filter(ex => ex.exerciseName).map(ex => (
-                                            <li key={ex.position}>
-                                                <span>{ex.exerciseName}</span>
-                                                <span className="dash-hero-ex-meta">{ex.series}×{ex.reps}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            ))}
+                        <div className="session-overview">
+                            <DayOverview blocks={next.day.blocks.map(b => ({ ...b, exercises: visibleInPlan(b.exercises) }))} />
                         </div>
                         <button
                             className="btn btn-primary"

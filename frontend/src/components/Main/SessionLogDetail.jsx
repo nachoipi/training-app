@@ -70,7 +70,7 @@ function ReviewBox({ log, onReview }) {
 
 export function SessionLogDetail({ log, plan, onReview }) {
     const day = plan ? findDay(plan, log.week, log.dayNumber) : null;
-    const exercises = day ? day.blocks.flatMap(b => b.exercises) : [];
+    const exercises = day ? day.blocks.flatMap(b => b.exercises).filter(e => !e.isRest) : [];
     const rows = summaryRows(log.sessionSummary);
 
     return (

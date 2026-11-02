@@ -3,12 +3,17 @@
 // 'my-session'). Renders blocks → series → per-exercise cards with media tile,
 // reps/carga steppers, done checkbox and the trainer's prescription comment.
 // Per-exercise RPE + athlete comment stay in the block footer. Persists via
-// onSave({ ...log }) provided by Dashboard. When the coach reviewed the session
-// (sessionLog.trainerComment, stored outside the payload) a read-only banner shows it.
-import React, { useState, useEffect } from 'react';
-import { uid, formatCarga } from '../../utils/helpers.js';
-import { MUSCLE_LABELS, EQUIPMENT_LABELS, SELF_EVALUATION_LABELS } from '../../utils/constants.js';
+// onSave({ ...log }) provided by Dashboard. While a session is still in progress every change
+// is also auto-saved (debounced, no validation) through onAutoSave, so closing the app
+// resumes where the athlete left off; only the "Finalizar sesión" modal marks it completed.
+// A session with no progress yet opens on a compact preview list (nota del día + every
+// block's exercises, one line each) with an "Empezar sesión" button; then the list takes over. When the coach reviewed the session (sessionLog.trainerComment, stored outside
+// the payload) a read-only banner shows it.
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { uid, formatCarga, restLabel, visibleInPlan, blockTitles, timeToSeconds, secondsToClock } from '../../utils/helpers.js';
+import { MUSCLE_LABELS, EQUIPMENT_LABELS, SELF_EVALUATION_LABELS, EXERCISE_KIND_LABELS } from '../../utils/constants.js';
 import { Icon } from '../Icon/index.jsx';
+import { DayOverview } from './DayOverview.jsx';
 import { ExerciseVideoModal } from '../Modals/ExerciseVideoModal.jsx';
 
 const RPE_CLASSES = { '1': 'session-rpe-1', '2': 'session-rpe-2', '3': 'session-rpe-3', '4': 'session-rpe-4' };
@@ -338,7 +343,25 @@ function nowForInput() {
     return d.toISOString().slice(0, 16);
 }
 
-export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, onShowToast }) {
+// Elapsed seconds as m:ss, or h:mm:ss after the first hour.
+function clockText(total) {
+    const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+    return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+}
+
+const AUTOSAVE_DELAY_MS = 800;
+
+export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, onBack, onSave, onAutoSave, onDiscard, onTrainingLock, onShowToast }) {
+    // `fullDay` is the plan day as written (rests included, for display). Everything the athlete
+    // logs (series, RPE, ordering rules, saved payload) runs on `day`: the same day without rests
+    // or empty blocks. Warm-ups ARE part of the session; only the pre-start overview hides them.
+    const fullDay = fullDayRaw;
+    const day = useMemo(() => ({
+        ...fullDayRaw,
+        blocks: fullDayRaw.blocks
+            .map(b => ({ ...b, exercises: b.exercises.filter(e => !e.isRest) }))
+            .filter(b => b.exercises.length > 0),
+    }), [fullDayRaw]);
     const [exerciseData, setExerciseData] = useState({});
     const [exerciseSummary, setExerciseSummary] = useState({});
     const [completed, setCompleted] = useState(false);
@@ -346,6 +369,18 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
     // Manual open/closed overrides for serie groups, keyed `${blockLabel}_${serieNum}`.
     // Without an override a serie is open only if it is the block's next one to do.
     const [serieOpen, setSerieOpen] = useState({});
+    // Manual expand/collapse of exercise cards, keyed `${position}_s${serie}`; without an entry
+    // only the next serie to do is expanded (see nextKey).
+    const [cardOpen, setCardOpen] = useState({});
+    // Exercise the player controls moved to (null = follow the next serie to do).
+    const [activeKey, setActiveKey] = useState(null);
+    // Live training timer: { kind: 'exercise' | 'rest', key, remaining, running } or null. A timed
+    // exercise (Medida Tiempo) counts down its Carga; after a serie round a rest counts down the
+    // block's Descanso. Pausing/resuming is the middle player button.
+    const [timer, setTimer] = useState(null);
+    const showOverviewRef = useRef(true);
+    // Warm-ups are not rated: no RPE for them (block closing and validation skip them).
+    function needsRpe(ex) { return ex.kind !== 'warmup'; }
     // Completed sessions: `baseline` is the hydrated state serialized, so `dirty` can tell
     // whether anything changed; `editing` unlocks reps/carga of already-done series;
     // `leaveAsk` shows the unsaved-changes prompt when pressing Volver.
@@ -357,11 +392,34 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
     // null = closed. Kept here (not inside ExerciseVideoModal) so the modal
     // can persist its result back into exerciseSummary.
     const [videoFor, setVideoFor] = useState(null);
+    // "Finalizar sesión" modal ("¿Cómo te fue?") and the pre-start overview flag.
+    // Session clock (counts while the training list is showing) and its pause button. Pausing
+    // also freezes the live exercise / rest countdown.
+    const [paused, setPaused] = useState(false);
+    // Stop button (shown while paused) asks before discarding the session; `discardedRef` stops a
+    // pending auto-save from re-creating the log that was just deleted.
+    const [discardAsk, setDiscardAsk] = useState(false);
+    const discardedRef = useRef(false);
+    const [elapsed, setElapsed] = useState(0);
+    // Internal stopwatch per serie (key -> seconds): runs while that exercise is the current one, so
+    // it starts when the athlete hits next on the previous exercise. Saved with the log for the summary.
+    const [exerciseTimes, setExerciseTimes] = useState({});
+    const [started, setStarted] = useState(false);
+    // Identity of the session the local state was hydrated for. Auto-saves update the
+    // `sessionLog` prop; re-hydrating from them would overwrite what the athlete is typing,
+    // so hydration runs again only when a different session is opened.
+    const hydratedFor = useRef('');
+    // Stable id for a log that does not exist yet, so successive auto-saves share one payload id.
+    const newLogId = useRef(uid());
+    const autoSaveTimer = useRef(null);
 
     // Hydrate local state from sessionLog when opening the screen.
     // hasNewFormat distinguishes per-serie logs (current shape) from legacy
     // per-exercise logs so older sessions still load without crashing.
     useEffect(() => {
+        const sessionKey = `${plan.id}_${week}_${day.dayNumber}`;
+        if (hydratedFor.current === sessionKey) return;
+        hydratedFor.current = sessionKey;
         const map = {};
         const summary = {};
 
@@ -409,11 +467,13 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
 
         setExerciseData(map);
         setExerciseSummary(summary);
+        setExerciseTimes(sessionLog?.exerciseTimes || {});
+        setElapsed(sessionLog?.elapsedSeconds || 0);
         const hydratedSummary = { ...EMPTY_SESSION_SUMMARY, ...(sessionLog?.sessionSummary || {}) };
         setSessionSummary(hydratedSummary);
         setBaseline(JSON.stringify({ map, summary, sessionSummary: hydratedSummary }));
         setEditing(false);
-    }, [sessionLog, day]);
+    }, [sessionLog, day, plan.id, week]);
 
     function updateField(position, serieIndex, field, value) {
         const key = `${position}_s${serieIndex}`;
@@ -422,7 +482,15 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
 
     function step(position, serieIndex, field, delta) {
         const key = `${position}_s${serieIndex}`;
-        const current = parseFloat(exerciseData[key]?.[field]) || 0;
+        const raw = String(exerciseData[key]?.[field] ?? '');
+        // Time loads (m:ss) step by seconds; everything else is a plain number.
+        if (raw.includes(':')) {
+            const [m, s] = raw.split(':').map(n => parseInt(n, 10) || 0);
+            const total = Math.max(0, m * 60 + s + delta);
+            updateField(position, serieIndex, field, `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`);
+            return;
+        }
+        const current = parseFloat(raw) || 0;
         updateField(position, serieIndex, field, String(Math.max(0, current + delta)));
     }
 
@@ -456,7 +524,7 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
             }))
         );
         return {
-            id: sessionLog ? sessionLog.id : uid(),
+            id: sessionLog ? sessionLog.id : newLogId.current,
             planId: plan.id,
             week,
             dayNumber: day.dayNumber,
@@ -465,6 +533,8 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
             exercises,
             exerciseSummaries,
             sessionSummary,
+            elapsedSeconds: elapsed,
+            exerciseTimes,
         };
     }
 
@@ -484,7 +554,7 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                     }
                 }
                 const rpe = exerciseSummary[ex.position]?.rpe;
-                if (!rpe || !['1', '2', '3', '4'].includes(rpe)) {
+                if (needsRpe(ex) && (!rpe || !['1', '2', '3', '4'].includes(rpe))) {
                     onShowToast(`${ex.exerciseName || ex.position}: seleccioná un RPE antes de guardar.`, 'error');
                     return false;
                 }
@@ -504,12 +574,131 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
     const orderedKeys = blockKeys.flat();
     const isDone = key => !!exerciseData[key]?.done;
     const hasRpe = ex => !!exerciseSummary[ex.position]?.rpe;
+    // Next serie to do overall (first unchecked in execution order): the only exercise that
+    // starts expanded in the list.
     // A block is "finished" once all its series are checked; it is "closed" once every
     // exercise in it also has an RPE. The next block only opens when this one is closed.
     const blockFinished = bi => blockKeys[bi].every(isDone);
-    const blockClosed = bi => blockFinished(bi) && day.blocks[bi].exercises.every(hasRpe);
+    const blockClosed = bi => blockFinished(bi) && day.blocks[bi].exercises.filter(needsRpe).every(hasRpe);
+    const nextKey = orderedKeys.find(k => !isDone(k));
+    // The next serie can be locked behind the previous block's RPE ratings (canToggleDone); then
+    // nothing is expanded and the block's RPE cards are the thing to do.
+    const nextLocked = nextKey != null && !canToggleDone(nextKey);
+    const curKey = activeKey ?? (nextLocked ? null : nextKey);
+
+    // Player controls at the bottom of the open exercise card: back to the previous exercise,
+    // pause (save progress and leave), and forward = mark this serie done and open the next one
+    // (on an already-done serie it just moves on). Moving clears manual open/close overrides.
+    function goTo(key) { setCardOpen({}); setSerieOpen({}); setActiveKey(key ?? null); }
+    const serieOfKey = k => Number(k.slice(k.lastIndexOf('_s') + 2));
+    // Descanso is treated as an exercise: each block's rest row becomes a card per serie round
+    // (key `R_<block>_<serie>`), hidden until every exercise of that round is done. Rest cards are
+    // not part of `orderedKeys`, so they never block the ordered-completion rules.
+    const bIdxG0 = block => day.blocks.indexOf(block);
+    const restKey = (bi, n) => `R_${bi}_${n}`;
+    const parseRestKey = k => { const [, bi, n] = k.split('_'); return { bi: Number(bi), n: Number(n) }; };
+    function blockRestSeconds(bi) {
+        const rest = fullDay.blocks.find(b => b.label === day.blocks[bi].label)?.exercises.find(e => e.isRest);
+        return rest ? timeToSeconds(rest.carga || rest.duration) : null;
+    }
+    const [restDone, setRestDone] = useState({});
+    // True when moving from block `fromBi` to `target` would land on a serie locked behind the
+    // RPEs of `fromBi` (a different block whose exercises are not all rated yet).
+    function lockedBehindRpe(fromBi, target) {
+        if (!target) return false;
+        const toBi = blockKeys.findIndex(keys => keys.includes(target));
+        return toBi !== fromBi && !day.blocks[fromBi].exercises.filter(needsRpe).every(hasRpe);
+    }
+    function finishRest(rKey, next) {
+        setRestDone(prev => ({ ...prev, [rKey]: true }));
+        setTimer(null);
+        goTo(lockedBehindRpe(parseRestKey(rKey).bi, next) ? null : next);
+    }
+    // Entry that follows round `n` of block `bi` in execution order (first not done after the round).
+    function afterRound(bi, n) {
+        const last = blockKeys[bi].filter(k => serieOfKey(k) === n).pop();
+        const i = orderedKeys.indexOf(last);
+        return i < orderedKeys.length - 1 ? orderedKeys[i + 1] : null;
+    }
+    function goNext(key, position, serieNum) {
+        const justDone = !isDone(key);
+        if (justDone) updateField(position, serieNum, 'done', true);
+        const i = orderedKeys.indexOf(key);
+        const upcoming = i < orderedKeys.length - 1 ? orderedKeys[i + 1] : null;
+        // Closing a serie round of a block that has a Descanso: open its rest card and start it.
+        const bi = blockKeys.findIndex(keys => keys.includes(key));
+        const n = serieOfKey(key);
+        const nextInBlock = blockKeys[bi][blockKeys[bi].indexOf(key) + 1];
+        const closesRound = !nextInBlock || serieOfKey(nextInBlock) !== n;
+        const secs = justDone && closesRound ? blockRestSeconds(bi) : null;
+        if (secs) {
+            const rk = restKey(bi, n);
+            setRestDone(prev => ({ ...prev, [rk]: false }));
+            setTimer({ kind: 'rest', key: rk, next: upcoming, remaining: secs, running: true });
+            goTo(rk);
+            return;
+        }
+        setTimer(null);
+        // Never jump onto a serie that is still locked behind this block's RPEs: stay on the RPE cards.
+        goTo(lockedBehindRpe(bi, upcoming) ? null : upcoming);
+    }
+    useEffect(() => {
+        if (!timer || !timer.running || paused) return undefined;
+        const id = setInterval(() => setTimer(t => (t && t.running ? { ...t, remaining: t.remaining - 1 } : t)), 1000);
+        return () => clearInterval(id);
+    }, [timer?.running, timer?.key, timer?.kind, paused]);
+    // Session clock: ticks only once the training list is showing (not on the overview).
+    // It runs from "Empezar sesión" until the last exercise is done, and stops while paused.
+    const allSeriesDone = orderedKeys.length > 0 && orderedKeys.every(isDone);
+    useEffect(() => {
+        if (paused || completed || allSeriesDone) return undefined;
+        const id = setInterval(() => { if (!showOverviewRef.current) setElapsed(e => e + 1); }, 1000);
+        return () => clearInterval(id);
+    }, [paused, completed, allSeriesDone]);
+    // Stopwatch of the exercise being trained (rests and locked states do not count).
+    useEffect(() => {
+        if (paused || completed || allSeriesDone || !curKey || curKey.startsWith('R_')) return undefined;
+        const id = setInterval(() => {
+            if (!showOverviewRef.current) setExerciseTimes(t => ({ ...t, [curKey]: (t[curKey] || 0) + 1 }));
+        }, 1000);
+        return () => clearInterval(id);
+    }, [curKey, paused, completed, allSeriesDone]);
+    // A rest never advances by itself: at 0:00 the clock turns red and keeps counting (+m:ss) until
+    // the athlete hits next. Its block stays on screen until then (see firstOpenBi), even when the
+    // block has no RPEs to rate (warm-ups) or they were already rated during the rest.
+
+    // Keep the open exercise (or a block's RPE card once the block is finished) centred on screen.
+    const finishedSig = day.blocks.map((_, i) => (blockFinished0(i) ? '1' : '0')).join('');
+    function blockFinished0(bi) { return blockKeys[bi].every(isDone); }
+    // One effect: bring the current exercise / rest card to the top of the screen; when nothing is
+    // current (locked behind RPEs) do the same for the block's pending RPE cards. Runs when the current card changes or a
+    // block's RPE cards appear.
+    useEffect(() => {
+        if (showOverviewRef.current) return;
+        if (curKey) { document.querySelector(`[data-card-key="${curKey}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+        document.querySelector('[data-block-footer]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, [curKey, finishedSig]);
     // Every block done and rated -> the session summary card becomes available.
     const allClosed = day.blocks.length > 0 && day.blocks.every((_, i) => blockClosed(i));
+    // First block still to work on: the blocks before it are closed and stay hidden while training.
+    const restPendingBi = timer ? parseRestKey(timer.key).bi : -1;
+    const firstOpenBi = day.blocks.findIndex((_, i) => !blockClosed(i) || i === restPendingBi);
+    // Once everything is rated the ¿Cómo te fue? card appears: prefill the date and the duration
+    // from the session clock.
+    useEffect(() => {
+        if (!allClosed || completed) return;
+        setSessionSummary(prev => ({
+            ...prev,
+            dateTime: prev.dateTime || nowForInput(),
+            durationMin: prev.durationMin || String(Math.max(1, Math.round(elapsed / 60))),
+        }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [allClosed]);
+    // A new current block starts at the top of the screen.
+    useEffect(() => {
+        if (showOverviewRef.current) return;
+        document.querySelector('.session-window-body')?.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [firstOpenBi]);
     const updateSummary = (field, value) => setSessionSummary(prev => ({ ...prev, [field]: value }));
 
     // An entry can be checked only once every entry before it is checked AND every earlier
@@ -529,18 +718,129 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
     const dirty = completed && baseline !== ''
         && JSON.stringify({ map: exerciseData, summary: exerciseSummary, sessionSummary }) !== baseline;
 
+    // Auto-save for in-progress sessions: when the current state differs from the last
+    // persisted snapshot (`baseline`) save it after a short pause, with no validation and
+    // never marking it completed (so the trainer is not notified). Completed sessions keep
+    // the explicit Guardar flow because their `dirty`/`editing` logic depends on `baseline`.
+    const stateJson = JSON.stringify({ map: exerciseData, summary: exerciseSummary, sessionSummary });
+    function flushAutoSave() {
+        clearTimeout(autoSaveTimer.current);
+        if (discardedRef.current || completed || baseline === '' || stateJson === baseline) return;
+        setBaseline(stateJson);
+        onAutoSave?.(buildLog(false));
+    }
+    useEffect(() => {
+        if (discardedRef.current || completed || baseline === '' || stateJson === baseline || !onAutoSave) return undefined;
+        autoSaveTimer.current = setTimeout(flushAutoSave, AUTOSAVE_DELAY_MS);
+        return () => clearTimeout(autoSaveTimer.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [stateJson, completed, baseline]);
+
     function handleBack() {
-        if (dirty) setLeaveAsk(true);
-        else onBack();
+        if (dirty) { setLeaveAsk(true); return; }
+        flushAutoSave();
+        onBack();
     }
 
-    function handleSave() { if (validate()) onSave(buildLog(completed)); }
-    function handleComplete() { if (validate()) onSave(buildLog(true)); }
+    // In-progress sessions save as-is (no validation: partial progress is fine); completed
+    // ones still validate because they can be edited into an inconsistent state.
+    function handleSave() {
+        if (completed) { if (validate()) onSave(buildLog(true)); }
+        else onSave(buildLog(false));
+    }
+    // "Finalizar sesión" (inside the inline ¿Cómo te fue? card): validate, then save as completed.
+    function handleConfirmFinish() { if (validate()) onSave(buildLog(true)); }
+
+    // Overview first only for a session nobody has touched yet; in-progress / completed ones
+    // (judged from the saved log, so there is no flash before hydration) go straight to the list.
+    const hasProgress = !!sessionLog && (sessionLog.completed || sessionLog.exercises?.some(e => e.done));
+    const showOverview = !started && !hasProgress;
+    showOverviewRef.current = showOverview;
+    // Training in progress = the list is showing and the session is not completed: the only exits
+    // are finishing or discarding it, so the back arrow is disabled and Dashboard blocks navigation.
+    const trainingLocked = !completed && !showOverview;
+    useEffect(() => {
+        onTrainingLock?.(trainingLocked);
+        return () => onTrainingLock?.(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [trainingLocked]);
+    function handleDiscard() {
+        discardedRef.current = true;
+        clearTimeout(autoSaveTimer.current);
+        setDiscardAsk(false);
+        onDiscard?.({ planId: plan.id, week, dayNumber: day.dayNumber });
+    }
+    const started_or_progress = !showOverview;
+
+    // Warm-up blocks read "Calentamiento"; the rest are Bloque A, B… among themselves.
+    const sessionBlockTitles = blockTitles(day.blocks);
+
+    const summaryFields = (
+        <>
+            <div className="session-block-footer-field">
+                <span className="session-exercise-input-label">Fecha y hora</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                        type="datetime-local"
+                        className="session-exercise-input session-exercise-input-comment"
+                        value={sessionSummary.dateTime}
+                        onChange={e => updateSummary('dateTime', e.target.value)}
+                    />
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => updateSummary('dateTime', nowForInput())}>
+                        Ahora
+                    </button>
+                </div>
+            </div>
+            <div className="session-block-footer-field">
+                <span className="session-exercise-input-label">Duración de la sesión (minutos)</span>
+                <input
+                    type="number"
+                    min="0"
+                    inputMode="numeric"
+                    className="session-exercise-input session-exercise-input-comment"
+                    value={sessionSummary.durationMin}
+                    onChange={e => updateSummary('durationMin', e.target.value)}
+                    placeholder="—"
+                />
+            </div>
+            <div className="session-block-footer-field">
+                <span className="session-exercise-input-label">Autoevaluación</span>
+                <select
+                    className="session-rpe-select"
+                    value={sessionSummary.selfEvaluation}
+                    onChange={e => updateSummary('selfEvaluation', e.target.value)}
+                >
+                    <option value="">—</option>
+                    {SELF_EVALUATION_OPTIONS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                </select>
+            </div>
+            <div className="session-block-footer-field">
+                <span className="session-exercise-input-label">Nivel de esfuerzo de la sesión (1 suave – 10 máximo)</span>
+                <select
+                    className="session-rpe-select"
+                    value={sessionSummary.effortLevel}
+                    onChange={e => updateSummary('effortLevel', e.target.value)}
+                >
+                    <option value="">—</option>
+                    {EFFORT_LEVELS.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+            </div>
+            <div className="session-block-footer-field">
+                <span className="session-exercise-input-label">Comentario de la sesión</span>
+                <textarea
+                    className="session-exercise-input session-exercise-input-comment session-summary-comment"
+                    rows={5}
+                    value={sessionSummary.comment}
+                    onChange={e => updateSummary('comment', e.target.value)}
+                    placeholder="Cómo te sentiste, qué cambiarías, molestias, etc."
+                />
+            </div>
+        </>
+    );
 
     return (
         <div className="session-window">
             <div className="session-window-header">
-                <button className="btn btn-secondary btn-sm" onClick={handleBack}>← Volver</button>
                 <span className="session-window-title">
                     {plan.name} — Semana {week} — Día {day.dayNumber}
                 </span>
@@ -558,13 +858,20 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                         <p className="trainer-feedback-text">"{sessionLog.trainerComment}"</p>
                     </div>
                 )}
-                {day.comentario?.trim() && (
-                    <div className="plan-session-block trainer-feedback-banner" style={{ marginBottom: 16 }}>
-                        <div className="plan-session-block-label">Nota del día</div>
-                        <p className="trainer-feedback-text">{day.comentario.trim()}</p>
+                {showOverview && (
+                    // Same look as the athlete home hero (dash-hero*): note, then each block wrapped in its
+                    // own box — title with its series count, and per exercise the name with reps / carga
+                    // underneath.
+                    <div className="dash-hero session-overview">
+                        <div className="dash-hero-label">{plan.name}</div>
+                        <div className="dash-hero-title">Semana {week} · Día {day.dayNumber}</div>
+                        {day.comentario?.trim() && <p className="dash-hero-note">{day.comentario.trim()}</p>}
+                        <DayOverview blocks={fullDay.blocks.map(b => ({ ...b, exercises: visibleInPlan(b.exercises) }))} />
                     </div>
                 )}
-                {day.blocks.map(block => {
+                {started_or_progress && day.blocks.map((block, bIdx) => {
+                    // Only the block in progress is shown: finished ones and the ones still to come are hidden.
+                    if (!completed && bIdx !== firstOpenBi) return null;
                     const allSameSeries = block.exercises.length > 0 &&
                         block.exercises.every(ex => ex.series === block.exercises[0].series);
                     const maxSeries = block.exercises.reduce((m, ex) => Math.max(m, ex.series || 1), 1);
@@ -579,8 +886,8 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
 
                     return (
                         <div key={block.label} className="plan-session-block" style={{ marginBottom: 16 }}>
-                            <div className="plan-session-block-label">
-                                Bloque {block.label}{labelSuffix}
+                            <div className="plan-session-block-label session-block-title">
+                                {sessionBlockTitles[bIdx]}{labelSuffix}
                             </div>
 
                             {/* Prescribed summary */}
@@ -594,14 +901,26 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                                         </span>
                                     </span>
                                 ))}
+                                {(fullDay.blocks.find(b => b.label === block.label)?.exercises || []).filter(e => e.isRest).map(r => (
+                                    <span key={r.position}>
+                                        <span className="session-block-summary-sep"> · </span>
+                                        <span className="session-block-summary-meta">Descanso {restLabel(r)}</span>
+                                    </span>
+                                ))}
                             </div>
 
                             {/* Serie groups */}
                             {Array.from({ length: maxSeries }, (_, idx) => {
                                 const serieNum = idx + 1;
                                 const serieKey = `${block.label}_${serieNum}`;
-                                const isOpen = serieOpen[serieKey] ?? (serieNum === nextSerie);
+                                const bIdxG = day.blocks.indexOf(block);
+                                const curLoc = curKey == null ? null
+                                    : curKey.startsWith('R_') ? parseRestKey(curKey)
+                                    : { bi: blockKeys.findIndex(keys => keys.includes(curKey)), n: serieOfKey(curKey) };
+                                const isOpen = serieOpen[serieKey] ?? (curLoc != null && curLoc.bi === bIdxG && curLoc.n === serieNum);
                                 const isSerieDone = serieDone(serieNum);
+                                // While training, series already finished (and not the one still open for its rest) are hidden.
+                                if (!completed && isSerieDone && !isOpen) return null;
                                 return (
                                     <div key={serieNum} className={`session-serie-group${isOpen ? ' is-open' : ''}`}>
                                         <button
@@ -639,11 +958,24 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                                                 const showMedia = !completed || !!athleteVideo;
                                                 // No prescribed carga → don't ask the athlete for one.
                                                 const hasCarga = formatCarga(ex) !== '—';
+                                                // Only the next exercise to do is open; the others show just their header.
+                                                const cardKey = `${ex.position}_s${serieNum}`;
+                                                // The exercise being trained (or whose timer runs) is always open; the rest follow manual toggles.
+                                                const cardExpanded = completed || cardKey === curKey || (timer && timer.key === cardKey) || !!cardOpen[cardKey];
+                                                // Exercises already done are hidden while training (the one just finished stays until the next opens).
+                                                if (!completed && data.done && cardKey !== curKey) return null;
 
                                                 return (
-                                                    <div key={ex.position} className={`session-serie-card ${rpeClass}`}>
+                                                    <div key={ex.position} data-card-key={cardKey} className={`session-serie-card ${rpeClass}${cardExpanded ? '' : ' is-collapsed'}${cardKey === curKey ? ' is-current' : ''}`}>
                                                         <div className="session-serie-card-name-row">
-                                                            <div className="session-serie-card-name-block">
+                                                            <div
+                                                                className="session-serie-card-name-block session-serie-card-toggle"
+                                                                role="button"
+                                                                tabIndex={0}
+                                                                aria-expanded={cardExpanded}
+                                                                onClick={() => setCardOpen(prev => ({ ...prev, [cardKey]: !cardExpanded }))}
+                                                                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCardOpen(prev => ({ ...prev, [cardKey]: !cardExpanded })); } }}
+                                                            >
                                                                 {shown.video
                                                                     ? <a href={shown.video} target="_blank" rel="noreferrer" className="session-serie-exercise-link">{ex.exerciseName || '—'}</a>
                                                                     : <span className="session-serie-exercise-name">{ex.exerciseName || '—'}</span>
@@ -652,22 +984,17 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                                                                     ({repForSerie} reps{formatCarga(ex) !== '—' ? ` · ${formatCarga(ex)}` : ''})
                                                                 </span>
                                                             </div>
-                                                            <label className="session-serie-card-done" title="Hecho">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    className="session-done-check"
-                                                                    checked={data.done ?? false}
-                                                                    disabled={completed || !canToggleDone(`${ex.position}_s${serieNum}`)}
-                                                                    onChange={e => updateField(ex.position, serieNum, 'done', e.target.checked)}
-                                                                />
-                                                            </label>
+                                                            {data.done && (
+                                                                <span className="session-completed-check" title="Hecho" aria-label="Hecho"><Icon name="check" size={14} /></span>
+                                                            )}
                                                         </div>
 
                                                         {/* When the athlete marks the serie done, the reps & carga
                                                             steppers lock so the confirmed result can't be tweaked
                                                             by accident. Unchecking "done" re-enables them. The
                                                             .is-locked class on .session-stepper dims the row. */}
-                                                        <div className="session-serie-card-middle">
+                                                        {cardExpanded && (<>
+                                                        <div className={`session-serie-card-middle${resolveVideo(shown) ? '' : ' session-serie-card-middle--compact'}`}>
                                                             {showMedia && <ExerciseMediaThumb ex={shown} onOpen={() => setDetailExercise(shown)} />}
 
                                                             <div className="session-serie-card-inputs">
@@ -710,9 +1037,61 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                                                                 {trainerComment}
                                                             </div>
                                                         )}
+                                                        {!completed && (
+                                                            <div className="session-serie-controls">
+                                                                {/* Pause freezes this exercise's stopwatch and the session clock (and any rest countdown). */}
+                                                                <button type="button" className={`session-serie-control${paused ? ' is-paused' : ''}`}
+                                                                    aria-label={paused ? 'Reanudar' : 'Pausar'} onClick={() => setPaused(p => !p)}>
+                                                                    {paused ? '⏯' : '⏸'}
+                                                                </button>
+                                                                <button type="button" className="session-serie-control session-serie-control--next" aria-label={data.done ? 'Siguiente ejercicio' : 'Hecho y siguiente'}
+                                                                    disabled={paused || (!data.done && !canToggleDone(cardKey))}
+                                                                    onClick={() => goNext(cardKey, ex.position, serieNum)}>▶</button>
+                                                            </div>
+                                                        )}
+                                                        </>)}
                                                     </div>
                                                 );
                                             })}
+                                        {isOpen && !completed && blockRestSeconds(bIdxG) && (() => {
+                                            const rk = restKey(bIdxG, serieNum);
+                                            const secs = blockRestSeconds(bIdxG);
+                                            const running = timer && timer.key === rk;
+                                            const expanded = curKey === rk || running || !!cardOpen[rk];
+                                            const next = afterRound(bIdxG, serieNum);
+                                            return (
+                                                <div key={rk} data-card-key={rk} className={`session-serie-card session-rest-card${expanded ? '' : ' is-collapsed'}${curKey === rk ? ' is-current' : ''}`}>
+                                                    {/* One compact row: name, clock (red + overtime once expired) and the two controls. */}
+                                                    <div className={`session-rest-row${running && timer.remaining <= 0 ? ' is-expired' : ''}`}>
+                                                        <div
+                                                            className="session-serie-card-name-block session-serie-card-toggle"
+                                                            role="button" tabIndex={0} aria-expanded={expanded}
+                                                            onClick={() => setCardOpen(prev => ({ ...prev, [rk]: !expanded }))}
+                                                        >
+                                                            <span className="session-serie-exercise-name">Descanso</span>
+                                                            {!expanded && <span className="session-serie-exercise-prescription">({secondsToClock(secs)})</span>}
+                                                        </div>
+                                                        {expanded && (
+                                                            <>
+                                                                <span className="session-rest-clock">
+                                                                    {running && timer.remaining < 0 ? `+${secondsToClock(-timer.remaining)}` : secondsToClock(running ? timer.remaining : secs)}
+                                                                </span>
+                                                                <div className="session-rest-controls">
+                                                                    <button type="button" className={`session-serie-control${paused ? ' is-paused' : ''}`}
+                                                                        aria-label={paused ? 'Reanudar' : 'Pausar'}
+                                                                        onClick={() => (running ? setPaused(p => !p) : setTimer({ kind: 'rest', key: rk, next, remaining: secs, running: true }))}>
+                                                                        {paused ? '⏯' : '⏸'}
+                                                                    </button>
+                                                                    <button type="button" className="session-serie-control session-serie-control--next" aria-label="Saltar descanso"
+                                                                        onClick={() => finishRest(rk, next)}>▶</button>
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                        {restDone[rk] && !expanded && <span className="session-completed-check" title="Hecho" aria-label="Hecho"><Icon name="check" size={14} /></span>}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 );
                             })}
@@ -722,11 +1101,45 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                                 shell above. The paperclip button is a placeholder for an
                                 upcoming feature (athlete uploads their own exercise video
                                 for trainer review in "Historial de sesiones"). */}
-                            <div className="session-block-footer">
+                            {/* RPE cards only exist while they are pending: once the block's series are done
+                                and until every RPE is set. After that they are hidden during training and show
+                                again in the completed session (summary). */}
+                            {/* Recap of what the athlete just did in this block (series are hidden once done), shown
+                                above the RPE cards so the ratings are given knowing the real work. */}
+                            {!completed && blockFinished(bIdxG0(block)) && !blockClosed(bIdxG0(block)) && (
+                                <div className="session-block-recap">
+                                    <div className="session-block-recap-title">Resumen del bloque</div>
+                                    {block.exercises.map(ex => (
+                                        <div key={ex.position} className="session-block-recap-ex">
+                                            <div className="session-block-recap-name">{ex.exerciseName || '—'}</div>
+                                            {Array.from({ length: ex.series || 1 }, (_, i) => i + 1).map(n => {
+                                                const key = `${ex.position}_s${n}`;
+                                                const d = exerciseData[key] || {};
+                                                const load = formatCarga({ ...ex, carga: d.actualCarga });
+                                                const secs = exerciseTimes[key];
+                                                return (
+                                                    <div key={n} className="session-block-recap-row">
+                                                        <span>Serie {n}</span>
+                                                        <span>
+                                                            {d.actualReps !== '' && d.actualReps != null ? `${d.actualReps} reps` : '—'}
+                                                            {load !== '—' ? ` · ${load}` : ''}
+                                                            {secs ? ` · ${clockText(secs)}` : ''}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {(completed || (blockFinished(bIdxG0(block)) && !blockClosed(bIdxG0(block)))) && (
+                            <div className="session-block-footer" data-block-footer={day.blocks.indexOf(block)}>
                                 {block.exercises.map(ex => {
+                                    // Warm-ups get no RPE, comment or video attachment: no footer card at all.
+                                    if (!needsRpe(ex)) return null;
                                     const rpeClass = RPE_CLASSES[exerciseSummary[ex.position]?.rpe] || '';
                                     return (
-                                        <div key={ex.position} className={`session-block-footer-card ${rpeClass}`}>
+                                        <div key={ex.position} className={`session-block-footer-card ${rpeClass}${!completed && ex === block.exercises.find(e => needsRpe(e) && !hasRpe(e)) ? ' is-current' : ''}`}>
                                             <div className="session-block-footer-card-header">
                                                 <span className="session-block-footer-card-name">{ex.exerciseName || '—'}</span>
                                                 <button
@@ -739,6 +1152,7 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                                                     <Icon name="paperclip" size={18} />
                                                 </button>
                                             </div>
+                                            {needsRpe(ex) && (
                                             <div className="session-block-footer-field">
                                                 <span className="session-exercise-input-label">RPE</span>
                                                 <select
@@ -755,6 +1169,7 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                                                     <option value="4">Debo disminuir la intensidad</option>
                                                 </select>
                                             </div>
+                                            )}
                                             <div className="session-block-footer-field">
                                                 <span className="session-exercise-input-label">Comentario</span>
                                                 <input
@@ -768,94 +1183,98 @@ export function AthleteMySession({ plan, week, day, sessionLog, onBack, onSave, 
                                     );
                                 })}
                             </div>
+                            )}
                         </div>
                     );
                 })}
 
-                {allClosed && (
+                {allClosed && !showOverview && (
                     <div className="plan-session-block session-summary-card">
-                        <div className="plan-session-block-label">Resumen de la sesión</div>
-                        <div className="session-block-footer-field">
-                            <span className="session-exercise-input-label">Fecha y hora</span>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <input
-                                    type="datetime-local"
-                                    className="session-exercise-input session-exercise-input-comment"
-                                    value={sessionSummary.dateTime}
-                                    onChange={e => updateSummary('dateTime', e.target.value)}
-                                />
-                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => updateSummary('dateTime', nowForInput())}>
-                                    Ahora
-                                </button>
-                            </div>
+                        <div className="plan-session-block-label">{completed ? 'Resumen de la sesión' : '¿Cómo te fue?'}</div>
+                        {/* Time per exercise (sum of its series stopwatches) and the total session time. */}
+                        <div className="session-times">
+                            <div className="session-times-row session-times-total"><span>Tiempo total</span><b>{clockText(elapsed)}</b></div>
+                            {day.blocks.flatMap(b => b.exercises).map(ex => {
+                                const secs = Object.entries(exerciseTimes)
+                                    .filter(([k]) => k.startsWith(`${ex.position}_s`))
+                                    .reduce((sum, [, v]) => sum + v, 0);
+                                return secs > 0 ? (
+                                    <div key={ex.position} className="session-times-row"><span>{ex.exerciseName || ex.position}</span><b>{clockText(secs)}</b></div>
+                                ) : null;
+                            })}
                         </div>
-                        <div className="session-block-footer-field">
-                            <span className="session-exercise-input-label">Duración de la sesión (minutos)</span>
-                            <input
-                                type="number"
-                                min="0"
-                                inputMode="numeric"
-                                className="session-exercise-input session-exercise-input-comment"
-                                value={sessionSummary.durationMin}
-                                onChange={e => updateSummary('durationMin', e.target.value)}
-                                placeholder="—"
-                            />
-                        </div>
-                        <div className="session-block-footer-field">
-                            <span className="session-exercise-input-label">Autoevaluación</span>
-                            <select
-                                className="session-rpe-select"
-                                value={sessionSummary.selfEvaluation}
-                                onChange={e => updateSummary('selfEvaluation', e.target.value)}
-                            >
-                                <option value="">—</option>
-                                {SELF_EVALUATION_OPTIONS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-                            </select>
-                        </div>
-                        <div className="session-block-footer-field">
-                            <span className="session-exercise-input-label">Nivel de esfuerzo de la sesión (1 suave – 10 máximo)</span>
-                            <select
-                                className="session-rpe-select"
-                                value={sessionSummary.effortLevel}
-                                onChange={e => updateSummary('effortLevel', e.target.value)}
-                            >
-                                <option value="">—</option>
-                                {EFFORT_LEVELS.map(v => <option key={v} value={v}>{v}</option>)}
-                            </select>
-                        </div>
-                        <div className="session-block-footer-field">
-                            <span className="session-exercise-input-label">Comentario de la sesión</span>
-                            <textarea
-                                className="session-exercise-input session-exercise-input-comment session-summary-comment"
-                                rows={5}
-                                value={sessionSummary.comment}
-                                onChange={e => updateSummary('comment', e.target.value)}
-                                placeholder="Cómo te sentiste, qué cambiarías, molestias, etc."
-                            />
-                        </div>
+                        {summaryFields}
+                        {!completed && (
+                            <button className="btn btn-primary" style={{ width: '100%', marginTop: 12 }} onClick={handleConfirmFinish}>
+                                Finalizar sesión
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
 
             <div className="session-window-footer">
-                {!completed && (
-                    <button className="btn btn-secondary btn-sm" onClick={handleComplete}>
-                        Marcar como Completada
-                    </button>
-                )}
-                {completed && (
-                    <button
-                        className="btn btn-sm btn-light"
-                        onClick={() => setEditing(e => !e)}
-                        aria-pressed={editing}
-                    >
-                        Editar
-                    </button>
-                )}
-                <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={completed && !dirty}>
-                    Guardar
+                {/* Disabled while training: leave by finishing or discarding (stop button). */}
+                <button type="button" className="top-bar-icon-btn" onClick={handleBack} disabled={trainingLocked} aria-label="Volver" title={trainingLocked ? 'Terminá o descartá la sesión para salir' : 'Volver'}>
+                    <Icon name="arrow-left" size={22} />
                 </button>
+                <div className="session-window-footer-actions">
+                    {showOverview && (
+                        <button className="btn btn-primary btn-sm" onClick={() => setStarted(true)}>
+                            Empezar sesión
+                        </button>
+                    )}
+                    {completed && (
+                        <button
+                            type="button"
+                            className={`top-bar-icon-btn${editing ? ' active' : ''}`}
+                            onClick={() => setEditing(e => !e)}
+                            aria-pressed={editing}
+                            aria-label="Editar" title="Editar"
+                        >
+                            <Icon name="pencil" size={20} />
+                        </button>
+                    )}
+                    {/* Total session clock (bottom right) while training; the diskette only exists for completed sessions. */}
+                    {!completed && !showOverview && (
+                        <div className="session-clock">
+                            <span className="session-clock-time">{clockText(elapsed)}</span>
+                            {/* While paused: stop on the left, play (resume) on the right. */}
+                            {paused && (
+                                <button type="button" className="top-bar-icon-btn is-danger" onClick={() => setDiscardAsk(true)}
+                                    aria-label="Detener y descartar la sesión" title="Detener y descartar la sesión">
+                                    <Icon name="stop" size={20} />
+                                </button>
+                            )}
+                            <button type="button" className="top-bar-icon-btn" onClick={() => setPaused(p => !p)}
+                                aria-label={paused ? 'Reanudar' : 'Pausar'} title={paused ? 'Reanudar' : 'Pausar'}>
+                                <Icon name={paused ? 'play' : 'pause'} size={20} />
+                            </button>
+                        </div>
+                    )}
+                    {completed && (
+                        <button type="button" className="top-bar-icon-btn" onClick={handleSave} disabled={!dirty}
+                            aria-label={completed ? 'Guardar' : 'Guardar y salir'} title={completed ? 'Guardar' : 'Guardar y salir'}>
+                            <Icon name="save" size={20} />
+                        </button>
+                    )}
+                </div>
             </div>
+
+            {discardAsk && (
+                <div className="modal-overlay open">
+                    <div className="modal">
+                        <div className="modal-header"><h2>¿Descartar la sesión?</h2></div>
+                        <div className="modal-body">
+                            <p>Si detenés la sesión se <b>elimina todo lo que registraste</b> (series, RPE, comentarios y tiempos) y no se puede deshacer. Tu coach no recibirá nada.</p>
+                        </div>
+                        <div className="modal-footer" style={{ flexWrap: 'wrap' }}>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setDiscardAsk(false)}>Seguir entrenando</button>
+                            <button className="btn btn-danger btn-sm" onClick={handleDiscard}>Descartar sesión</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {leaveAsk && (
                 <div className="modal-overlay open">

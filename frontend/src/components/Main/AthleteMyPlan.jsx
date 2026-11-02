@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../Icon/index.jsx';
-import { formatCarga, collapseUnilateral } from '../../utils/helpers.js';
+import { formatCarga, collapseUnilateral, visibleInPlan, restLabel, blockTitles } from '../../utils/helpers.js';
 import { SectionTitle } from '../TopBar/SectionTitle.jsx';
 
 const RPE_CLASSES = { '1': 'session-rpe-1', '2': 'session-rpe-2', '3': 'session-rpe-3', '4': 'session-rpe-4' };
@@ -23,6 +23,15 @@ function rpeClassFor(log, ex) {
 // Drops the Carga stat when the exercise has none (formatCarga returns the '—'
 // placeholder) and re-splits the grid in two so Series/Reps stay centered.
 function ExerciseRow({ ex, rpeClass }) {
+    if (ex.isRest) {
+        return (
+            <div className="plan-session-exercise">
+                <div className="plan-session-exercise-header">
+                    <span className="plan-session-exercise-name">Descanso · {restLabel(ex)}</span>
+                </div>
+            </div>
+        );
+    }
     const carga = formatCarga(ex);
     const showCarga = carga !== '—';
     return (
@@ -70,6 +79,9 @@ function PlanDay({ day, log, isNext, weekDone, onStart }) {
     const desktop = useIsDesktop();
     const [open, setOpen] = useState(!!isNext);
     const expanded = desktop || open;
+    // Warm-ups are not shown here; the remaining blocks are titled Bloque A, B… among themselves.
+    const shownBlocks = day.blocks.map(block => ({ ...block, exercises: visibleInPlan(block.exercises) })).filter(b => b.exercises.length > 0);
+    const titles = blockTitles(shownBlocks);
     const Header = desktop ? 'div' : 'button';
     const headerProps = desktop ? {} : { type: 'button', onClick: () => setOpen(o => !o), 'aria-expanded': open };
 
@@ -96,11 +108,11 @@ function PlanDay({ day, log, isNext, weekDone, onStart }) {
             </Header>
             {expanded && (
                 <div className="session-history-card-body plan-stack-day-blocks">
-                    {day.blocks.map(block => (
+                    {shownBlocks.map((block, bi) => (
                         // Every block sits in its own labelled box (Bloque A/B…) on all viewports so
                         // supersets read clearly; a dotted line separates the exercises inside it.
                         <div key={block.label} className="plan-session-block">
-                            <div className="plan-session-block-label">Bloque {block.label}</div>
+                            <div className="plan-session-block-label">{titles[bi]}</div>
                             {collapseUnilateral(block.exercises, log).map((ex, i) => (
                                 <ExerciseRow key={i} ex={ex} rpeClass={rpeClassFor(log, ex)} />
                             ))}

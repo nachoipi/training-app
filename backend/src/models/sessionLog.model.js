@@ -59,6 +59,19 @@ export const SessionLogModel = {
         return rows[0];
     },
 
+    // Deletes an athlete's NOT-completed log (discarding a session in progress). A completed log is
+    // never touched here; the controller answers 409 for it by reading the row first.
+    removeInProgress: async ({ athleteId, planId, week, dayNumber }) => {
+        const rows = await query(
+            `DELETE FROM session_logs
+              WHERE athlete_id = $1 AND plan_id = $2 AND week = $3 AND day_number = $4
+                AND COALESCE((payload->>'completed')::boolean, false) = false
+             RETURNING id`,
+            [athleteId, planId, week, dayNumber]
+        );
+        return rows.length > 0;
+    },
+
     // Marks a log as reviewed and stores the trainer's comment. Addressed by the
     // table's natural key (plan + week + day) because the id the frontend sees is
     // the payload's own uid, not this row's BIGSERIAL id. COALESCE keeps the

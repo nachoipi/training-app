@@ -14,7 +14,9 @@
     .section { padding: 18px 14px; }
     .charts-grid { grid-template-columns: 1fr; }
     .section-title { font-size: 1.8rem; }
-    .exercise-row { grid-template-columns: 1fr 52px 52px 34px; }
+    /* Routine rows wrap: name on its own line, the numeric fields below. */
+    .exercise-row { grid-template-columns: repeat(3, 1fr); }
+    .exercise-row > :first-child { grid-column: 1 / -1; }
     .modal { border-radius: var(--radius); }
 
     .mobile-only { display: block; }
