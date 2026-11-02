@@ -1,5 +1,6 @@
 // Request handlers for /api/session-logs: list logs, save the athlete's session,
-// and (trainer only) mark a completed session as reviewed with a comment.
+// discard an in-progress session (athlete), and (trainer only) mark a completed session as
+// reviewed with a comment.
 // Sits between sessionLog.routes.js and sessionLog.model.js; also raises the
 // "session completed" / "session reviewed" notifications (notify.service.js).
 // Trainers only see/review logs of their own athletes (users.trainer_id).
@@ -60,6 +61,30 @@ export const saveSessionLog = async (req, res, next) => {
             }
         }
         res.json(flattenLog(saved));
+    } catch (err) { next(err); }
+};
+
+// Athlete only (enforced in the route). Query: planId, week, dayNumber. Discards a session that
+// is still in progress; a completed session cannot be deleted from here (409). Idempotent for a
+// session that was never saved.
+export const discardSessionLog = async (req, res, next) => {
+    try {
+        const { planId } = req.query;
+        const week = Number(req.query.week);
+        const dayNumber = Number(req.query.dayNumber);
+        if (!planId || !Number.isInteger(week) || !Number.isInteger(dayNumber)) {
+            return res.status(400).json({ error: 'planId, week y dayNumber son requeridos' });
+        }
+        const plan = await PlanificationModel.findById(planId);
+        if (!plan || plan.athleteId !== req.user.userId) {
+            return res.status(404).json({ error: 'Planificación no encontrada' });
+        }
+        const existing = await SessionLogModel.find({ athleteId: req.user.userId, planId, week, dayNumber });
+        if (existing?.payload?.completed) {
+            return res.status(409).json({ error: 'No se puede descartar una sesión completada' });
+        }
+        if (existing) await SessionLogModel.removeInProgress({ athleteId: req.user.userId, planId, week, dayNumber });
+        res.json({ ok: true });
     } catch (err) { next(err); }
 };
 

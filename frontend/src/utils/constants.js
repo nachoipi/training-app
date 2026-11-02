@@ -52,3 +52,29 @@ export const EQUIPMENT_LABELS = Object.fromEntries(EQUIPMENT_OPTIONS.map(o => [o
 // Session summary self-evaluation scale (athlete's rating of how the session went), shared by
 // the athlete's summary card and the coach's session history.
 export const SELF_EVALUATION_LABELS = { '1': 'Muy mala', '2': 'Mala', '3': 'Normal', '4': 'Buena', '5': 'Excelente' };
+
+// Exercise kinds (`kind` on a plan / routine exercise; rests use `isRest` instead). Chosen when
+// the trainer adds a row. Kinds in EXERCISE_KINDS_HIDDEN_IN_PLAN (warm-up) are left out of the
+// athlete's "Mi Plan" view; they still show when the athlete runs the session.
+export const EXERCISE_KIND_LABELS = {
+    exercise: 'Ejercicio',
+    warmup: 'Calentamiento',
+    cooldown: 'Enfriamiento',
+    other: 'Otro',
+    mobility: 'Movilidad',
+};
+// Background tint of a row's exercise name, by kind (`rest` is the rest row, which is not in
+// EXERCISE_KIND_LABELS because it is a different kind of row).
+export const EXERCISE_KIND_COLORS = {
+    warmup: 'rgba(239, 68, 68, 0.30)',
+    exercise: 'rgba(34, 197, 94, 0.26)',
+    cooldown: 'rgba(59, 130, 246, 0.30)',
+    other: 'rgba(234, 179, 8, 0.30)',
+    mobility: 'rgba(168, 85, 247, 0.30)',
+    rest: 'rgba(128, 128, 128, 0.20)',
+};
+// Solid versions of the same colours, for small markers (dots) that must stay vivid.
+export const EXERCISE_KIND_SOLID = {
+    warmup: '#ef4444', exercise: '#22c55e', cooldown: '#3b82f6', other: '#eab308', mobility: '#a855f7', rest: '#8a8f98',
+};
+export const EXERCISE_KINDS_HIDDEN_IN_PLAN = ['warmup'];

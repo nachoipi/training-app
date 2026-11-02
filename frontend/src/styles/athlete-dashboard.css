@@ -54,3 +54,15 @@
 .dash-hero-exercises { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .dash-hero-exercises li { display: flex; justify-content: space-between; gap: 12px; font-size: 0.9rem; color: var(--text-primary); }
 .dash-hero-ex-meta { color: var(--text-secondary); white-space: nowrap; }
+
+/* Session overview (AthleteMySession, before "Empezar sesión"): the home hero look applied to the
+   whole day. Each block sits in its own box; the reps / carga line goes under the exercise name. */
+.session-overview { margin-bottom: 16px; }
+.session-overview, .session-overview-blocks { width: 100%; }
+.session-overview-blocks { gap: 12px; }
+.session-overview-block { padding: 12px 14px; border: 1px solid var(--border, rgba(128,128,128,.25)); border-radius: var(--radius-sm, 10px); background: rgba(255,255,255,.02); }
+.session-overview .dash-hero-exercises { gap: 0; margin-top: 8px; }
+.session-overview .dash-hero-exercises li { flex-direction: column; gap: 2px; font-size: 1rem; padding: 8px 0; border-bottom: 1px solid var(--border, rgba(128,128,128,.15)); }
+.session-overview .dash-hero-exercises li:last-child { border-bottom: 0; padding-bottom: 0; }
+.session-overview .dash-hero-exercises li.is-rest { font-style: italic; opacity: .8; }
+.session-overview .dash-hero-ex-meta { font-size: 0.85rem; white-space: normal; }

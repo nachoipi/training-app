@@ -127,10 +127,9 @@ const DAYS = [
     tag: 'feature',
     tasks: [
       { text: 'Home del atleta destaca el próximo entrenamiento', detail: 'Card grande con el día de hoy (o el próximo planificado): bloques, ejercicios, notas del coach, botón "Empezar entrenamiento". Implementado en el hero de AthleteDashboard (nota del día, bloques con ejercicios y series×reps).', cats: ['fe'], done: true },
-      { text: 'Pantalla "Entrenar" guiada ejercicio por ejercicio', detail: 'Vista que recorre los bloques y ejercicios del día, mostrando objetivo (series × reps × carga sugerida) y permitiendo loguear lo realizado en cada serie.', cats: ['fe'] },
-      { text: 'Persistencia incremental en session_logs.payload', detail: 'Cada cambio del atleta (set completado, carga, RPE) se guarda al toque vía PATCH /api/session-logs/:id — si cierra la app vuelve donde estaba.', cats: ['be','fe'] },
-      { text: 'Cerrar sesión con comentario y RPE global', detail: 'Al terminar el día: modal "¿Cómo te fue?" con RPE 1-10, comentario libre y marca de sesión completada. Esto es lo que llega al trainer.', cats: ['fe','be'] },
-      { text: 'Indicador de progreso semanal en "Mi Plan"', detail: 'Días completados / días planificados en la semana actual, visible siempre que el atleta entra.', cats: ['fe'] },
+      { text: 'Pantalla "Entrenar" guiada ejercicio por ejercicio', detail: 'Vista que recorre los bloques y ejercicios del día, mostrando objetivo (series × reps × carga sugerida) y permitiendo loguear lo realizado en cada serie. Implementado: al abrir una sesión sin avance se muestra un resumen (nota del día + bloques) con "Empezar sesión", y luego la vista de lista serie por serie.', cats: ['fe'] , done: true },
+      { text: 'Persistencia incremental en session_logs.payload', detail: 'Cada cambio del atleta (set completado, carga, RPE) se guarda al toque vía PATCH /api/session-logs/:id — si cierra la app vuelve donde estaba. Implementado con el upsert POST existente (auto-guardado con debounce de 800 ms, sin validar ni marcar completada); no se creó PATCH /:id.', cats: ['be','fe'] , done: true },
+      { text: 'Cerrar sesión con comentario y RPE global', detail: 'Al terminar el día: modal "¿Cómo te fue?" con RPE 1-10, comentario libre y marca de sesión completada. Esto es lo que llega al trainer. Implementado: botón "Finalizar sesión" abre el modal "¿Cómo te fue?" (esfuerzo 1-10, autoevaluación, duración, comentario).', cats: ['fe','be'] , done: true },
     ]
   },
   {

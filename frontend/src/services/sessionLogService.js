@@ -57,6 +57,10 @@ export const sessionLogService = {
         body: JSON.stringify({ planId, week, dayNumber, comment }),
     }),
     save: (log) => apiFetch(SESSION_LOGS, { method: 'POST', body: JSON.stringify(log) }),
+    // Athlete discards a session still in progress (deletes its saved log; completed ones are refused).
+    discard: ({ planId, week, dayNumber }) => apiFetch(
+        `${SESSION_LOGS}?planId=${encodeURIComponent(planId)}&week=${week}&dayNumber=${dayNumber}`,
+        { method: 'DELETE' }),
     uploadVideo,
     deleteVideo: (path) => apiFetch(`${SESSION_LOGS}/video`, {
         method: 'DELETE',

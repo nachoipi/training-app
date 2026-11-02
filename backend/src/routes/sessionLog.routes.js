@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { getSessionLogs, saveSessionLog, reviewSessionLog } from '../controllers/sessionLog.controller.js';
+import { getSessionLogs, saveSessionLog, reviewSessionLog, discardSessionLog } from '../controllers/sessionLog.controller.js';
 import { uploadExerciseVideo, deleteExerciseVideo } from '../controllers/sessionLogVideo.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware.js';
 
@@ -24,6 +24,8 @@ const router = Router();
 router.use(requireAuth);
 router.get('/',  getSessionLogs);
 router.post('/', requireRole('athlete'), saveSessionLog);
+// Athlete discards a session still in progress (deletes its log; completed ones answer 409).
+router.delete('/', requireRole('athlete'), discardSessionLog);
 // Trainer marks a completed session as reviewed (+ optional comment the athlete sees).
 router.patch('/review', requireRole('trainer'), reviewSessionLog);
 
