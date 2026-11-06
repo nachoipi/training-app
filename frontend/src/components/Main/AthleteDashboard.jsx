@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Icon } from '../Icon/index.jsx';
-import { formatDate, visibleInPlan } from '../../utils/helpers.js';
+import { formatDate, visibleInPlan, carriedExerciseFeedback } from '../../utils/helpers.js';
 import { DayOverview } from './DayOverview.jsx';
 import '../../styles/athlete-dashboard.css';
 import { SectionTitle } from '../TopBar/SectionTitle.jsx';
@@ -106,7 +106,7 @@ export function AthleteDashboard({ user, planifications = [], sessionLogs = [], 
                             <p className="dash-hero-note">{next.day.comentario.trim()}</p>
                         )}
                         <div className="session-overview">
-                            <DayOverview blocks={next.day.blocks.map(b => ({ ...b, exercises: visibleInPlan(b.exercises) }))} />
+                            <DayOverview feedbackFor={ex => carriedExerciseFeedback(plan.id, sessionLogs, next.week, next.day.dayNumber, ex)} blocks={next.day.blocks.map(b => ({ ...b, exercises: visibleInPlan(b.exercises) }))} />
                         </div>
                         <button
                             className="btn btn-primary"

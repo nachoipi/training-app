@@ -119,6 +119,7 @@ export function Main({
                     plan={selectedSession.plan}
                     week={selectedSession.week}
                     day={selectedSession.day}
+                    sessionLogs={sessionLogs}
                     sessionLog={sessionLogs.find(l =>
                         l.planId === selectedSession.plan.id &&
                         l.week === selectedSession.week &&

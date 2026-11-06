@@ -45,3 +45,10 @@
 @media (max-width: 768px) {
     .trainer-feed-card { padding: 10px 12px; }
 }
+
+/* Coach correction carried over from an earlier session */
+.session-serie-card-coach-fix { border-left: 3px solid var(--accent, #60a5fa); }
+.session-overview-coach-fix {
+    display: block; flex-basis: 100%; margin-top: 2px; padding-left: 8px;
+    border-left: 3px solid var(--accent, #60a5fa); font-size: 0.78rem; font-style: italic; color: var(--text-secondary);
+}

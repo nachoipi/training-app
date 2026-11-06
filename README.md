@@ -91,6 +91,15 @@ Workflow order: **start-task → investigate → plan → testing → commit →
 
 ## Changelog
 
+### 2026-11-06 (Fase 3: coach receives and reviews the session)
+- **Per-exercise coach feedback**: in the session detail (dashboard + athlete profile) each exercise has a feedback box next to the athlete's clip. New `session_logs.exercise_feedback` JSONB (migration `2026-11-05_exercise_feedback.sql`, outside `payload` so athlete saves can't erase it); `PATCH /api/session-logs/review` also accepts `exerciseFeedback: [{position, comment}]`. "Guardar feedback" keeps it a draft: only "Marcar como revisada" sets `reviewed_at`, publishes the comments to the athlete and notifies them. **Apply the migration on existing databases before deploying.**
+- **Feedback follows the exercise**: the latest reviewed comment for the same exercise (any position) of the same plan is shown to the athlete in later sessions (overview, exercise card, home hero) until replaced or the plan ends.
+- **Prescribed vs done**: both columns use the same per-serie format (`5 × 70 kg`), the RPE column is gone (the row tint stays), and the athlete's clip plays from a ▶ button.
+- **Video links**: athletes can attach a Google Drive link besides uploading or recording; the coach sees it embedded (`AthleteVideoModal`).
+- **Coach archive**: completed plans (all sessions done) move to an "Archivadas" fold in Planificación and collapse in "Sesiones del plan", which is now a spreadsheet (exercise rows × week columns, cells tinted by RPE). "Historial de sesiones" archives reviewed sessions in a collapsed fold.
+- **Athlete archive**: a plan whose sessions are all done and reviewed collapses at the bottom of Mi Plan and Mis Sesiones.
+- **Fixes in the trainer feed**: cards show video / feedback counts.
+
 ### 2026-11-02 (Fase 2: athlete trains the plan)
 - **Plan editor**: exercises have a type chosen in the position badge (A1, A2…: Ejercicio, Calentamiento, Enfriamiento, Otro, Movilidad, Descanso, each with its own colour), "+" adds a row, blocks can be collapsed or reordered by drag & drop, a day has no block limit, and going back with unsaved changes asks to save. Carga follows Medida (time `m:ss`, KG, MTS). Descanso is an exercise-like row (Medida + Carga). Per-day "Importar rutina" copies a routine's blocks into the day; routines carry per-row type, medida, carga and block.
 - **Routines**: rows mirror plan exercises (type, medida, carga, block, rests). Seeded "Calentamiento" for the test trainer.

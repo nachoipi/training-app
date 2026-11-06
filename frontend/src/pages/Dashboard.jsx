@@ -221,14 +221,15 @@ export default function Dashboard() {
 
     // Trainer marks a completed session as reviewed (+ optional comment). The server returns
     // the flattened log; swapping it in place keeps the "Nuevo" badge and detail in sync.
-    async function handleReviewSessionLog(log, comment) {
+    // `review` = { comment?, exerciseFeedback?: [{position, comment}] }; omitted parts are left as stored.
+    async function handleReviewSessionLog(log, review) {
         try {
             const saved = await sessionLogService.review({
-                planId: log.planId, week: log.week, dayNumber: log.dayNumber, comment,
+                planId: log.planId, week: log.week, dayNumber: log.dayNumber, ...review,
             });
             setSessionLogs(prev => prev.map(l =>
                 l.planId === saved.planId && l.week === saved.week && l.dayNumber === saved.dayNumber ? saved : l));
-            showToast('Sesión revisada');
+            showToast(review.comment === undefined ? 'Feedback guardado' : 'Sesión revisada');
         } catch (err) { showToast(err.message, 'error'); }
     }
 

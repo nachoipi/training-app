@@ -6,7 +6,7 @@
 import React from 'react';
 import { formatTiempoLargo, blockTitles } from '../../utils/helpers.js';
 
-export function DayOverview({ blocks }) {
+export function DayOverview({ blocks, feedbackFor }) {
     const shown = blocks.filter(b => b.exercises.some(e => !e.isRest));
     const titles = blockTitles(shown);
     return (
@@ -30,6 +30,11 @@ export function DayOverview({ blocks }) {
                                     <li key={ex.position}>
                                         <span className="session-overview-name">{ex.exerciseName || '—'}</span>
                                         <span className="dash-hero-ex-meta">{meta}</span>
+                                        {feedbackFor?.(ex) && (
+                                            <span className="session-overview-coach-fix">
+                                                Corrección de tu coach: {feedbackFor(ex).comment}
+                                            </span>
+                                        )}
                                     </li>
                                 );
                             })}

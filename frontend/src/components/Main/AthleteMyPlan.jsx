@@ -8,7 +8,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../Icon/index.jsx';
-import { formatCarga, collapseUnilateral, visibleInPlan, restLabel, blockTitles } from '../../utils/helpers.js';
+import { formatCarga, collapseUnilateral, visibleInPlan, restLabel, blockTitles, isPlanArchivedForAthlete } from '../../utils/helpers.js';
+import { PlanFold } from './PlanFold.jsx';
 import { SectionTitle } from '../TopBar/SectionTitle.jsx';
 
 const RPE_CLASSES = { '1': 'session-rpe-1', '2': 'session-rpe-2', '3': 'session-rpe-3', '4': 'session-rpe-4' };
@@ -185,7 +186,8 @@ export function AthleteMyPlan({ planifications, sessionLogs = [], onOpenSession 
             {planifications.length === 0 ? (
                 <p className="profile-empty">Todavía no tenés una planificación asignada.</p>
             ) : (
-                planifications.map(plan => {
+                [...planifications.filter(p => !isPlanArchivedForAthlete(p, sessionLogs)), ...planifications.filter(p => isPlanArchivedForAthlete(p, sessionLogs))].map(plan => {
+                    const archived = isPlanArchivedForAthlete(plan, sessionLogs);
                     // Upcoming session = the day right after the last completed one in plan
                     // order (the first day if nothing is done yet; none if the last day is done).
                     const ordered = Array.from({ length: plan.weeks }, (_, w) =>
@@ -197,9 +199,12 @@ export function AthleteMyPlan({ planifications, sessionLogs = [], onOpenSession 
                     const dayLogFor = (w, day) => sessionLogs.find(
                         l => l.planId === plan.id && l.week === w + 1 && l.dayNumber === day.dayNumber && l.completed
                     );
+                    const Wrapper = archived ? PlanFold : React.Fragment;
+                    const wrapperProps = archived ? { name: plan.name } : {};
                     return (
-                        <div key={plan.id} className="plan-sessions-group">
-                            <div className="plan-stack-title">{plan.name}</div>
+                        <Wrapper key={plan.id} {...wrapperProps}>
+                        <div className="plan-sessions-group">
+                            {!archived && <div className="plan-stack-title">{plan.name}</div>}
                             {/* One render for every viewport: weeks are stacked rows; each week lays
                                 its days out as columns on desktop (see planification.css). */}
                             <div className="plan-stack-weeks" style={{ '--weeks': plan.weeks }}>
@@ -215,6 +220,7 @@ export function AthleteMyPlan({ planifications, sessionLogs = [], onOpenSession 
                                 ))}
                             </div>
                         </div>
+                        </Wrapper>
                     );
                 })
             )}
