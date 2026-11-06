@@ -160,3 +160,11 @@
     padding: 14px 22px; border-top: 1px solid var(--border);
     display: flex; justify-content: flex-end; gap: 8px;
 }
+
+/* Athlete attaches a Google Drive link instead of uploading a file */
+.exercise-video-link { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+.exercise-video-link-label { font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); }
+.exercise-video-link-row { display: flex; gap: 8px; }
+.exercise-video-link-row .form-input { flex: 1; min-width: 0; }
+.exercise-video-link-hint { font-size: 0.72rem; color: var(--text-muted); }
+.exercise-video-link-hint.is-error { color: #f87171; }

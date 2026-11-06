@@ -73,6 +73,8 @@ export function TrainerDashboard({ user, planifications = [], sessionLogs = [], 
                             const plan = planOf(log.planId);
                             const rpe = averageRpe(log);
                             const note = log.sessionSummary?.comment;
+                            const videos = (log.exerciseSummaries || []).filter(x => x.videoUrl).length;
+                            const feedbacks = Object.values(log.exerciseFeedback || {}).filter(f => f.comment).length;
                             return (
                                 <button
                                     key={`${log.planId}-${log.week}-${log.dayNumber}`}
@@ -88,6 +90,13 @@ export function TrainerDashboard({ user, planifications = [], sessionLogs = [], 
                                         <div className="trainer-feed-meta">
                                             {plan?.name || '—'} · Semana {log.week} · Día {log.dayNumber} · {formatDate(log.completedAt.slice(0, 10))}
                                         </div>
+                                        {(videos > 0 || feedbacks > 0) && (
+                                            <div className="trainer-feed-meta">
+                                                {videos > 0 && `▶ ${videos} ${videos === 1 ? 'video' : 'videos'}`}
+                                                {videos > 0 && feedbacks > 0 && ' · '}
+                                                {feedbacks > 0 && `✎ ${feedbacks} con feedback`}
+                                            </div>
+                                        )}
                                         {note && <div className="trainer-feed-note">"{note}"</div>}
                                     </div>
                                     {rpe && <span className={`session-history-rpe-badge session-rpe-${rpe}`}>RPE {rpe}</span>}

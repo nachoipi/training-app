@@ -5,6 +5,8 @@
 // replacing or removing an existing clip.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../Icon/index.jsx';
+import { AthleteVideoPlayer } from './AthleteVideoModal.jsx';
+import { extractDriveFileId } from '../../utils/videoUrl.js';
 import { sessionLogService, MAX_VIDEO_BYTES, MAX_VIDEO_MB } from '../../services/sessionLogService.js';
 
 export function ExerciseVideoModal({
@@ -25,6 +27,8 @@ export function ExerciseVideoModal({
     const [busy, setBusy]         = useState(false);
     // null when not uploading; 0..100 once xhr.upload.onprogress fires.
     const [progress, setProgress] = useState(null);
+    const [link, setLink]         = useState('');
+    const [linkError, setLinkError] = useState('');
     const fileInputRef            = useRef(null);
     const cameraInputRef          = useRef(null);
 
@@ -36,6 +40,8 @@ export function ExerciseVideoModal({
         if (!open && !busy) {
             setFile(null);
             setProgress(null);
+            setLink('');
+            setLinkError('');
         }
     }, [open, busy]);
 
@@ -97,11 +103,24 @@ export function ExerciseVideoModal({
         }
     }
 
+    // Attach a Google Drive share link instead of uploading a file. Nothing is stored server-side:
+    // the URL travels in the session log payload, so there is no `path` to delete later.
+    function handleAttachLink() {
+        const url = link.trim();
+        if (!extractDriveFileId(url)) {
+            setLinkError('Pegá un link de Google Drive válido (drive.google.com/file/d/…)');
+            return;
+        }
+        setLinkError('');
+        onUploaded?.({ url, path: '' });
+        setLink('');
+    }
+
     async function handleRemove() {
-        if (!existing?.path) return;
+        if (!existing?.url) return;
         setBusy(true);
         try {
-            await sessionLogService.deleteVideo(existing.path);
+            if (existing.path) await sessionLogService.deleteVideo(existing.path);
             onRemoved?.();
             onClose?.();
         } catch (err) {
@@ -131,6 +150,9 @@ export function ExerciseVideoModal({
                         // default frame respects that aspect. object-fit: contain
                         // keeps any landscape clips fully visible (letterboxed)
                         // without breaking the layout.
+                        extractDriveFileId(previewUrl) ? (
+                            <AthleteVideoPlayer url={previewUrl} title={exerciseName || 'Ejercicio'} />
+                        ) : (
                         <div className="exercise-video-stage">
                             <video
                                 key={previewUrl}
@@ -140,9 +162,10 @@ export function ExerciseVideoModal({
                                 className="exercise-video-player"
                             />
                         </div>
+                        )
                     ) : (
                         <p style={{ color: 'var(--text-secondary)', textAlign: 'center', margin: '24px 0' }}>
-                            Subí un video corto del ejercicio para que tu entrenador pueda revisarlo.
+                            Subí un video corto del ejercicio (o adjuntá un link de Drive) para que tu entrenador pueda revisarlo.
                             <br />
                             <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>
                                 Máximo {MAX_VIDEO_MB} MB · formatos: MP4, MOV, WebM
@@ -196,6 +219,28 @@ export function ExerciseVideoModal({
                                     {file.name} · {(file.size / (1024 * 1024)).toFixed(1)} MB
                                 </span>
                             )}
+                        </div>
+                    )}
+
+                    {!isUploaded && !file && (
+                        <div className="exercise-video-link">
+                            <label className="exercise-video-link-label">O pegá un link de Google Drive</label>
+                            <div className="exercise-video-link-row">
+                                <input
+                                    type="url"
+                                    className="form-input"
+                                    placeholder="https://drive.google.com/file/d/…"
+                                    value={link}
+                                    onChange={e => { setLink(e.target.value); setLinkError(''); }}
+                                    disabled={busy}
+                                />
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={handleAttachLink} disabled={!link.trim() || busy}>
+                                    Adjuntar link
+                                </button>
+                            </div>
+                            {linkError
+                                ? <span className="exercise-video-link-hint is-error">{linkError}</span>
+                                : <span className="exercise-video-link-hint">El archivo debe estar compartido como "Cualquiera con el enlace".</span>}
                         </div>
                     )}
 

@@ -137,11 +137,14 @@ const DAYS = [
     title: 'Trainer recibe la sesión completada',
     tag: 'feature',
     tasks: [
-      { text: 'Feed "Sesiones recientes de mis atletas"', detail: 'Sección en el home del trainer con las últimas sesiones cerradas por sus atletas (más nuevas primero), una por tarjeta: atleta, día del plan, RPE, comentario.', cats: ['fe','be'] },
-      { text: 'Detalle de sesión completada del atleta', detail: 'Al abrir una tarjeta: ver cada ejercicio con objetivo vs realizado (series × reps × carga), RPE, comentario y notas del atleta. Comparar lado a lado plan ↔ ejecución.', cats: ['fe','be'] },
-      { text: 'Endpoint GET /api/session-logs?trainerId=me', detail: 'Backend agrega session_logs de todos los atletas del trainer, ordenados por updated_at. Necesario para el feed.', cats: ['be','db'] },
-      { text: 'Indicador "no revisado" en cada sesión nueva', detail: 'Marca visual hasta que el trainer la abre o la marca como revisada. Evita perder de vista qué falta mirar.', cats: ['fe','be','db'] },
-      { text: 'Comentario del trainer sobre la sesión del atleta', detail: 'El trainer puede dejar un comentario corto en la sesión completada; el atleta lo ve la próxima vez que entra a esa sesión / a su home.', cats: ['fe','be','db'] },
+      { text: 'Feed "Sesiones recientes de mis atletas"', detail: 'Sección en el home del trainer con las últimas sesiones cerradas por sus atletas (más nuevas primero), una por tarjeta: atleta, día del plan, RPE, comentario.', cats: ['fe','be'], done: true },
+      { text: 'Detalle de sesión completada del atleta', detail: 'Al abrir una tarjeta: ver cada ejercicio con objetivo vs realizado (series × reps × carga), RPE, comentario y notas del atleta. Comparar lado a lado plan ↔ ejecución.', cats: ['fe','be'], done: true },
+      { text: 'Endpoint GET /api/session-logs?trainerId=me', detail: 'Backend agrega session_logs de todos los atletas del trainer, ordenados por updated_at. Necesario para el feed. Ya resuelto con GET /api/session-logs (filtrado por los atletas del trainer, sin parámetro trainerId).', cats: ['be','db'], done: true },
+      { text: 'Indicador "no revisado" en cada sesión nueva', detail: 'Marca visual hasta que el trainer la abre o la marca como revisada. Evita perder de vista qué falta mirar.', cats: ['fe','be','db'], done: true },
+      { text: 'Comentario del trainer sobre la sesión del atleta', detail: 'El trainer puede dejar un comentario corto en la sesión completada; el atleta lo ve la próxima vez que entra a esa sesión / a su home.', cats: ['fe','be','db'], done: true },
+      { text: 'Feedback del coach por ejercicio, con video del atleta', detail: 'En el detalle de sesión (dashboard y ficha del atleta) cada ejercicio muestra Prescripto y Realizado en el mismo formato por serie, sin columna RPE (el fondo ya lo indica), el video del atleta (archivo o link de Drive embebido) y un textarea de feedback. Se guarda en session_logs.exercise_feedback (PATCH /api/session-logs/review con exerciseFeedback).', cats: ['fe','be','db'], done: true },
+      { text: 'Atleta adjunta link de Drive como video del ejercicio', detail: 'Además de elegir archivo o grabar con cámara, ExerciseVideoModal acepta un link de Drive (se guarda como videoUrl sin videoPath).', cats: ['fe'], done: true },
+      { text: 'La corrección del coach acompaña al ejercicio en las próximas sesiones', detail: 'El feedback por ejercicio se muestra al atleta en la overview y en la tarjeta del ejercicio de cada sesión posterior del mismo plan (mismo exerciseId, cualquier posición) hasta que haya un comentario nuevo o termine el plan (carriedExerciseFeedback en utils/helpers.js).', cats: ['fe'], done: true },
     ]
   },
   {

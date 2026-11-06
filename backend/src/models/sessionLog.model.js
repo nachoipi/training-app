@@ -13,6 +13,7 @@ const SELECT = `
            payload,
            reviewed_at     AS "reviewedAt",
            trainer_comment AS "trainerComment",
+           exercise_feedback AS "exerciseFeedback",
            updated_at AS "updatedAt"
       FROM session_logs`;
 
@@ -53,6 +54,7 @@ export const SessionLogModel = {
              RETURNING id, athlete_id AS "athleteId", plan_id AS "planId",
                        week, day_number AS "dayNumber", payload,
                        reviewed_at AS "reviewedAt", trainer_comment AS "trainerComment",
+                       exercise_feedback AS "exerciseFeedback",
                        updated_at AS "updatedAt"`,
             [athleteId, planId, week, dayNumber, JSON.stringify(payload ?? {})]
         );
@@ -75,19 +77,22 @@ export const SessionLogModel = {
     // Marks a log as reviewed and stores the trainer's comment. Addressed by the
     // table's natural key (plan + week + day) because the id the frontend sees is
     // the payload's own uid, not this row's BIGSERIAL id. COALESCE keeps the
-    // first review time when the trainer later edits the comment.
+    // first review time when the trainer later edits the comment. `exerciseFeedback` is the
+    // already-merged per-exercise map (undefined = leave as is).
     // `athleteId` (the plan's athlete) pins the row to one athlete.
-    review: async ({ athleteId, planId, week, dayNumber, comment }) => {
+    review: async ({ athleteId, planId, week, dayNumber, comment, exerciseFeedback, markReviewed = true }) => {
         const rows = await query(
             `UPDATE session_logs
-                SET reviewed_at = COALESCE(reviewed_at, now()),
-                    trainer_comment = $4
+                SET reviewed_at = CASE WHEN $7::boolean THEN COALESCE(reviewed_at, now()) ELSE reviewed_at END,
+                    trainer_comment = $4,
+                    exercise_feedback = COALESCE($6::jsonb, exercise_feedback)
               WHERE plan_id = $1 AND week = $2 AND day_number = $3 AND athlete_id = $5
              RETURNING id, athlete_id AS "athleteId", plan_id AS "planId",
                        week, day_number AS "dayNumber", payload,
                        reviewed_at AS "reviewedAt", trainer_comment AS "trainerComment",
+                       exercise_feedback AS "exerciseFeedback",
                        updated_at AS "updatedAt"`,
-            [planId, week, dayNumber, comment, athleteId]
+            [planId, week, dayNumber, comment, athleteId, exerciseFeedback ? JSON.stringify(exerciseFeedback) : null, markReviewed]
         );
         return rows[0] || null;
     },

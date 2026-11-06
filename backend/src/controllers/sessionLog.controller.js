@@ -15,6 +15,12 @@ function flattenLog({ payload, ...rest }) {
     return { ...rest, ...(payload ?? {}) };
 }
 
+// The coach's per-exercise comments are drafts until the session is marked as reviewed, so the
+// athlete never receives them before that.
+function forAthlete(log) {
+    return log.reviewedAt ? log : { ...log, exerciseFeedback: {} };
+}
+
 export const getSessionLogs = async (req, res, next) => {
     try {
         const { athleteId } = req.query;
@@ -24,7 +30,8 @@ export const getSessionLogs = async (req, res, next) => {
             isTrainer: req.user.role === 'trainer',
             filterAthleteId: athleteId,
         });
-        res.json({ data: data.map(flattenLog) });
+        const logs = data.map(flattenLog);
+        res.json({ data: req.user.role === 'trainer' ? logs : logs.map(forAthlete) });
     } catch (err) { next(err); }
 };
 
@@ -60,7 +67,7 @@ export const saveSessionLog = async (req, res, next) => {
                 });
             }
         }
-        res.json(flattenLog(saved));
+        res.json(forAthlete(flattenLog(saved)));
     } catch (err) { next(err); }
 };
 
@@ -94,13 +101,18 @@ const MAX_TRAINER_COMMENT = 1000;
 // Idempotent: calling it again just updates the comment.
 export const reviewSessionLog = async (req, res, next) => {
     try {
-        const { planId, week, dayNumber } = req.body;
-        const comment = req.body.comment ?? '';
+        const { planId, week, dayNumber, exerciseFeedback } = req.body;
         if (!planId || !Number.isInteger(week) || !Number.isInteger(dayNumber)) {
             return res.status(400).json({ error: 'planId, week y dayNumber son requeridos' });
         }
+        // `comment` omitted = keep the stored general comment (a per-exercise save must not wipe it).
+        const commentGiven = req.body.comment !== undefined;
+        const comment = req.body.comment ?? '';
         if (typeof comment !== 'string' || comment.length > MAX_TRAINER_COMMENT) {
             return res.status(400).json({ error: `El comentario no puede superar ${MAX_TRAINER_COMMENT} caracteres` });
+        }
+        if (exerciseFeedback !== undefined && !Array.isArray(exerciseFeedback)) {
+            return res.status(400).json({ error: 'exerciseFeedback debe ser una lista' });
         }
         // Ownership comes from the plan's athlete; anything foreign is a 404.
         const plan = await PlanificationModel.findById(planId);
@@ -108,15 +120,55 @@ export const reviewSessionLog = async (req, res, next) => {
             return res.status(404).json({ error: 'Sesión no encontrada' });
         }
         const prev = await SessionLogModel.find({ athleteId: plan.athleteId, planId, week, dayNumber });
-        const saved = await SessionLogModel.review({ athleteId: plan.athleteId, planId, week, dayNumber, comment: comment.trim() });
+        if (!prev) return res.status(404).json({ error: 'Sesión no encontrada' });
+
+        // Merge the per-exercise comments into the stored map. A position must exist in the plan's
+        // day; exerciseId/name are copied from it so the comment can follow the exercise later.
+        let mergedFeedback;
+        let feedbackChanged = false;
+        if (exerciseFeedback?.length) {
+            const days = plan.weekDays?.[week - 1] ?? plan.days ?? [];
+            const day = days.find(d => d.dayNumber === dayNumber);
+            const planExercises = (day?.blocks ?? []).flatMap(b => b.exercises ?? []).filter(e => !e.isRest);
+            mergedFeedback = { ...(prev.exerciseFeedback ?? {}) };
+            for (const item of exerciseFeedback) {
+                const text = typeof item?.comment === 'string' ? item.comment.trim() : null;
+                if (!item?.position || text === null || text.length > MAX_TRAINER_COMMENT) {
+                    return res.status(400).json({ error: `Cada feedback requiere position y un comentario de hasta ${MAX_TRAINER_COMMENT} caracteres` });
+                }
+                const ex = planExercises.find(e => e.position === item.position);
+                if (!ex) return res.status(400).json({ error: `El ejercicio ${item.position} no existe en este día` });
+                if ((mergedFeedback[item.position]?.comment ?? '') === text) continue;
+                feedbackChanged = true;
+                if (text === '') delete mergedFeedback[item.position];
+                else mergedFeedback[item.position] = {
+                    comment: text,
+                    exerciseId: ex.exerciseId ?? null,
+                    name: ex.exerciseName ?? '',
+                    updatedAt: new Date().toISOString(),
+                };
+            }
+        }
+
+        const trimmed = commentGiven ? comment.trim() : (prev.trainerComment ?? '');
+        const saved = await SessionLogModel.review({
+            athleteId: plan.athleteId, planId, week, dayNumber,
+            comment: trimmed, exerciseFeedback: feedbackChanged ? mergedFeedback : undefined,
+            // Only the "Marcar como revisada" action (which sends `comment`) marks the session reviewed;
+            // saving a per-exercise comment alone leaves it pending.
+            markReviewed: commentGiven,
+        });
         if (!saved) return res.status(404).json({ error: 'Sesión no encontrada' });
-        // Notify the athlete on the first review, or when the comment text changed;
-        // re-submitting an unchanged review stays silent.
-        const trimmed = comment.trim();
-        if (!prev?.reviewedAt || (prev.trainerComment ?? '') !== trimmed) {
+        // Notify the athlete when the session is marked reviewed (first time or the general comment
+        // changed), or when a comment of an already-reviewed session changes. Per-exercise drafts on
+        // a pending session stay silent.
+        const commentChanged = (prev.trainerComment ?? '') !== trimmed;
+        if ((commentGiven && (!prev.reviewedAt || commentChanged)) || (prev.reviewedAt && feedbackChanged)) {
+            const firstExercise = Object.values(saved.exerciseFeedback ?? {})
+                .sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1))[0]?.comment;
             await notifySessionReviewed({
                 athleteId: saved.athleteId, planName: plan.name,
-                planId, week, dayNumber, comment: trimmed,
+                planId, week, dayNumber, comment: trimmed || firstExercise || '',
             });
         }
         res.json(flattenLog(saved));

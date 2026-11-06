@@ -1,5 +1,7 @@
 import React from 'react';
 import { SectionTitle } from '../TopBar/SectionTitle.jsx';
+import { PlanFold } from './PlanFold.jsx';
+import { isPlanArchivedForAthlete } from '../../utils/helpers.js';
 
 export function AthleteMySessions({ planifications, sessionLogs, onOpenSession }) {
     function isCompleted(planId, week, dayNumber) {
@@ -13,9 +15,13 @@ export function AthleteMySessions({ planifications, sessionLogs, onOpenSession }
             {planifications.length === 0 ? (
                 <p className="profile-empty">Todavía no tenés sesiones asignadas.</p>
             ) : (
-                planifications.map(plan => (
-                    <div key={plan.id} className="plan-sessions-group">
-                        <div className="plan-sessions-group-title">{plan.name}</div>
+                [...planifications.filter(p => !isPlanArchivedForAthlete(p, sessionLogs)), ...planifications.filter(p => isPlanArchivedForAthlete(p, sessionLogs))].map(plan => {
+                    const archived = isPlanArchivedForAthlete(plan, sessionLogs);
+                    const Wrapper = archived ? PlanFold : React.Fragment;
+                    return (
+                    <Wrapper key={plan.id} {...(archived ? { name: plan.name } : {})}>
+                    <div className="plan-sessions-group">
+                        {!archived && <div className="plan-sessions-group-title">{plan.name}</div>}
                         <div className="assigned-routines-list">
                             {Array.from({ length: plan.weeks }, (_, w) => (
                                 (plan.weekDays?.[w] ?? plan.days ?? []).map(day => {
@@ -42,7 +48,9 @@ export function AthleteMySessions({ planifications, sessionLogs, onOpenSession }
                             ))}
                         </div>
                     </div>
-                ))
+                    </Wrapper>
+                    );
+                })
             )}
         </section>
     );

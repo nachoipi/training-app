@@ -7,9 +7,10 @@
 // The expanded history body is the shared SessionLogDetail (also used by the trainer dashboard).
 import React, { useState, useEffect } from 'react';
 import { userService } from '../../services/userService.js';
-import { formatDate, formatCarga, collapseUnilateral, visibleInPlan } from '../../utils/helpers.js';
+import { formatDate, isPlanCompleted, planProgress } from '../../utils/helpers.js';
 import { StatCard } from '../Common/index.jsx';
-import { SessionLogDetail, RPE_CLASSES } from './SessionLogDetail.jsx';
+import { SessionLogDetail } from './SessionLogDetail.jsx';
+import { PlanSessionsSheet } from './PlanSessionsSheet.jsx';
 
 export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, onOpenPlanification, onViewPlanification, onDeletePlanification, onPublishPlanification, onCopyPlanification, onReviewSessionLog, onShowToast }) {
     const athletePlanIds = new Set(planifications.map(p => p.id));
@@ -18,6 +19,60 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
         .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
 
     const [expandedLogId, setExpandedLogId] = useState(null);
+
+    // Completed plans (every session done) are archived: tucked into a fold at the bottom of
+    // "Planificación" and collapsed at the bottom of "Sesiones del plan". Active plans and drafts stay up top.
+    const activePlans = planifications.filter(p => !isPlanCompleted(p, sessionLogs));
+    const archivedPlans = planifications.filter(p => isPlanCompleted(p, sessionLogs));
+    const [showArchived, setShowArchived] = useState(false);
+    // Plan ids whose "Sesiones del plan" group the coach toggled away from its default
+    // (default: active plans open, completed ones closed).
+    const [toggledPlans, setToggledPlans] = useState(() => new Set());
+    const isGroupOpen = p => toggledPlans.has(p.id) ? isPlanCompleted(p, sessionLogs) : !isPlanCompleted(p, sessionLogs);
+    const toggleGroup = p => setToggledPlans(prev => { const n = new Set(prev); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; });
+
+    // History: sessions still to review first (newest first); reviewed ones are archived into a
+    // single collapsed fold at the bottom.
+    // A session is archived only once the coach marked it reviewed ("Marcar como revisada").
+    const isArchivedLog = l => !!l.reviewedAt;
+    const pendingLogs = completedLogs.filter(l => !isArchivedLog(l));
+    const reviewedLogs = completedLogs.filter(isArchivedLog);
+    const [showReviewed, setShowReviewed] = useState(false);
+
+    function renderLogCard(log) {
+        const plan = planifications.find(p => p.id === log.planId);
+        const isOpen = expandedLogId === log.id;
+        return (
+                                <div key={log.id} id={`history-log-${log.id}`} className={`session-history-card ${isOpen ? 'session-history-card--open' : ''}`}>
+                                    <button
+                                        className="session-history-card-header"
+                                        onClick={() => setExpandedLogId(isOpen ? null : log.id)}
+                                        aria-expanded={isOpen}
+                                    >
+                                        <span className="session-history-card-date">{formatDate(log.completedAt.slice(0, 10))}</span>
+                                        <span className="session-history-card-meta">
+                                            <span className="session-history-card-plan">{plan?.name || '—'}</span>
+                                            <span className="session-history-card-week">Semana {log.week} — Día {log.dayNumber}</span>
+                                        </span>
+                                        <svg
+                                            className="session-history-card-chevron"
+                                            width="16" height="16" viewBox="0 0 16 16" fill="none"
+                                        >
+                                            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    </button>
+
+                                    {isOpen && <SessionLogDetail log={log} plan={plan} onReview={onReviewSessionLog} />}
+                                </div>
+        );
+    }
+
+    // Opens a session from the sheet: expands it in the history below and scrolls there.
+    function openLogFromSheet(log) {
+        setExpandedLogId(log.id);
+        if (isArchivedLog(log)) setShowReviewed(true);
+        setTimeout(() => document.getElementById(`history-log-${log.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+    }
 
     // Copy dialog: `copyFrom` is the plan being copied (null = closed). The athlete list is
     // fetched when the dialog opens so the plan can be copied to any of the trainer's athletes.
@@ -51,6 +106,52 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
         } finally {
             setCopying(false);
         }
+    }
+
+    function renderPlanRow(p, archived) {
+        return (
+                            <div key={p.id} className={`assigned-routine-row${archived ? ' assigned-routine-row--completed' : ''}`}>
+                                <div className="assigned-routine-info">
+                                    <span className="assigned-routine-name">
+                                        {p.name}
+                                        <span className={`plan-status-badge plan-status-badge--${p.status === 'draft' ? 'draft' : 'published'}`}>
+                                            {p.status === 'draft' ? 'Borrador' : archived ? 'Completada' : `Publicada · ${planProgress(p, sessionLogs).done}/${planProgress(p, sessionLogs).total}`}
+                                        </span>
+                                    </span>
+                                    <span className="assigned-routine-meta">
+                                        {p.weeks} semanas · {(p.weekDays?.[0] ?? p.days ?? []).length} días
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    {p.status === 'draft' && (
+                                        <button
+                                            className="btn btn-primary btn-sm"
+                                            onClick={() => onPublishPlanification(p)}
+                                        >
+                                            Publicar
+                                        </button>
+                                    )}
+                                    <button
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => onViewPlanification(p)}
+                                    >
+                                        Ver
+                                    </button>
+                                    <button
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => openCopy(p)}
+                                    >
+                                        Copiar
+                                    </button>
+                                    <button
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => onDeletePlanification(p.id)}
+                                    >
+                                        Eliminar
+                                    </button>
+                                </div>
+                            </div>
+        );
     }
 
     return (
@@ -87,51 +188,19 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                 {planifications.length === 0 ? (
                     <p className="profile-empty">No hay planificaciones asignadas.</p>
                 ) : (
-                    <div className="assigned-routines-list">
-                        {planifications.map(p => (
-                            <div key={p.id} className="assigned-routine-row">
-                                <div className="assigned-routine-info">
-                                    <span className="assigned-routine-name">
-                                        {p.name}
-                                        <span className={`plan-status-badge plan-status-badge--${p.status === 'draft' ? 'draft' : 'published'}`}>
-                                            {p.status === 'draft' ? 'Borrador' : 'Publicada'}
-                                        </span>
-                                    </span>
-                                    <span className="assigned-routine-meta">
-                                        {p.weeks} semanas · {(p.weekDays?.[0] ?? p.days ?? []).length} días
-                                    </span>
-                                </div>
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                    {p.status === 'draft' && (
-                                        <button
-                                            className="btn btn-primary btn-sm"
-                                            onClick={() => onPublishPlanification(p)}
-                                        >
-                                            Publicar
-                                        </button>
-                                    )}
-                                    <button
-                                        className="btn btn-secondary btn-sm"
-                                        onClick={() => onViewPlanification(p)}
-                                    >
-                                        Ver
-                                    </button>
-                                    <button
-                                        className="btn btn-secondary btn-sm"
-                                        onClick={() => openCopy(p)}
-                                    >
-                                        Copiar
-                                    </button>
-                                    <button
-                                        className="btn btn-secondary btn-sm"
-                                        onClick={() => onDeletePlanification(p.id)}
-                                    >
-                                        Eliminar
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <>
+                        {activePlans.length === 0 && <p className="profile-empty">Sin planificaciones activas.</p>}
+                        <div className="assigned-routines-list">{activePlans.map(p => renderPlanRow(p, false))}</div>
+                        {archivedPlans.length > 0 && (
+                            <>
+                                <button className="archived-fold" aria-expanded={showArchived} onClick={() => setShowArchived(v => !v)}>
+                                    <svg className="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                    Archivadas ({archivedPlans.length})
+                                </button>
+                                {showArchived && <div className="assigned-routines-list">{archivedPlans.map(p => renderPlanRow(p, true))}</div>}
+                            </>
+                        )}
+                    </>
                 )}
             </div>
 
@@ -142,53 +211,22 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                 {planifications.length === 0 ? (
                     <p className="profile-empty">Sin planificación asignada.</p>
                 ) : (
-                    planifications.map(plan => (
-                        <div key={plan.id} className="plan-sessions-group">
-                            <div className="plan-sessions-group-title">{plan.name}</div>
-                            <div
-                                className="plan-sessions-weeks"
-                                style={{ gridTemplateColumns: `repeat(${plan.weeks}, minmax(0, 1fr))` }}
-                            >
-                                {Array.from({ length: plan.weeks }, (_, w) => (
-                                    <div key={w} className="plan-week-column">
-                                        <div className="plan-week-column-title">Semana {w + 1}</div>
-                                        {(plan.weekDays?.[w] ?? plan.days ?? []).map(day => {
-                                            const log = sessionLogs.find(
-                                                l => l.planId === plan.id && l.week === w + 1 && l.dayNumber === day.dayNumber && l.completed
-                                            );
-                                            return (
-                                                <div key={`${plan.id}-${w}-${day.dayNumber}`} className="plan-session-card">
-                                                    <div className="plan-session-card-label">Día {day.dayNumber}</div>
-                                                    <div className="plan-session-card-blocks">
-                                                        {day.blocks.map(block => ({ ...block, exercises: visibleInPlan(block.exercises).filter(e => !e.isRest) })).filter(b => b.exercises.length > 0).map(block => (
-                                                            <div key={block.label} className="plan-session-block">
-                                                                {collapseUnilateral(block.exercises, log).map((ex, i) => {
-                                                                    const rpeKey = log?.exerciseSummaries?.find(s => s.position === ex.position)?.rpe || '';
-                                                                    const rpeClass = RPE_CLASSES[rpeKey] || '';
-                                                                    return (
-                                                                        <div key={i} className={`plan-session-exercise ${rpeClass}`}>
-                                                                            <div className="plan-session-exercise-header">
-                                                                                <span className="plan-session-exercise-name">{ex.exerciseName || '—'}</span>
-                                                                            </div>
-                                                                            <div className="plan-session-exercise-stats">
-                                                                                <div className="stat"><span className="stat-label">Series</span><span className="stat-value">{ex.series || '—'}</span></div>
-                                                                                <div className="stat"><span className="stat-label">Reps</span><span className="stat-value">{ex.reps || '—'}</span></div>
-                                                                                <div className="stat"><span className="stat-label">Carga</span><span className="stat-value">{formatCarga(ex)}</span></div>
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                ))}
+                    [...activePlans, ...archivedPlans].map(plan => {
+                        const open = isGroupOpen(plan);
+                        const done = isPlanCompleted(plan, sessionLogs);
+                        const { done: nDone, total } = planProgress(plan, sessionLogs);
+                        return (
+                            <div key={plan.id} className="plan-sessions-group">
+                                <button className={`plan-group-head${done ? ' is-completed' : ''}`} aria-expanded={open} onClick={() => toggleGroup(plan)}>
+                                    <svg className="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                    {plan.name}
+                                    {plan.status === 'draft' && <span className="plan-status-badge plan-status-badge--draft">Borrador</span>}
+                                    <span className="plan-group-meta">{done ? 'Completada' : `${nDone}/${total} sesiones`}</span>
+                                </button>
+                                {open && <PlanSessionsSheet plan={plan} sessionLogs={sessionLogs || []} onOpenLog={openLogFromSheet} />}
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
 
@@ -199,36 +237,19 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                 {completedLogs.length === 0 ? (
                     <p className="profile-empty">Sin sesiones completadas.</p>
                 ) : (
-                    <div className="session-history-list">
-                        {completedLogs.map(log => {
-                            const plan = planifications.find(p => p.id === log.planId);
-                            const isOpen = expandedLogId === log.id;
-
-                            return (
-                                <div key={log.id} className={`session-history-card ${isOpen ? 'session-history-card--open' : ''}`}>
-                                    <button
-                                        className="session-history-card-header"
-                                        onClick={() => setExpandedLogId(isOpen ? null : log.id)}
-                                        aria-expanded={isOpen}
-                                    >
-                                        <span className="session-history-card-date">{formatDate(log.completedAt.slice(0, 10))}</span>
-                                        <span className="session-history-card-meta">
-                                            <span className="session-history-card-plan">{plan?.name || '—'}</span>
-                                            <span className="session-history-card-week">Semana {log.week} — Día {log.dayNumber}</span>
-                                        </span>
-                                        <svg
-                                            className="session-history-card-chevron"
-                                            width="16" height="16" viewBox="0 0 16 16" fill="none"
-                                        >
-                                            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                        </svg>
-                                    </button>
-
-                                    {isOpen && <SessionLogDetail log={log} plan={plan} onReview={onReviewSessionLog} />}
-                                </div>
-                            );
-                        })}
-                    </div>
+                    <>
+                        {pendingLogs.length === 0 && <p className="profile-empty">No hay sesiones pendientes de revisar.</p>}
+                        <div className="session-history-list">{pendingLogs.map(renderLogCard)}</div>
+                        {reviewedLogs.length > 0 && (
+                            <>
+                                <button className="archived-fold" aria-expanded={showReviewed} onClick={() => setShowReviewed(v => !v)}>
+                                    <svg className="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                    Archivadas · revisadas ({reviewedLogs.length})
+                                </button>
+                                {showReviewed && <div className="session-history-list">{reviewedLogs.map(renderLogCard)}</div>}
+                            </>
+                        )}
+                    </>
                 )}
             </div>
 

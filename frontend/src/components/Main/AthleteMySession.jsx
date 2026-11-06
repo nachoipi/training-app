@@ -10,31 +10,14 @@
 // block's exercises, one line each) with an "Empezar sesión" button; then the list takes over. When the coach reviewed the session (sessionLog.trainerComment, stored outside
 // the payload) a read-only banner shows it.
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { uid, formatCarga, restLabel, visibleInPlan, blockTitles, timeToSeconds, secondsToClock } from '../../utils/helpers.js';
+import { uid, formatCarga, restLabel, visibleInPlan, blockTitles, timeToSeconds, secondsToClock, carriedExerciseFeedback } from '../../utils/helpers.js';
 import { MUSCLE_LABELS, EQUIPMENT_LABELS, SELF_EVALUATION_LABELS, EXERCISE_KIND_LABELS } from '../../utils/constants.js';
 import { Icon } from '../Icon/index.jsx';
 import { DayOverview } from './DayOverview.jsx';
+import { extractYouTubeId, isDirectVideoUrl, extractDriveFileId } from '../../utils/videoUrl.js';
 import { ExerciseVideoModal } from '../Modals/ExerciseVideoModal.jsx';
 
 const RPE_CLASSES = { '1': 'session-rpe-1', '2': 'session-rpe-2', '3': 'session-rpe-3', '4': 'session-rpe-4' };
-
-// Extracts a YouTube video id from common URL shapes (watch?v=, youtu.be/, embed/).
-// Returns null when the URL is not YouTube — caller then falls back to a
-// generic play tile so unknown hosts don't break with a 404 image.
-function extractYouTubeId(url) {
-    if (!url) return null;
-    const patterns = [
-        /[?&]v=([a-zA-Z0-9_-]{11})/,
-        /youtu\.be\/([a-zA-Z0-9_-]{11})/,
-        /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
-        /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
-    ];
-    for (const p of patterns) {
-        const m = url.match(p);
-        if (m) return m[1];
-    }
-    return null;
-}
 
 // Shorts render vertically (9:16) so the detail modal switches to a portrait
 // embed when the source URL is /shorts/<id>. Regular embeds stay 16:9.
@@ -53,32 +36,6 @@ const GENERIC_EXERCISE_ICON = '/icons/exercise-generic.svg';
 // and the detail modal stay in sync.
 function resolveVideo(ex) {
     return (ex.video && ex.video.trim()) || (ex.videoUrl && ex.videoUrl.trim()) || '';
-}
-
-// Recognises direct video files we can render with a <video> tag. Strips query
-// strings before matching (Supabase Storage URLs can carry `?token=…`).
-// Anything not in the list (Vimeo, Loom share pages, etc.) falls back to the
-// static icon — the detail modal still surfaces an "Abrir video" link for them.
-function isDirectVideoUrl(url) {
-    if (!url) return false;
-    const clean = url.split('?')[0].toLowerCase();
-    return /\.(mp4|webm|mov|m4v|ogv|ogg)$/.test(clean);
-}
-
-// Extracts a Google Drive file id from common share-link shapes:
-//   https://drive.google.com/file/d/<ID>/view?usp=drive_link
-//   https://drive.google.com/open?id=<ID>
-//   https://drive.google.com/uc?id=<ID>&export=download
-// Returns null when not a Drive URL. Drive files won't play in a <video> tag
-// (the URL serves an HTML viewer, not a media stream) — so the catch points
-// the UI at Drive's own thumbnail + embeddable preview endpoints instead.
-function extractDriveFileId(url) {
-    if (!url) return null;
-    const m1 = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-    if (m1) return m1[1];
-    const m2 = url.match(/drive\.google\.com\/(?:open|uc)\?[^#]*\bid=([a-zA-Z0-9_-]+)/);
-    if (m2) return m2[1];
-    return null;
 }
 
 function ExerciseMediaThumb({ ex, onOpen }) {
@@ -351,11 +308,18 @@ function clockText(total) {
 
 const AUTOSAVE_DELAY_MS = 800;
 
-export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, onBack, onSave, onAutoSave, onDiscard, onTrainingLock, onShowToast }) {
+export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, sessionLogs = [], onBack, onSave, onAutoSave, onDiscard, onTrainingLock, onShowToast }) {
     // `fullDay` is the plan day as written (rests included, for display). Everything the athlete
     // logs (series, RPE, ordering rules, saved payload) runs on `day`: the same day without rests
     // or empty blocks. Warm-ups ARE part of the session; only the pre-start overview hides them.
     const fullDay = fullDayRaw;
+    // Coach correction for an exercise: this session's own feedback if reviewed, otherwise the
+    // latest earlier one for the same exercise in this plan (it keeps showing until replaced).
+    const feedbackFor = ex => {
+        const own = sessionLog?.exerciseFeedback?.[ex.position];
+        if (own?.comment) return { comment: own.comment, week, dayNumber: fullDay.dayNumber };
+        return carriedExerciseFeedback(plan.id, sessionLogs, week, fullDay.dayNumber, ex);
+    };
     const day = useMemo(() => ({
         ...fullDayRaw,
         blocks: fullDayRaw.blocks
@@ -866,7 +830,7 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, onBa
                         <div className="dash-hero-label">{plan.name}</div>
                         <div className="dash-hero-title">Semana {week} · Día {day.dayNumber}</div>
                         {day.comentario?.trim() && <p className="dash-hero-note">{day.comentario.trim()}</p>}
-                        <DayOverview blocks={fullDay.blocks.map(b => ({ ...b, exercises: visibleInPlan(b.exercises) }))} />
+                        <DayOverview feedbackFor={feedbackFor} blocks={fullDay.blocks.map(b => ({ ...b, exercises: visibleInPlan(b.exercises) }))} />
                     </div>
                 )}
                 {started_or_progress && day.blocks.map((block, bIdx) => {
@@ -950,6 +914,7 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, onBa
                                                 const repForSerie = (repsArr[serieNum - 1] ?? repsArr[0] ?? ex.reps ?? '').trim();
                                                 const rpeClass = RPE_CLASSES[exerciseSummary[ex.position]?.rpe] || '';
                                                 const trainerComment = (ex.comentario || '').trim();
+                                                const coachFix = feedbackFor(ex);
                                                 // A completed session shows the athlete's own clip (from the
                                                 // paperclip upload) instead of the trainer's reference video;
                                                 // without one, the preview is removed entirely.
@@ -1035,6 +1000,11 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, onBa
                                                         {trainerComment && (
                                                             <div className="session-serie-card-trainer-comment" title="Comentario del entrenador">
                                                                 {trainerComment}
+                                                            </div>
+                                                        )}
+                                                        {coachFix && (
+                                                            <div className="session-serie-card-trainer-comment session-serie-card-coach-fix" title={`Corrección de tu coach (Semana ${coachFix.week}, Día ${coachFix.dayNumber})`}>
+                                                                <strong>Corrección de tu coach:</strong> {coachFix.comment}
                                                             </div>
                                                         )}
                                                         {!completed && (

@@ -116,6 +116,8 @@ CREATE TABLE session_logs (
     -- upsert overwrites the whole payload (see migrations/2026-10-08_session_log_review.sql).
     reviewed_at     TIMESTAMPTZ,
     trainer_comment TEXT,
+    -- Per-exercise coach feedback { position: {comment, exerciseId, name, updatedAt} } (migrations/2026-11-05_exercise_feedback.sql).
+    exercise_feedback JSONB NOT NULL DEFAULT '{}'::jsonb,
     updated_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
     CONSTRAINT uq_athlete_plan_week_day UNIQUE (athlete_id, plan_id, week, day_number)
 );

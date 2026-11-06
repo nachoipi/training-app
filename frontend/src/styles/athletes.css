@@ -221,7 +221,7 @@
 .session-history-table-header,
 .session-history-table-row {
     display: grid;
-    grid-template-columns: 2fr 1.5fr 1.5fr 80px;
+    grid-template-columns: 1.6fr 2fr 2fr 64px;
     gap: 8px;
     align-items: center;
     padding: 6px 0;
@@ -238,13 +238,13 @@
     font-size: 0.82rem; color: var(--text-secondary);
     border-bottom: 1px solid var(--border);
 }
-.session-history-table-row:last-child { border-bottom: none; }
+.session-history-ex:last-child .session-history-table-row { border-bottom: none; }
 
 /* RPE colouring reuses existing session-rpe-N variables */
-.session-history-table-row.session-rpe-1 { background: rgba(var(--rpe-1-rgb, 74,222,128), 0.06); }
-.session-history-table-row.session-rpe-2 { background: rgba(var(--rpe-2-rgb, 250,204,21), 0.06); }
-.session-history-table-row.session-rpe-3 { background: rgba(var(--rpe-3-rgb, 251,146,60), 0.06); }
-.session-history-table-row.session-rpe-4 { background: rgba(var(--rpe-4-rgb, 248,113,113), 0.06); }
+.session-history-ex.session-rpe-1 { background: rgba(var(--rpe-1-rgb, 74,222,128), 0.06); }
+.session-history-ex.session-rpe-2 { background: rgba(var(--rpe-2-rgb, 250,204,21), 0.06); }
+.session-history-ex.session-rpe-3 { background: rgba(var(--rpe-3-rgb, 251,146,60), 0.06); }
+.session-history-ex.session-rpe-4 { background: rgba(var(--rpe-4-rgb, 248,113,113), 0.06); }
 
 .session-history-ex-name { font-weight: 600; color: var(--text); }
 
@@ -277,7 +277,7 @@
 @media (max-width: 600px) {
     .session-history-table-header,
     .session-history-table-row {
-        grid-template-columns: 1.5fr 1fr 1fr 60px;
+        grid-template-columns: 1.3fr 1.2fr 1.2fr 56px;
         font-size: 0.75rem;
     }
     .session-history-card-date { min-width: 70px; }
@@ -314,3 +314,24 @@
     align-items: center;
     gap: 6px;
 }
+
+/* Prescribed / done columns: one chip per serie, identical format on both sides */
+.session-history-ex { border-bottom: 1px solid var(--border); }
+.session-history-ex:last-of-type { border-bottom: none; }
+.session-history-ex .session-history-table-row { border-bottom: none; }
+.session-history-series { display: flex; flex-wrap: wrap; gap: 4px; }
+.session-history-serie {
+    padding: 2px 8px; border-radius: 6px; font-size: 0.78rem; white-space: nowrap;
+    background: var(--surface-2, rgba(255,255,255,0.05)); color: var(--text-secondary);
+}
+.session-history-serie.is-diff { color: var(--text); font-weight: 700; outline: 1px solid var(--border); }
+.session-history-actions { display: flex; gap: 4px; justify-content: flex-end; }
+.session-history-icon-btn {
+    width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border);
+    background: transparent; color: var(--text-muted); cursor: pointer; font-size: 0.75rem; line-height: 1;
+}
+.session-history-icon-btn:hover { color: var(--text); border-color: var(--text-muted); }
+.session-history-icon-btn.has-video { color: var(--accent, #60a5fa); border-color: currentColor; }
+.session-history-icon-btn.has-feedback { color: var(--green, #34d399); border-color: currentColor; }
+.session-history-ex-panel { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 4px 0 12px; }
+.session-history-ex-panel .session-review-textarea { width: 100%; }

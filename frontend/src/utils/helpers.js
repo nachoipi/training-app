@@ -138,3 +138,67 @@ export function secondsToClock(total) {
     const t = Math.max(0, total);
     return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 }
+
+// ── Prescribed vs actual, per serie (trainer's session detail) ────────────────────────────────
+// Both columns use the same shape `[{ reps, carga }]` and the same formatter so they read alike.
+// `ex.reps` may be one value ("8") or one per serie ("10,8,6"); carga is a single prescribed value.
+export function prescribedSeries(ex) {
+    const n = Math.max(1, Number(ex?.series) || 1);
+    const repsArr = ex?.reps ? String(ex.reps).split(',').map(r => r.trim()) : [];
+    return Array.from({ length: n }, (_, i) => ({
+        reps: repsArr[i] ?? repsArr[0] ?? '',
+        carga: ex?.carga ?? '',
+    }));
+}
+
+// "8 × 20 kg" · "8" when there is no load · "—" when nothing was entered.
+export function formatSerie(serie, ex) {
+    const hasReps = serie.reps !== '' && serie.reps != null;
+    const load = formatCarga({ ...ex, carga: serie.carga });
+    if (!hasReps && load === '—') return '—';
+    const reps = hasReps ? String(serie.reps) : '—';
+    return load === '—' ? reps : `${reps} × ${load}`;
+}
+
+// ── Coach feedback that follows an exercise through the plan ──────────────────────────────────
+// Latest per-exercise coach comment for `ex` from sessions of the SAME plan that come before
+// (week, dayNumber): matched by exerciseId (name as fallback), at any position. A newer comment
+// replaces an older one; only from sessions marked as reviewed; being plan-scoped, it ends with the plan. Returns { comment, week, dayNumber } | null.
+export function carriedExerciseFeedback(planId, sessionLogs, week, dayNumber, ex) {
+    if (!ex || ex.isRest) return null;
+    const sameEx = fb => (ex.exerciseId && fb.exerciseId)
+        ? fb.exerciseId === ex.exerciseId
+        : (fb.name || '').trim().toLowerCase() === (ex.exerciseName || '').trim().toLowerCase();
+    let best = null;
+    for (const log of sessionLogs || []) {
+        // Only sessions the coach marked as reviewed release their per-exercise comments.
+        if (log.planId !== planId || !log.reviewedAt) continue;
+        if (log.week > week || (log.week === week && log.dayNumber >= dayNumber)) continue;
+        for (const fb of Object.values(log.exerciseFeedback || {})) {
+            if (!fb.comment || !sameEx(fb)) continue;
+            const newer = !best || log.week > best.week || (log.week === best.week && log.dayNumber > best.dayNumber);
+            if (newer) best = { comment: fb.comment, week: log.week, dayNumber: log.dayNumber };
+        }
+    }
+    return best;
+}
+
+// Progress of a plan: `total` sessions (weeks × days) and how many have a completed log.
+// A plan is "completed" (archived on the coach side) when it is published and every session is done.
+export function planProgress(plan, sessionLogs) {
+    let total = 0;
+    for (let w = 0; w < (plan.weeks || 0); w++) total += (plan.weekDays?.[w] ?? plan.days ?? []).length;
+    const done = (sessionLogs || []).filter(l => l.planId === plan.id && l.completed).length;
+    return { total, done: Math.min(done, total) };
+}
+
+export function isPlanCompleted(plan, sessionLogs) {
+    const { total, done } = planProgress(plan, sessionLogs);
+    return plan.status !== 'draft' && total > 0 && done >= total;
+}
+
+// Athlete side: a plan is archived once every session is done AND the coach reviewed all of them.
+export function isPlanArchivedForAthlete(plan, sessionLogs) {
+    if (!isPlanCompleted(plan, sessionLogs)) return false;
+    return (sessionLogs || []).filter(l => l.planId === plan.id && l.completed).every(l => !!l.reviewedAt);
+}
