@@ -31,6 +31,9 @@ export const SessionLogModel = {
         return query(`${SELECT} WHERE athlete_id = $1 ORDER BY updated_at DESC`, [athleteId]);
     },
 
+    // Every log of one plan (any athlete row of that plan), used to find which days are already trained.
+    listByPlan: (planId) => query(`${SELECT} WHERE plan_id = $1`, [planId]),
+
     // Current row for a plan/week/day (optionally one athlete), used by the
     // controller to compare state BEFORE a write and notify only on transitions.
     find: async ({ athleteId, planId, week, dayNumber }) => {

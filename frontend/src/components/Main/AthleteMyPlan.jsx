@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Icon } from '../Icon/index.jsx';
+import { useIsDesktop } from '../../hooks/useIsDesktop.js';
 import { formatCarga, collapseUnilateral, visibleInPlan, restLabel, blockTitles, isPlanArchivedForAthlete } from '../../utils/helpers.js';
 import { PlanFold } from './PlanFold.jsx';
 import { SectionTitle } from '../TopBar/SectionTitle.jsx';
@@ -47,20 +48,6 @@ function ExerciseRow({ ex, rpeClass }) {
             </div>
         </div>
     );
-}
-
-// True on viewports >= 769px (the same breakpoint planification.css uses for the
-// desktop week/day layout). Subscribes to changes so a window resize re-renders.
-function useIsDesktop() {
-    const query = '(min-width: 769px)';
-    const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
-    useEffect(() => {
-        const mq = window.matchMedia(query);
-        const onChange = e => setMatches(e.matches);
-        mq.addEventListener('change', onChange);
-        return () => mq.removeEventListener('change', onChange);
-    }, []);
-    return matches;
 }
 
 // Day card — the same accordion used for the trainer's session history

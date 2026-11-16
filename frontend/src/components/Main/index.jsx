@@ -44,6 +44,7 @@ export function Main({
     onCopyPlanification,
     onDeletePlanification,
     onPublishPlanification,
+    onArchivePlanification,
     onSavePlanification,
     planifications,
     onNavigate,
@@ -182,6 +183,7 @@ export function Main({
                     onReviewSessionLog={onReviewSessionLog}
                     onDeletePlanification={onDeletePlanification}
                     onPublishPlanification={onPublishPlanification}
+                    onArchivePlanification={onArchivePlanification}
                     onShowToast={onShowToast}
                 />
             )}
@@ -191,6 +193,7 @@ export function Main({
                     exercises={exercises}
                     routines={routines}
                     planification={selectedPlanification}
+                    sessionLogs={sessionLogs}
                     onBack={() => onNavigate('athlete-profile')}
                     onSave={onSavePlanification}
                     onShowToast={onShowToast}

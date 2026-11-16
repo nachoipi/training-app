@@ -335,3 +335,17 @@
 .session-history-icon-btn.has-feedback { color: var(--green, #34d399); border-color: currentColor; }
 .session-history-ex-panel { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 4px 0 12px; }
 .session-history-ex-panel .session-review-textarea { width: 100%; }
+
+/* Desktop coach profile: "Sesiones del plan" / "Evolución por ejercicio" / "Historial de sesiones" as browser-like tabs. */
+.profile-tabs { padding: 0; overflow: hidden; }
+.profile-tabs-bar { display: flex; gap: 4px; padding: 10px 14px 0; background: var(--bg-deep); border-bottom: 1px solid var(--border); }
+.profile-tab {
+    display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; margin-bottom: -1px;
+    border: 1px solid transparent; border-bottom: none; border-radius: 10px 10px 0 0;
+    background: transparent; color: var(--text-muted); cursor: pointer;
+    font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.profile-tab:hover { color: var(--text-primary); background: rgba(255,255,255,0.04); }
+.profile-tab.is-active { background: var(--bg-card); color: var(--text-primary); border-color: var(--border); }
+.profile-tab-badge { background: var(--accent); color: #000; border-radius: 999px; font-size: 0.65rem; padding: 1px 7px; letter-spacing: 0; }
+.profile-tab-panel { padding: 20px 24px; }

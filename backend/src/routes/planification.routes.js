@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-    getPlanifications, createPlanification, updatePlanification, publishPlanification, deletePlanification,
+    getPlanifications, createPlanification, updatePlanification, publishPlanification, archivePlanification, deletePlanification,
 } from '../controllers/planification.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.middleware.js';
 
@@ -11,6 +11,7 @@ router.get('/',       getPlanifications);
 router.post('/',      requireRole('trainer'), createPlanification);
 router.put('/:id',    requireRole('trainer'), updatePlanification);
 router.patch('/:id/publish', requireRole('trainer'), publishPlanification);
+router.patch('/:id/archive', requireRole('trainer'), archivePlanification);
 router.delete('/:id', requireRole('trainer'), deletePlanification);
 
 export default router;

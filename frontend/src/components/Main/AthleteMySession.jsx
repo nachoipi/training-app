@@ -10,7 +10,7 @@
 // block's exercises, one line each) with an "Empezar sesión" button; then the list takes over. When the coach reviewed the session (sessionLog.trainerComment, stored outside
 // the payload) a read-only banner shows it.
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { uid, formatCarga, restLabel, visibleInPlan, blockTitles, timeToSeconds, secondsToClock, carriedExerciseFeedback } from '../../utils/helpers.js';
+import { uid, formatCarga, cargaForSerie, restLabel, visibleInPlan, blockTitles, timeToSeconds, secondsToClock, carriedExerciseFeedback } from '../../utils/helpers.js';
 import { MUSCLE_LABELS, EQUIPMENT_LABELS, SELF_EVALUATION_LABELS, EXERCISE_KIND_LABELS } from '../../utils/constants.js';
 import { Icon } from '../Icon/index.jsx';
 import { DayOverview } from './DayOverview.jsx';
@@ -420,7 +420,7 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, sess
                         const prescribed = (repsArr[s - 1] ?? repsArr[0] ?? '').trim();
                         map[`${ex.position}_s${s}`] = {
                             actualReps: prescribed,
-                            actualCarga: ex.carga || '',
+                            actualCarga: cargaForSerie(ex, s - 1) || '',
                             done: false,
                         };
                     }
@@ -946,7 +946,7 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, sess
                                                                     : <span className="session-serie-exercise-name">{ex.exerciseName || '—'}</span>
                                                                 }
                                                                 <span className="session-serie-exercise-prescription">
-                                                                    ({repForSerie} reps{formatCarga(ex) !== '—' ? ` · ${formatCarga(ex)}` : ''})
+                                                                    ({repForSerie} reps{formatCarga(ex) !== '—' ? ` · ${formatCarga({ ...ex, carga: cargaForSerie(ex, serieNum - 1) })}` : ''})
                                                                 </span>
                                                             </div>
                                                             {data.done && (
@@ -987,7 +987,7 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, sess
                                                                                 className="session-exercise-input session-stepper-input"
                                                                                 value={data.actualCarga ?? ''}
                                                                                 onChange={e => updateField(ex.position, serieNum, 'actualCarga', e.target.value)}
-                                                                                placeholder={ex.carga || '—'}
+                                                                                placeholder={cargaForSerie(ex, serieNum - 1) || '—'}
                                                                                 disabled={locked}
                                                                             />
                                                                             <button className="session-stepper-btn" disabled={locked} onClick={() => step(ex.position, serieNum, 'actualCarga', 1)}>+</button>

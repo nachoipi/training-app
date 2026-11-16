@@ -6,6 +6,8 @@
 import { PlanificationModel } from '../models/planification.model.js';
 import { UserModel } from '../models/user.model.js';
 import { notifyPlanChange } from '../services/notify.service.js';
+import { SessionLogModel } from '../models/sessionLog.model.js';
+import { changedDays, lockedDayViolations } from '../services/planDiff.service.js';
 import { enrichPlanifications } from '../services/planification.enrich.service.js';
 
 export const getPlanifications = async (req, res, next) => {
@@ -52,12 +54,26 @@ export const updatePlanification = async (req, res, next) => {
         if (patch.athleteId !== undefined && !(await UserModel.ownsAthlete(req.user.userId, patch.athleteId))) {
             return res.status(404).json({ error: 'Alumno no encontrado' });
         }
+        // Published plans: days the athlete already started (any log) are frozen so history is
+        // never rewritten; only future days can change.
+        if (existing.status === 'published' && patch.weekDays !== undefined) {
+            const logs = await SessionLogModel.listByPlan(existing.id);
+            const bad = lockedDayViolations(existing.weekDays, patch.weekDays, logs);
+            if (bad.length) {
+                const list = bad.map(d => `Semana ${d.week}, Día ${d.dayNumber}`).join('; ');
+                return res.status(409).json({ error: `No se pueden modificar sesiones que el alumno ya empezó: ${list}` });
+            }
+        }
         const updated = await PlanificationModel.update(req.params.id, patch);
         if (!updated) return res.status(404).json({ error: 'Planificación no encontrada' });
         // Drafts are invisible to the athlete, so only published plans notify.
         // Repeated edits collapse into the same unread notification (dedupe key).
+        // Only when something the athlete trains changed (or the plan was renamed): no-op saves stay silent.
         if (updated.status === 'published') {
-            await notifyPlanChange({ athleteId: updated.athleteId, planId: updated.id, planName: updated.name, created: false });
+            const days = changedDays(existing.weekDays, updated.weekDays);
+            if (days.length || existing.name !== updated.name) {
+                await notifyPlanChange({ athleteId: updated.athleteId, planId: updated.id, planName: updated.name, created: false, changedDays: days });
+            }
         }
         res.json(updated);
     } catch (err) { next(err); }
@@ -75,6 +91,20 @@ export const publishPlanification = async (req, res, next) => {
         if (!published) return res.status(404).json({ error: 'Planificación no encontrada' });
         await notifyPlanChange({ athleteId: published.athleteId, planId: published.id, planName: published.name, created: true });
         res.json(published);
+    } catch (err) { next(err); }
+};
+
+// Trainer-only archive toggle ({ archived: boolean }); silent for the athlete (no notification).
+export const archivePlanification = async (req, res, next) => {
+    try {
+        const existing = await PlanificationModel.findById(req.params.id);
+        if (!existing || !(await UserModel.ownsAthlete(req.user.userId, existing.athleteId))) {
+            return res.status(404).json({ error: 'Planificación no encontrada' });
+        }
+        if (typeof req.body?.archived !== 'boolean') return res.status(400).json({ error: 'archived debe ser true o false' });
+        const plan = await PlanificationModel.setArchived(req.params.id, req.body.archived);
+        if (!plan) return res.status(404).json({ error: 'Planificación no encontrada' });
+        res.json(plan);
     } catch (err) { next(err); }
 };
 
