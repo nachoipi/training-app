@@ -33,12 +33,20 @@ export const notifySessionReviewed = ({ athleteId, planName, planId, week, dayNu
     });
 
 // One unread entry per plan: further edits refresh it (see NotificationModel.upsert).
-export const notifyPlanChange = ({ athleteId, planId, planName, created }) =>
-    safeUpsert({
+// `changedDays` ([{week, dayNumber}]) names the sessions the coach adjusted; the first one is
+// stored in `data` so the bell can open it directly.
+export const notifyPlanChange = ({ athleteId, planId, planName, created, changedDays = [] }) => {
+    const shown = changedDays.slice(0, 3).map(d => `Semana ${d.week}, Día ${d.dayNumber}`);
+    const more = changedDays.length > 3 ? ` y ${changedDays.length - 3} más` : '';
+    const detail = shown.length ? `${planName} · Ajustó: ${shown.join(' · ')}${more}` : planName;
+    return safeUpsert({
         userId: athleteId,
         type: created ? 'plan_assigned' : 'plan_updated',
-        title: created ? 'Tu entrenador te asignó un plan' : 'Tu entrenador actualizó tu plan',
-        body: planName,
-        data: { planId },
+        title: created ? 'Tu entrenador te asignó un plan' : 'Tu entrenador ajustó tu plan',
+        body: created ? planName : detail,
+        data: created || !changedDays.length
+            ? { planId }
+            : { planId, week: changedDays[0].week, dayNumber: changedDays[0].dayNumber },
         dedupeKey: `plan:${planId}`,
     });
+};

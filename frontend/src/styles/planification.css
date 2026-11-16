@@ -1148,10 +1148,11 @@
 .plan-sheet th { text-align: left; padding: 6px 8px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); border-bottom: 1px solid var(--border); }
 .plan-sheet td { padding: 4px 6px; border-bottom: 1px solid var(--border); overflow: hidden; }
 .plan-sheet .plan-sheet-ex { width: 24%; font-weight: 600; color: var(--text); padding-left: 8px; white-space: nowrap; text-overflow: ellipsis; }
-.plan-sheet-day td { background: rgba(255,255,255,0.04); font-size: 0.7rem; font-weight: 700; color: var(--text-secondary); padding: 4px 8px; }
+.plan-sheet-day td { background: rgba(255,255,255,0.04); font-size: 1rem; font-weight: 800; letter-spacing: 0.06em; color: var(--text); padding: 8px 8px; }
+.plan-sheet .plan-sheet-pos { width: 44px; text-align: center; font-weight: 700; color: var(--text-muted); padding-left: 6px; }
 .plan-sheet-cell {
     display: block; width: 100%; box-sizing: border-box; padding: 4px 6px; border: none; border-radius: 4px;
-    font: inherit; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font: inherit; text-align: center; white-space: normal; overflow-wrap: anywhere;
     background: transparent; color: var(--text-muted);
 }
 .plan-sheet-cell.is-empty { opacity: 0.4; }
@@ -1163,5 +1164,12 @@ button.plan-sheet-cell { cursor: pointer; }
 .plan-sheet-cell.is-done.session-rpe-4 { background: rgba(248,113,113,0.22); }
 button.plan-sheet-cell:hover { outline: 1px solid var(--text-muted); }
 .archived-fold { display: flex; align-items: center; gap: 8px; padding: 10px 12px; margin-top: 10px; border: 1px dashed var(--text-muted); border-radius: 8px; cursor: pointer; background: rgba(255,255,255,0.03); width: 100%; color: var(--text-secondary); font: inherit; font-size: 0.8rem; text-align: left; }
+.archived-fold[aria-expanded="true"] { border-style: solid; border-color: transparent; }
 .archived-fold .chev { transition: transform .15s; }
 .archived-fold[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+
+.planification-day-locked { font-size: .72rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-muted); margin-left: 8px; }
+.profile-subsection-title { font-size: .85rem; font-weight: 700; margin: 18px 0 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+.exercise-progress-table { width: 100%; margin: 6px 0 12px; }
+
+.planification-input.is-invalid { border-color: var(--danger, #e5534b); box-shadow: 0 0 0 1px var(--danger, #e5534b); }

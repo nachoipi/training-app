@@ -11,24 +11,33 @@ import { formatDate, isPlanCompleted, planProgress } from '../../utils/helpers.j
 import { StatCard } from '../Common/index.jsx';
 import { SessionLogDetail } from './SessionLogDetail.jsx';
 import { PlanSessionsSheet } from './PlanSessionsSheet.jsx';
+import { ExerciseProgress } from './ExerciseProgress.jsx';
+import { useIsDesktop } from '../../hooks/useIsDesktop.js';
 
-export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, onOpenPlanification, onViewPlanification, onDeletePlanification, onPublishPlanification, onCopyPlanification, onReviewSessionLog, onShowToast }) {
+export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, onOpenPlanification, onViewPlanification, onDeletePlanification, onPublishPlanification, onArchivePlanification, onCopyPlanification, onReviewSessionLog, onShowToast }) {
     const athletePlanIds = new Set(planifications.map(p => p.id));
     const completedLogs = (sessionLogs || [])
         .filter(l => athletePlanIds.has(l.planId) && l.completed)
         .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
 
     const [expandedLogId, setExpandedLogId] = useState(null);
+    // Desktop: "Sesiones del plan", "Evolución por ejercicio" and "Historial de sesiones" share one
+    // tabbed panel (like browser tabs). Mobile keeps them stacked.
+    const desktop = useIsDesktop();
+    const [tab, setTab] = useState('sheet');
 
     // Completed plans (every session done) are archived: tucked into a fold at the bottom of
     // "Planificación" and collapsed at the bottom of "Sesiones del plan". Active plans and drafts stay up top.
-    const activePlans = planifications.filter(p => !isPlanCompleted(p, sessionLogs));
-    const archivedPlans = planifications.filter(p => isPlanCompleted(p, sessionLogs));
+    // A plan is archived when completed OR archived by hand (ARCHIVAR, `archivedAt`).
+    const isArchived = p => !!p.archivedAt || isPlanCompleted(p, sessionLogs);
+    const activePlans = planifications.filter(p => !isArchived(p));
+    const archivedPlans = planifications.filter(isArchived);
     const [showArchived, setShowArchived] = useState(false);
+    const [showArchivedSheets, setShowArchivedSheets] = useState(false);
     // Plan ids whose "Sesiones del plan" group the coach toggled away from its default
     // (default: active plans open, completed ones closed).
     const [toggledPlans, setToggledPlans] = useState(() => new Set());
-    const isGroupOpen = p => toggledPlans.has(p.id) ? isPlanCompleted(p, sessionLogs) : !isPlanCompleted(p, sessionLogs);
+    const isGroupOpen = p => toggledPlans.has(p.id) ? isArchived(p) : !isArchived(p);
     const toggleGroup = p => setToggledPlans(prev => { const n = new Set(prev); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; });
 
     // History: sessions still to review first (newest first); reviewed ones are archived into a
@@ -71,7 +80,8 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
     function openLogFromSheet(log) {
         setExpandedLogId(log.id);
         if (isArchivedLog(log)) setShowReviewed(true);
-        setTimeout(() => document.getElementById(`history-log-${log.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+        if (desktop) setTab('history');
+        setTimeout(() => document.getElementById(`history-log-${log.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
     }
 
     // Copy dialog: `copyFrom` is the plan being copied (null = closed). The athlete list is
@@ -115,7 +125,7 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                                     <span className="assigned-routine-name">
                                         {p.name}
                                         <span className={`plan-status-badge plan-status-badge--${p.status === 'draft' ? 'draft' : 'published'}`}>
-                                            {p.status === 'draft' ? 'Borrador' : archived ? 'Completada' : `Publicada · ${planProgress(p, sessionLogs).done}/${planProgress(p, sessionLogs).total}`}
+                                            {p.status === 'draft' ? 'Borrador' : archived ? (isPlanCompleted(p, sessionLogs) ? 'Completada' : 'Archivada') : `Publicada · ${planProgress(p, sessionLogs).done}/${planProgress(p, sessionLogs).total}`}
                                         </span>
                                     </span>
                                     <span className="assigned-routine-meta">
@@ -129,6 +139,14 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                                             onClick={() => onPublishPlanification(p)}
                                         >
                                             Publicar
+                                        </button>
+                                    )}
+                                    {!isPlanCompleted(p, sessionLogs) && (
+                                        <button
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={() => onArchivePlanification(p, !p.archivedAt)}
+                                        >
+                                            {p.archivedAt ? 'Desarchivar' : 'Archivar'}
                                         </button>
                                     )}
                                     <button
@@ -151,6 +169,78 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                                     </button>
                                 </div>
                             </div>
+        );
+    }
+
+    // mode: 'sheet' (spreadsheet only), 'progress' (per-exercise evolution only) or 'both' (mobile).
+    function renderSheetGroup(plan, mode = 'both') {
+        if (mode === 'progress' && plan.status === 'draft') return null;
+        const open = isGroupOpen(plan);
+        const done = isArchived(plan);
+        const { done: nDone, total } = planProgress(plan, sessionLogs);
+        return (
+            <div key={plan.id} className="plan-sessions-group">
+                <button className={`plan-group-head${done ? ' is-completed' : ''}`} aria-expanded={open} onClick={() => toggleGroup(plan)}>
+                    <svg className="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    {plan.name}
+                    {plan.status === 'draft' && <span className="plan-status-badge plan-status-badge--draft">Borrador</span>}
+                    <span className="plan-group-meta">{isPlanCompleted(plan, sessionLogs) ? 'Completada' : plan.archivedAt ? 'Archivada' : `${nDone}/${total} sesiones`}</span>
+                </button>
+                {open && mode !== 'progress' && <PlanSessionsSheet plan={plan} sessionLogs={sessionLogs || []} onOpenLog={openLogFromSheet} />}
+                {open && mode !== 'sheet' && plan.status !== 'draft' && (
+                    <>
+                        {mode === 'both' && <h3 className="profile-subsection-title">Evolución por ejercicio</h3>}
+                        <ExerciseProgress plan={plan} sessionLogs={sessionLogs || []} onOpenLog={openLogFromSheet} />
+                    </>
+                )}
+            </div>
+        );
+    }
+
+    function renderPlansBody(mode) {
+        return (
+            <>
+                {planifications.length === 0 ? (
+                    <p className="profile-empty">Sin planificación asignada.</p>
+                ) : (
+                    <>
+                        {activePlans.map(p => renderSheetGroup(p, mode))}
+                        {archivedPlans.length > 0 && (
+                            <>
+                                <button className="archived-fold" aria-expanded={showArchivedSheets} onClick={() => setShowArchivedSheets(v => !v)}>
+                                    <svg className="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                    Archivadas ({archivedPlans.length})
+                                </button>
+                                {showArchivedSheets && archivedPlans.map(p => renderSheetGroup(p, mode))}
+                            </>
+                        )}
+                    </>
+                )}
+            </>
+        );
+    }
+
+    function renderHistoryBody() {
+        return (
+            <>
+                {completedLogs.length === 0 ? (
+                    <p className="profile-empty">Sin sesiones completadas.</p>
+                ) : (
+                    <>
+                        {pendingLogs.length === 0 && <p className="profile-empty">No hay sesiones pendientes de revisar.</p>}
+                        <div className="session-history-list">{pendingLogs.map(renderLogCard)}</div>
+                        {reviewedLogs.length > 0 && (
+                            <>
+                                <button className="archived-fold" aria-expanded={showReviewed} onClick={() => setShowReviewed(v => !v)}>
+                                    <svg className="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                    Archivadas · revisadas ({reviewedLogs.length})
+                                </button>
+                                {showReviewed && <div className="session-history-list">{reviewedLogs.map(renderLogCard)}</div>}
+                            </>
+                        )}
+                    </>
+                )}
+            </>
         );
     }
 
@@ -204,54 +294,37 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                 )}
             </div>
 
-            <div className="profile-section">
-                <div className="profile-section-header">
-                    <h2 className="profile-section-title">Sesiones del plan</h2>
+            {desktop ? (
+                <div className="profile-section profile-tabs">
+                    <div className="profile-tabs-bar" role="tablist">
+                        {[['sheet', 'Sesiones del plan'], ['progress', 'Evolución por ejercicio'], ['history', 'Historial de sesiones']].map(([id, label]) => (
+                            <button key={id} type="button" role="tab" aria-selected={tab === id} className={`profile-tab${tab === id ? ' is-active' : ''}`} onClick={() => setTab(id)}>
+                                {label}
+                                {id === 'history' && pendingLogs.length > 0 && <span className="profile-tab-badge">{pendingLogs.length}</span>}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="profile-tab-panel" role="tabpanel">
+                        {tab === 'history' ? renderHistoryBody() : renderPlansBody(tab)}
+                    </div>
                 </div>
-                {planifications.length === 0 ? (
-                    <p className="profile-empty">Sin planificación asignada.</p>
-                ) : (
-                    [...activePlans, ...archivedPlans].map(plan => {
-                        const open = isGroupOpen(plan);
-                        const done = isPlanCompleted(plan, sessionLogs);
-                        const { done: nDone, total } = planProgress(plan, sessionLogs);
-                        return (
-                            <div key={plan.id} className="plan-sessions-group">
-                                <button className={`plan-group-head${done ? ' is-completed' : ''}`} aria-expanded={open} onClick={() => toggleGroup(plan)}>
-                                    <svg className="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                    {plan.name}
-                                    {plan.status === 'draft' && <span className="plan-status-badge plan-status-badge--draft">Borrador</span>}
-                                    <span className="plan-group-meta">{done ? 'Completada' : `${nDone}/${total} sesiones`}</span>
-                                </button>
-                                {open && <PlanSessionsSheet plan={plan} sessionLogs={sessionLogs || []} onOpenLog={openLogFromSheet} />}
-                            </div>
-                        );
-                    })
-                )}
-            </div>
+            ) : (
+                <>
+                    <div className="profile-section">
+                        <div className="profile-section-header">
+                            <h2 className="profile-section-title">Sesiones del plan</h2>
+                        </div>
+                        {renderPlansBody('both')}
+                    </div>
 
-            <div className="profile-section">
-                <div className="profile-section-header">
-                    <h2 className="profile-section-title">Historial de sesiones</h2>
-                </div>
-                {completedLogs.length === 0 ? (
-                    <p className="profile-empty">Sin sesiones completadas.</p>
-                ) : (
-                    <>
-                        {pendingLogs.length === 0 && <p className="profile-empty">No hay sesiones pendientes de revisar.</p>}
-                        <div className="session-history-list">{pendingLogs.map(renderLogCard)}</div>
-                        {reviewedLogs.length > 0 && (
-                            <>
-                                <button className="archived-fold" aria-expanded={showReviewed} onClick={() => setShowReviewed(v => !v)}>
-                                    <svg className="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                    Archivadas · revisadas ({reviewedLogs.length})
-                                </button>
-                                {showReviewed && <div className="session-history-list">{reviewedLogs.map(renderLogCard)}</div>}
-                            </>
-                        )}
-                    </>
-                )}
-            </div>
+                    <div className="profile-section">
+                        <div className="profile-section-header">
+                            <h2 className="profile-section-title">Historial de sesiones</h2>
+                        </div>
+                        {renderHistoryBody()}
+                    </div>
+                </>
+            )}
 
             {copyFrom && (
                 <div className="modal-overlay open" onClick={e => { if (e.target === e.currentTarget && !copying) setCopyFrom(null); }}>

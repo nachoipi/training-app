@@ -9,6 +9,7 @@ const SELECT = `
            weeks,
            week_days  AS "weekDays",
            status,
+           archived_at AS "archivedAt",
            created_at AS "createdAt"
       FROM planifications`;
 
@@ -34,7 +35,8 @@ export const PlanificationModel = {
             `INSERT INTO planifications (id, athlete_id, created_by, name, weeks, week_days)
              VALUES ($1, $2, $3, $4, $5, $6::jsonb)
              RETURNING id, athlete_id AS "athleteId", created_by AS "createdBy",
-                       name, weeks, week_days AS "weekDays", status, created_at AS "createdAt"`,
+                       name, weeks, week_days AS "weekDays", status,
+                       archived_at AS "archivedAt", created_at AS "createdAt"`,
             [uid(), athleteId, createdBy, name, weeks ?? 4, JSON.stringify(weekDays ?? [])]
         );
         return rows[0];
@@ -61,7 +63,8 @@ export const PlanificationModel = {
             `UPDATE planifications SET ${sets.join(', ')}
               WHERE id = $${params.length}
              RETURNING id, athlete_id AS "athleteId", created_by AS "createdBy",
-                       name, weeks, week_days AS "weekDays", status, created_at AS "createdAt"`,
+                       name, weeks, week_days AS "weekDays", status,
+                       archived_at AS "archivedAt", created_at AS "createdAt"`,
             params
         );
         return rows[0] || null;
@@ -73,7 +76,21 @@ export const PlanificationModel = {
             `UPDATE planifications SET status = 'published'
               WHERE id = $1
              RETURNING id, athlete_id AS "athleteId", created_by AS "createdBy",
-                       name, weeks, week_days AS "weekDays", status, created_at AS "createdAt"`,
+                       name, weeks, week_days AS "weekDays", status,
+                       archived_at AS "archivedAt", created_at AS "createdAt"`,
+            [id]
+        );
+        return rows[0] || null;
+    },
+
+    // Manual archive toggle (trainer side). Returns the row, or null when the id does not exist.
+    setArchived: async (id, archived) => {
+        const rows = await query(
+            `UPDATE planifications SET archived_at = ${archived ? 'COALESCE(archived_at, now())' : 'NULL'}
+              WHERE id = $1
+             RETURNING id, athlete_id AS "athleteId", created_by AS "createdBy",
+                       name, weeks, week_days AS "weekDays", status,
+                       archived_at AS "archivedAt", created_at AS "createdAt"`,
             [id]
         );
         return rows[0] || null;

@@ -259,6 +259,14 @@ export default function Dashboard() {
         if (n.type === 'session_completed') {
             setSelectedLogKey({ planId, week, dayNumber });
             setSection('session-detail');
+        } else if (n.type === 'plan_updated' && week && dayNumber) {
+            // The coach adjusted a future session: open it (Mi Plan when it can't be resolved).
+            const plan = plans.find(p => p.id === planId);
+            const day = plan ? (plan.weekDays?.[week - 1] ?? plan.days ?? []).find(d => d.dayNumber === dayNumber) : null;
+            if (plan && day) {
+                setSelectedSession({ plan, week, day, from: 'my-plan' });
+                setSection('my-session');
+            } else setSection('my-plan');
         } else if (n.type === 'session_reviewed') {
             const plan = plans.find(p => p.id === planId);
             const days = plan ? (plan.weekDays?.[week - 1] ?? plan.days ?? []) : [];
@@ -411,6 +419,13 @@ export default function Dashboard() {
                         const published = await planificationService.publish(plan.id);
                         setPlanifications(ps => ps.map(p => p.id === published.id ? published : p));
                         showToast(`Plan asignado a ${selectedAthlete?.name ?? 'el alumno'}`);
+                    } catch (err) { showToast(err.message, 'error'); }
+                }}
+                onArchivePlanification={async (plan, archived) => {
+                    try {
+                        const saved = await planificationService.archive(plan.id, archived);
+                        setPlanifications(ps => ps.map(p => p.id === saved.id ? saved : p));
+                        showToast(archived ? 'Planificación archivada' : 'Planificación desarchivada');
                     } catch (err) { showToast(err.message, 'error'); }
                 }}
                 onNavigate={setSection}

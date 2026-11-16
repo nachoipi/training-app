@@ -5,7 +5,7 @@ import { EXERCISE_KIND_LABELS, EXERCISE_KIND_COLORS } from '../../utils/constant
 // Kind options of the first column: the exercise kinds plus the rest row.
 const KIND_OPTIONS = [...Object.entries(EXERCISE_KIND_LABELS), ['rest', 'Descanso']];
 
-import { blockLabelAt, blockTitles } from '../../utils/helpers.js';
+import { blockLabelAt, blockTitles, blockPrefixes, displayPosition, listMismatch } from '../../utils/helpers.js';
 const MEDIDA_OPTIONS = ['Distancia', 'Tiempo', 'Peso'];
 
 function makeExercise(blockLabel, position, kind = 'exercise') {
@@ -69,7 +69,7 @@ function initWeekDays(weekCount, templateDays) {
     return Array.from({ length: weekCount }, () => deepCopyDays(templateDays));
 }
 
-export function AthletePlanification({ athlete, exercises, routines = [], planification, onBack, onSave, onShowToast }) {
+export function AthletePlanification({ athlete, exercises, routines = [], planification, sessionLogs = [], onBack, onSave, onShowToast }) {
     const [planName, setPlanName] = useState(planification?.name ?? '');
     const [weeks, setWeeks] = useState(planification?.weeks ?? 4);
     const [weekDays, setWeekDays] = useState(() => {
@@ -93,8 +93,20 @@ export function AthletePlanification({ athlete, exercises, routines = [], planif
 
     const trainingDays = weekDays[0]?.length ?? 3;
 
-    const [collapsedWeeks, setCollapsedWeeks] = useState({});
-    const [collapsedDays, setCollapsedDays] = useState({});
+    // Days the athlete already started (any log) are frozen on a published plan so history is
+    // never rewritten (the backend enforces it too). They also set a floor for weeks / days.
+    const trainedLogs = isPublished ? sessionLogs.filter(l => l.planId === planification.id) : [];
+    const isLocked = (weekIdx, dayNumber) => trainedLogs.some(l => l.week === weekIdx + 1 && l.dayNumber === dayNumber);
+    const minWeeks = Math.max(1, ...trainedLogs.map(l => l.week));
+    const minDays = Math.max(1, ...trainedLogs.map(l => l.dayNumber));
+
+    // A week where every day was trained, and any trained day, start collapsed: the coach
+    // lands on what can still change.
+    const weekFullyTrained = wi => (weekDays[wi]?.length ?? 0) > 0 && weekDays[wi].every(d => isLocked(wi, d.dayNumber));
+    const [collapsedWeeks, setCollapsedWeeks] = useState(() =>
+        Object.fromEntries(weekDays.map((_, wi) => [wi, weekFullyTrained(wi)]).filter(([, v]) => v)));
+    const [collapsedDays, setCollapsedDays] = useState(() => Object.fromEntries(
+        weekDays.flatMap((days, wi) => days.map((d, di) => [`${wi}-${di}`, isLocked(wi, d.dayNumber)]).filter(([, v]) => v))));
     const [commentOpen, setCommentOpen] = useState({});
 
     // Day the routine picker is open for: { weekIdx, dayIdx } or null; and the block being dragged.
@@ -262,14 +274,20 @@ export function AthletePlanification({ athlete, exercises, routines = [], planif
     // KG, Distancia MTS); Tiempo takes text (m:ss), everything else a number.
     function cargaInput(ex, weekIdx, dayIdx, blockIdx, exIdx) {
         const placeholder = { Tiempo: 'm:ss', Peso: 'KG', Distancia: 'MTS' }[ex.medida] || '0';
+        // Like Reps, Carga can list one value per serie ("20,25,30"), so it is a text input
+        // restricted to digits, dots and commas (Tiempo also takes ":").
+        const allowed = ex.medida === 'Tiempo' ? /[^0-9:.,]/g : /[^0-9.,]/g;
+        const bad = ex.isRest ? 0 : listMismatch(ex.carga, ex.series);
         return (
             <input
-                className="planification-input planification-num-input"
-                type={ex.medida === 'Tiempo' ? 'text' : 'number'}
-                {...(ex.medida === 'Tiempo' ? { inputMode: 'numeric', maxLength: 8 } : { min: 0, step: 'any' })}
+                className={`planification-input planification-num-input${bad ? ' is-invalid' : ''}`}
+                type="text"
+                inputMode={ex.medida === 'Tiempo' ? 'numeric' : 'decimal'}
+                maxLength={ex.isRest ? 8 : 40}
                 placeholder={placeholder}
+                title={bad ? `Hay ${bad} cargas y ${ex.series} series: tiene que haber una por serie` : 'Un valor para todas las series, o uno por serie separados por coma (ej: 20,25,30)'}
                 value={ex.carga ?? ''}
-                onChange={e => updateExercise(weekIdx, dayIdx, blockIdx, exIdx, 'carga', e.target.value)}
+                onChange={e => updateExercise(weekIdx, dayIdx, blockIdx, exIdx, 'carga', e.target.value.replace(allowed, ''))}
             />
         );
     }
@@ -285,7 +303,7 @@ export function AthletePlanification({ athlete, exercises, routines = [], planif
                 style={{ background: EXERCISE_KIND_COLORS[kind] }}
                 title={`Tipo: ${(KIND_OPTIONS.find(([k]) => k === kind) || [])[1] || ''} (clic para cambiar)`}
             >
-                {ex.position}
+                {displayPosition(blockPrefixes(weekDays[weekIdx][dayIdx].blocks)[blockIdx], ex)}
                 <select
                     value={kind}
                     onChange={e => updateExercise(weekIdx, dayIdx, blockIdx, exIdx, 'kind', e.target.value)}
@@ -385,6 +403,15 @@ export function AthletePlanification({ athlete, exercises, routines = [], planif
                             onShowToast(`Falta REPS en ${ex.position} (Semana ${wi + 1}, Día ${day.dayNumber})`, 'error');
                             return;
                         }
+                        // Days the athlete already trained are frozen, so a legacy mismatch there can't block saving.
+                        if (!isLocked(wi, day.dayNumber)) {
+                            const badReps = listMismatch(ex.reps, ex.series), badCarga = listMismatch(ex.carga, ex.series);
+                            if (badReps || badCarga) {
+                                const what = badReps ? `${badReps} reps` : `${badCarga} cargas`;
+                                onShowToast(`${displayPosition(blockPrefixes(day.blocks)[day.blocks.indexOf(block)], ex)} (Semana ${wi + 1}, Día ${day.dayNumber}): hay ${what} y ${ex.series} series. Tiene que haber un valor por serie.`, 'error');
+                                return;
+                            }
+                        }
                     }
                 }
             }
@@ -426,7 +453,7 @@ export function AthletePlanification({ athlete, exercises, routines = [], planif
                 <div className="planification-config-field">
                     <label className="planification-label">Semanas</label>
                     <select className="planification-select" value={weeks} onChange={e => handleWeeksChange(e.target.value)}>
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+                        {Array.from({ length: 12 }, (_, i) => i + 1).filter(n => n >= minWeeks).map(n => (
                             <option key={n} value={n}>{n}</option>
                         ))}
                     </select>
@@ -434,7 +461,7 @@ export function AthletePlanification({ athlete, exercises, routines = [], planif
                 <div className="planification-config-field">
                     <label className="planification-label">Días por semana</label>
                     <select className="planification-select" value={trainingDays} onChange={e => setTrainingDays(e.target.value)}>
-                        {Array.from({ length: 7 }, (_, i) => i + 1).map(n => (
+                        {Array.from({ length: 7 }, (_, i) => i + 1).filter(n => n >= minDays).map(n => (
                             <option key={n} value={n}>{n}</option>
                         ))}
                     </select>
@@ -447,7 +474,7 @@ export function AthletePlanification({ athlete, exercises, routines = [], planif
                 return (
                 <div key={weekIdx} className="planification-week">
                     <div className={`planification-week-header${isWeekCollapsed ? ' planification-week-header--collapsed' : ''}`}>
-                        <span className="planification-week-label">SEMANA {weekIdx + 1}</span>
+                        <span className="planification-week-label">SEMANA {weekIdx + 1}{weekFullyTrained(weekIdx) && <span className="planification-day-locked" title="El alumno ya entrenó toda la semana"> 🔒 Ya entrenado</span>}</span>
                         <button
                             className="planification-collapse-btn"
                             onClick={() => toggleWeek(weekIdx)}
@@ -462,17 +489,18 @@ export function AthletePlanification({ athlete, exercises, routines = [], planif
 
                     {!isWeekCollapsed && (weekDays[weekIdx] ?? []).map((day, dayIdx) => {
                         const isDayCollapsed = !!collapsedDays[`${weekIdx}-${dayIdx}`];
+                        const locked = isLocked(weekIdx, day.dayNumber);
                         return (
                 <div key={dayIdx} className="planification-day">
                     <div className="planification-day-header">
-                        <span className="planification-day-label">DÍA {day.dayNumber}</span>
+                        <span className="planification-day-label">DÍA {day.dayNumber}{locked && <span className="planification-day-locked" title="El alumno ya empezó esta sesión: no se puede modificar"> 🔒 Ya entrenado</span>}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {!isDayCollapsed && routines.length > 0 && (
+                            {!isDayCollapsed && !locked && routines.length > 0 && (
                                 <button className="btn btn-secondary btn-sm" onClick={() => setRoutinePicker({ weekIdx, dayIdx })}>
                                     Importar rutina
                                 </button>
                             )}
-                            {!isDayCollapsed && (
+                            {!isDayCollapsed && !locked && (
                                 <button className="btn btn-secondary btn-sm" onClick={() => addBlock(weekIdx, dayIdx)}>
                                     + Bloque
                                 </button>
@@ -490,7 +518,8 @@ export function AthletePlanification({ athlete, exercises, routines = [], planif
                         </div>
                     </div>
 
-                    {!isDayCollapsed && day.blocks.map((block, blockIdx) => (
+                    {!isDayCollapsed && (<fieldset disabled={locked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, opacity: locked ? 0.6 : 1 }}>
+                    {day.blocks.map((block, blockIdx) => (
                         <div
                             key={blockIdx}
                             className="planification-block"
@@ -505,7 +534,7 @@ export function AthletePlanification({ athlete, exercises, routines = [], planif
                                 {day.blocks.length > 1 && (
                                     <span
                                         className="planification-block-handle"
-                                        draggable
+                                        draggable={!locked}
                                         title="Arrastrá para reordenar el bloque"
                                         onDragStart={e => {
                                             setDragBlock({ weekIdx, dayIdx, from: blockIdx });
@@ -590,8 +619,9 @@ export function AthletePlanification({ athlete, exercises, routines = [], planif
                                         onChange={e => updateExercise(weekIdx, dayIdx, blockIdx, exIdx, 'series', e.target.value)}
                                     />
                                     <input
-                                        className="planification-input planification-num-input"
+                                        className={`planification-input planification-num-input${listMismatch(ex.reps, ex.series) ? ' is-invalid' : ''}`}
                                         type="text"
+                                        title={listMismatch(ex.reps, ex.series) ? `Hay ${listMismatch(ex.reps, ex.series)} reps y ${ex.series} series: tiene que haber una por serie` : undefined}
                                         placeholder='8 o 8,10,12'
                                         value={ex.reps ?? ''}
                                         onChange={e => updateExercise(weekIdx, dayIdx, blockIdx, exIdx, 'reps', e.target.value)}
@@ -628,7 +658,7 @@ export function AthletePlanification({ athlete, exercises, routines = [], planif
                         </div>
                     ))}
 
-                    {!isDayCollapsed && (day.comentario || commentOpen[`${weekIdx}-${dayIdx}`] ? (
+                    {(day.comentario || commentOpen[`${weekIdx}-${dayIdx}`] ? (
                         <div className="planification-day-comment-wrap">
                             <textarea
                                 className="planification-input planification-day-comment"
@@ -655,6 +685,7 @@ export function AthletePlanification({ athlete, exercises, routines = [], planif
                             + Comentario del día
                         </button>
                     ))}
+                    </fieldset>)}
                 </div>
                 );
             })}

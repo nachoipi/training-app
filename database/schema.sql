@@ -88,6 +88,8 @@ CREATE TABLE planifications (
     week_days   JSONB,
     -- Athletes only see 'published' plans (migrations/2026-10-26_planification_status.sql).
     status      VARCHAR(16)  NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
+    -- Set when the trainer archives the plan by hand (migrations/2026-11-09_planification_archived.sql).
+    archived_at TIMESTAMPTZ,
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 

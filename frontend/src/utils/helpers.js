@@ -26,8 +26,26 @@ export function getCurrentUser() {
 
 const MEDIDA_UNIT = { Distancia: 'MTS.', Tiempo: '"', Peso: 'KG' };
 
+// Carga may be one value ("20") or one per serie ("20,25,30", like reps). Series without their own
+// value reuse the first one. Returns the raw value for serie index `i` (0-based).
+export function cargaForSerie(ex, i) {
+    const raw = ex?.carga;
+    if (typeof raw !== 'string' || !raw.includes(',')) return raw ?? '';
+    const arr = raw.split(',').map(c => c.trim());
+    return arr[i] ?? arr[0] ?? '';
+}
+
 export function formatCarga(ex) {
     const raw = ex?.carga;
+    // A list shows each serie's value once with the unit at the end: "20 / 25 / 30 KG".
+    if (typeof raw === 'string' && raw.includes(',')) {
+        const one = raw.split(',').map(p => formatCarga({ ...ex, carga: p.trim() }));
+        if (one.every(x => x === '—')) return '—';
+        const unit = MEDIDA_UNIT[ex?.medida];
+        const tail = unit ? ` ${unit}` : '';
+        const bare = one.map(x => (x !== '—' && tail && x.endsWith(tail)) ? x.slice(0, -tail.length) : x);
+        return bare.join(' / ') + (unit && one.some(x => x.endsWith(tail)) ? tail : '');
+    }
     // Tiempo loads are entered as m:ss and shown as typed; older plain numbers are seconds.
     if (ex?.medida === 'Tiempo' && typeof raw === 'string' && raw.includes(':')) return raw;
     const num = Number(raw);
@@ -116,6 +134,27 @@ export function blockLabelAt(i) {
 // themselves, so the first non-warm-up block is always "Bloque A". Pass the blocks as they are
 // shown (views that hide warm-ups pass them already filtered). Only a display name: the plan's
 // own `label` / exercise positions (B1…) are untouched.
+// Position prefix of each block as shown to the coach: a warm-up-only block is "WU" (WU1, WU2…),
+// the others count A, B… among themselves (same rule as blockTitles). Stored positions (A1, B2…) are
+// never changed, they key logs and feedback; use displayPosition() only to render them.
+export function blockPrefixes(blocks) {
+    let n = 0;
+    return blocks.map(b => {
+        const training = (b.exercises || []).filter(e => !e.isRest);
+        return training.length > 0 && training.every(e => e.kind === 'warmup') ? 'WU' : blockLabelAt(n++);
+    });
+}
+// Reps / Carga typed as a list ("6,7,8,9") must have one value per serie. Returns the number of
+// values when the list does not match `series`, else 0 (a single value for every serie is fine).
+export function listMismatch(value, series) {
+    const raw = String(value ?? '');
+    if (!raw.includes(',')) return 0;
+    const n = raw.split(',').filter(v => v.trim() !== '').length;
+    return n !== Number(series) ? n : 0;
+}
+export function displayPosition(prefix, ex) {
+    return `${prefix}${/\d+$/.exec(ex?.position || '')?.[0] ?? ''}`;
+}
 export function blockTitles(blocks) {
     let n = 0;
     return blocks.map(b => {
@@ -141,13 +180,13 @@ export function secondsToClock(total) {
 
 // ── Prescribed vs actual, per serie (trainer's session detail) ────────────────────────────────
 // Both columns use the same shape `[{ reps, carga }]` and the same formatter so they read alike.
-// `ex.reps` may be one value ("8") or one per serie ("10,8,6"); carga is a single prescribed value.
+// `ex.reps` may be one value ("8") or one per serie ("10,8,6"); carga likewise ("20,25,30" or one value for all).
 export function prescribedSeries(ex) {
     const n = Math.max(1, Number(ex?.series) || 1);
     const repsArr = ex?.reps ? String(ex.reps).split(',').map(r => r.trim()) : [];
     return Array.from({ length: n }, (_, i) => ({
         reps: repsArr[i] ?? repsArr[0] ?? '',
-        carga: ex?.carga ?? '',
+        carga: cargaForSerie(ex, i),
     }));
 }
 
@@ -201,4 +240,46 @@ export function isPlanCompleted(plan, sessionLogs) {
 export function isPlanArchivedForAthlete(plan, sessionLogs) {
     if (!isPlanCompleted(plan, sessionLogs)) return false;
     return (sessionLogs || []).filter(l => l.planId === plan.id && l.completed).every(l => !!l.reviewedAt);
+}
+
+// ── Evolution of each exercise across the completed sessions of a plan ────────────────────────
+// Returns [{ key, name, entries: [{ week, dayNumber, log, ex, serieRows, rpe, text, volume }] }],
+// one group per exercise (matched by exerciseId, name as fallback), entries in plan order.
+// `text` is the realized series joined ("8 × 20 kg · 8 × 20 kg"); `volume` the realized volume
+// (sum of reps × load over the series, KG; NaN when there is no weight to count) so the UI can show
+// the change vs the previous session.
+export function exerciseHistory(plan, sessionLogs) {
+    const logs = (sessionLogs || [])
+        .filter(l => l.planId === plan.id && l.completed)
+        .sort((a, b) => a.week - b.week || a.dayNumber - b.dayNumber);
+    const groups = new Map();
+    for (const log of logs) {
+        const days = plan.weekDays?.[log.week - 1] ?? plan.days ?? [];
+        const day = days.find(d => d.dayNumber === log.dayNumber);
+        const exs = (day?.blocks ?? []).flatMap(b => b.exercises ?? []).filter(e => !e.isRest && e.kind !== 'warmup');
+        for (const ex of collapseUnilateral(exs, log)) {
+            const name = ex.exerciseName || '';
+            const key = ex.exerciseId || name.trim().toLowerCase();
+            if (!key) continue;
+            const serieRows = (log.exercises || []).filter(r => r.position === ex.position)
+                .sort((a, b) => a.serieIndex - b.serieIndex);
+            const done = prescribedSeries(ex).map((_, i) => {
+                const r = serieRows.find(x => x.serieIndex === i + 1);
+                return { reps: r?.actualReps ?? '', carga: r?.actualCarga ?? '' };
+            });
+            const text = done.map(s => formatSerie(s, ex)).filter(t => t !== '—').join(' · ');
+            // Volume only makes sense for weight loads (Peso); time / distance loads give none.
+            const counted = ex.medida === 'Peso'
+                ? done.map(s => Number(s.reps) * Number(s.carga)).filter(n => Number.isFinite(n) && n > 0)
+                : [];
+            if (!groups.has(key)) groups.set(key, { key, name, entries: [] });
+            groups.get(key).entries.push({
+                week: log.week, dayNumber: log.dayNumber, log, ex, serieRows,
+                rpe: log.exerciseSummaries?.find(s => s.position === ex.position)?.rpe || '',
+                text: text || '—',
+                volume: counted.length ? counted.reduce((a, b) => a + b, 0) : NaN,
+            });
+        }
+    }
+    return [...groups.values()];
 }

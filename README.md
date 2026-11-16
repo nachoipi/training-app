@@ -91,6 +91,13 @@ Workflow order: **start-task → investigate → plan → testing → commit →
 
 ## Changelog
 
+### 2026-11-16 (Fase 4: coach adjusts future sessions)
+- **Edit future days of a published plan**: days the athlete already started (any log) are frozen: the API answers 409 if an update alters them, and the editor shows them read-only with "Ya entrenado" (trained days and fully trained weeks start collapsed). Weeks and days per week can't drop below what is trained.
+- **Plan-change notification**: the athlete's bell says which sessions the coach adjusted ("Ajustó: Semana 2, Día 1") and opens that session; saves that change nothing stay silent.
+- **Carga per serie**: Reps and Carga accept one value per serie (`20,25,30`); the athlete session pre-fills each serie's load. A list with a different count than the series is flagged in red and blocks saving.
+- **Manual archiving**: ARCHIVAR / DESARCHIVAR on each plan (`PATCH /api/planifications/:id/archive`); archived plans, plus completed ones, go to an "Archivadas" fold in Planificación and Sesiones del plan. New column `planifications.archived_at` (migration `2026-11-09_planification_archived.sql`). **Apply the migration on existing databases before deploying.**
+- **Coach profile (desktop)**: "Sesiones del plan", "Evolución por ejercicio" and "Historial de sesiones" are browser-like tabs. The spreadsheet shows `series - reps × carga / …`, one row per position + exercise, and warm-up blocks are numbered WU1, WU2… so training blocks start at A. "Evolución por ejercicio" lists realized sets, volume (Σ reps × carga) and RPE per session.
+
 ### 2026-11-06 (Fase 3: coach receives and reviews the session)
 - **Per-exercise coach feedback**: in the session detail (dashboard + athlete profile) each exercise has a feedback box next to the athlete's clip. New `session_logs.exercise_feedback` JSONB (migration `2026-11-05_exercise_feedback.sql`, outside `payload` so athlete saves can't erase it); `PATCH /api/session-logs/review` also accepts `exerciseFeedback: [{position, comment}]`. "Guardar feedback" keeps it a draft: only "Marcar como revisada" sets `reviewed_at`, publishes the comments to the athlete and notifies them. **Apply the migration on existing databases before deploying.**
 - **Feedback follows the exercise**: the latest reviewed comment for the same exercise (any position) of the same plan is shown to the athlete in later sessions (overview, exercise card, home hero) until replaced or the plan ends.
