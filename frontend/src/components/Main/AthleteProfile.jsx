@@ -7,7 +7,7 @@
 // The expanded history body is the shared SessionLogDetail (also used by the trainer dashboard).
 import React, { useState, useEffect } from 'react';
 import { userService } from '../../services/userService.js';
-import { formatDate, isPlanCompleted, planProgress } from '../../utils/helpers.js';
+import { formatDate, isPlanCompleted, planProgress, trainedAt, formatDMY, exerciseKey, athleteExerciseHistory } from '../../utils/helpers.js';
 import { StatCard } from '../Common/index.jsx';
 import { SessionLogDetail } from './SessionLogDetail.jsx';
 import { PlanSessionsSheet } from './PlanSessionsSheet.jsx';
@@ -18,7 +18,7 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
     const athletePlanIds = new Set(planifications.map(p => p.id));
     const completedLogs = (sessionLogs || [])
         .filter(l => athletePlanIds.has(l.planId) && l.completed)
-        .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+        .sort((a, b) => trainedAt(b) - trainedAt(a)); // by the day the athlete trained ("Fecha y hora"), newest first
 
     const [expandedLogId, setExpandedLogId] = useState(null);
     // Desktop: "Sesiones del plan", "Evolución por ejercicio" and "Historial de sesiones" share one
@@ -43,8 +43,12 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
     // History: sessions still to review first (newest first); reviewed ones are archived into a
     // single collapsed fold at the bottom.
     // A session is archived only once the coach marked it reviewed ("Marcar como revisada").
-    const isArchivedLog = l => !!l.reviewedAt;
-    const pendingLogs = completedLogs.filter(l => !isArchivedLog(l));
+    // A reviewed session is archived only once its plan is archived too (completed or archived by hand);
+    // while the plan is still active it stays in the main list, tagged "Revisada".
+    const planOfLog = l => planifications.find(p => p.id === l.planId);
+    const isArchivedLog = l => !!l.reviewedAt && (!planOfLog(l) || isArchived(planOfLog(l)));
+    const mainLogs = completedLogs.filter(l => !isArchivedLog(l));
+    const pendingLogs = completedLogs.filter(l => !l.reviewedAt);
     const reviewedLogs = completedLogs.filter(isArchivedLog);
     const [showReviewed, setShowReviewed] = useState(false);
 
@@ -52,17 +56,18 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
         const plan = planifications.find(p => p.id === log.planId);
         const isOpen = expandedLogId === log.id;
         return (
-                                <div key={log.id} id={`history-log-${log.id}`} className={`session-history-card ${isOpen ? 'session-history-card--open' : ''}`}>
+                                <div key={log.id} id={`history-log-${log.id}`} className={`session-history-card ${isOpen ? 'session-history-card--open' : ''}${log.reviewedAt ? ' session-history-card--reviewed' : ''}`}>
                                     <button
                                         className="session-history-card-header"
                                         onClick={() => setExpandedLogId(isOpen ? null : log.id)}
                                         aria-expanded={isOpen}
                                     >
-                                        <span className="session-history-card-date">{formatDate(log.completedAt.slice(0, 10))}</span>
                                         <span className="session-history-card-meta">
                                             <span className="session-history-card-plan">{plan?.name || '—'}</span>
                                             <span className="session-history-card-week">Semana {log.week} — Día {log.dayNumber}</span>
                                         </span>
+                                        {log.reviewedAt && <span className="session-history-reviewed-tag">Revisada</span>}
+                                        <span className="session-history-card-date">{formatDMY(trainedAt(log))}</span>
                                         <svg
                                             className="session-history-card-chevron"
                                             width="16" height="16" viewBox="0 0 16 16" fill="none"
@@ -74,6 +79,16 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                                     {isOpen && <SessionLogDetail log={log} plan={plan} onReview={onReviewSessionLog} />}
                                 </div>
         );
+    }
+
+    // Exercise name clicked in "Sesiones del plan": jump to its group in "Evolución por ejercicio"
+    // (same key as exerciseHistory: exerciseId, else lower-cased name).
+    const [exFocus, setExFocus] = useState(null);
+    function openExerciseProgress(plan, ex) {
+        const key = exerciseKey(ex);
+        if (!key) return;
+        setExFocus({ key, n: Date.now() });
+        if (desktop) setTab('progress');
     }
 
     // Opens a session from the sheet: expands it in the history below and scrolls there.
@@ -172,9 +187,7 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
         );
     }
 
-    // mode: 'sheet' (spreadsheet only), 'progress' (per-exercise evolution only) or 'both' (mobile).
-    function renderSheetGroup(plan, mode = 'both') {
-        if (mode === 'progress' && plan.status === 'draft') return null;
+    function renderSheetGroup(plan) {
         const open = isGroupOpen(plan);
         const done = isArchived(plan);
         const { done: nDone, total } = planProgress(plan, sessionLogs);
@@ -186,32 +199,32 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                     {plan.status === 'draft' && <span className="plan-status-badge plan-status-badge--draft">Borrador</span>}
                     <span className="plan-group-meta">{isPlanCompleted(plan, sessionLogs) ? 'Completada' : plan.archivedAt ? 'Archivada' : `${nDone}/${total} sesiones`}</span>
                 </button>
-                {open && mode !== 'progress' && <PlanSessionsSheet plan={plan} sessionLogs={sessionLogs || []} onOpenLog={openLogFromSheet} />}
-                {open && mode !== 'sheet' && plan.status !== 'draft' && (
-                    <>
-                        {mode === 'both' && <h3 className="profile-subsection-title">Evolución por ejercicio</h3>}
-                        <ExerciseProgress plan={plan} sessionLogs={sessionLogs || []} onOpenLog={openLogFromSheet} />
-                    </>
-                )}
+                {open && <PlanSessionsSheet plan={plan} sessionLogs={sessionLogs || []} onOpenLog={openLogFromSheet} onOpenExercise={openExerciseProgress} onReview={onReviewSessionLog} />}
             </div>
         );
     }
 
-    function renderPlansBody(mode) {
+    // Evolución por ejercicio spans every plan of the athlete (not one block per plan).
+    const exerciseGroups = athleteExerciseHistory(planifications, sessionLogs || [], activePlans);
+    function renderProgressBody() {
+        return <ExerciseProgress groups={exerciseGroups} sessionLogs={sessionLogs || []} onOpenLog={openLogFromSheet} onReview={onReviewSessionLog} focus={exFocus} />;
+    }
+
+    function renderPlansBody() {
         return (
             <>
                 {planifications.length === 0 ? (
                     <p className="profile-empty">Sin planificación asignada.</p>
                 ) : (
                     <>
-                        {activePlans.map(p => renderSheetGroup(p, mode))}
+                        {activePlans.map(p => renderSheetGroup(p))}
                         {archivedPlans.length > 0 && (
                             <>
                                 <button className="archived-fold" aria-expanded={showArchivedSheets} onClick={() => setShowArchivedSheets(v => !v)}>
                                     <svg className="chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                     Archivadas ({archivedPlans.length})
                                 </button>
-                                {showArchivedSheets && archivedPlans.map(p => renderSheetGroup(p, mode))}
+                                {showArchivedSheets && archivedPlans.map(p => renderSheetGroup(p))}
                             </>
                         )}
                     </>
@@ -228,7 +241,7 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                 ) : (
                     <>
                         {pendingLogs.length === 0 && <p className="profile-empty">No hay sesiones pendientes de revisar.</p>}
-                        <div className="session-history-list">{pendingLogs.map(renderLogCard)}</div>
+                        <div className="session-history-list">{mainLogs.map(renderLogCard)}</div>
                         {reviewedLogs.length > 0 && (
                             <>
                                 <button className="archived-fold" aria-expanded={showReviewed} onClick={() => setShowReviewed(v => !v)}>
@@ -305,7 +318,7 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                         ))}
                     </div>
                     <div className="profile-tab-panel" role="tabpanel">
-                        {tab === 'history' ? renderHistoryBody() : renderPlansBody(tab)}
+                        {tab === 'history' ? renderHistoryBody() : tab === 'progress' ? renderProgressBody() : renderPlansBody()}
                     </div>
                 </div>
             ) : (
@@ -314,7 +327,14 @@ export function AthleteProfile({ athlete, planifications, sessionLogs, onBack, o
                         <div className="profile-section-header">
                             <h2 className="profile-section-title">Sesiones del plan</h2>
                         </div>
-                        {renderPlansBody('both')}
+                        {renderPlansBody()}
+                    </div>
+
+                    <div className="profile-section">
+                        <div className="profile-section-header">
+                            <h2 className="profile-section-title">Evolución por ejercicio</h2>
+                        </div>
+                        {renderProgressBody()}
                     </div>
 
                     <div className="profile-section">

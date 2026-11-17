@@ -5,7 +5,7 @@
 // como revisada"); the parent persists it through sessionLogService.review.
 import React, { useState, useEffect } from 'react';
 import { prescribedSeries, formatSerie } from '../../utils/helpers.js';
-import { AthleteVideoModal } from '../Modals/AthleteVideoModal.jsx';
+import { ExerciseNoteModal } from '../Modals/ExerciseNoteModal.jsx';
 import { SELF_EVALUATION_LABELS } from '../../utils/constants.js';
 
 export const RPE_CLASSES = { '1': 'session-rpe-1', '2': 'session-rpe-2', '3': 'session-rpe-3', '4': 'session-rpe-4' };
@@ -34,14 +34,11 @@ function summaryRows(summary) {
 }
 
 // One exercise: prescribed vs done per serie (same format both sides), the athlete's clip and
-// comment, and the coach's feedback for that exercise. Collapsible; opens by default when there
-// is something to look at (a video or existing feedback).
-function ExerciseRow({ ex, summary, serieRows, feedback, rpeClass, reviewed, onSaveFeedback, onPlay }) {
+// comment, and the coach's feedback for that exercise. Collapsible; opens by default only when the athlete
+// left a comment on it (video and coach feedback stay collapsed behind the ▶ / ✎ buttons).
+function ExerciseRow({ ex, summary, serieRows, feedback, rpeClass, draft, onDraft, onOpenNote, editable }) {
     const hasVideo = !!summary?.videoUrl;
-    const [open, setOpen] = useState(hasVideo || !!feedback?.comment);
-    const [draft, setDraft] = useState(feedback?.comment || '');
-    const [saving, setSaving] = useState(false);
-    useEffect(() => { setDraft(feedback?.comment || ''); }, [feedback?.comment]);
+    const [open, setOpen] = useState(!!summary?.comment);
 
     const prescribed = prescribedSeries(ex);
     const done = [...serieRows].sort((a, b) => a.serieIndex - b.serieIndex);
@@ -49,12 +46,6 @@ function ExerciseRow({ ex, summary, serieRows, feedback, rpeClass, reviewed, onS
         const row = done.find(r => r.serieIndex === i + 1);
         return { reps: row?.actualReps ?? '', carga: row?.actualCarga ?? '' };
     });
-    const unchanged = draft.trim() === (feedback?.comment || '');
-
-    async function save() {
-        setSaving(true);
-        try { await onSaveFeedback(ex.position, draft.trim()); } finally { setSaving(false); }
-    }
 
     return (
         <div className={`session-history-ex ${rpeClass}`}>
@@ -72,7 +63,7 @@ function ExerciseRow({ ex, summary, serieRows, feedback, rpeClass, reviewed, onS
                 </span>
                 <span className="session-history-actions">
                     {hasVideo && (
-                        <button type="button" className="session-history-icon-btn has-video" title="Ver video del atleta" onClick={() => onPlay(summary.videoUrl, ex.exerciseName)}>▶</button>
+                        <button type="button" className="session-history-icon-btn has-video" title="Ver video del atleta" onClick={onOpenNote}>▶</button>
                     )}
                     <button type="button" className={`session-history-icon-btn${feedback?.comment ? ' has-feedback' : ''}`} title="Feedback del coach" onClick={() => setOpen(o => !o)}>
                         {feedback?.comment ? '✎' : '+'}
@@ -87,31 +78,24 @@ function ExerciseRow({ ex, summary, serieRows, feedback, rpeClass, reviewed, onS
                             <span className="session-history-comment-text">"{summary.comment}"</span>
                         </div>
                     )}
-                    {!onSaveFeedback ? (
+                    {!editable ? (
                         feedback?.comment && (
                             <div className="session-history-comment-row">
                                 <span className="session-history-comment-name">Coach</span>
                                 <span className="session-history-comment-text">"{feedback.comment}"</span>
                             </div>
                         )
-                    ) : (<>
-                    <textarea
-                        className="form-input session-review-textarea"
-                        rows={2}
-                        maxLength={1000}
-                        placeholder="Feedback para este ejercicio (el atleta lo verá en las próximas sesiones)"
-                        value={draft}
-                        onChange={e => setDraft(e.target.value)}
-                    />
-                    <button className="btn btn-primary btn-sm" onClick={save} disabled={saving || unchanged}>
-                        {saving ? 'Guardando…' : 'Guardar feedback'}
-                    </button>
-                    {!reviewed && (
-                        <span className="session-review-state">
-                            {feedback?.comment ? 'Guardado como borrador — ' : ''}el atleta lo verá cuando marques la sesión como revisada.
-                        </span>
+                    ) : (
+                        // Saved together with the general comment by "Marcar como revisada" (see ReviewBox).
+                        <textarea
+                            className="form-input session-review-textarea"
+                            rows={2}
+                            maxLength={1000}
+                            placeholder="Feedback para este ejercicio (el atleta lo verá en las próximas sesiones y cuando la sesión se marque como revisada)."
+                            value={draft}
+                            onChange={e => onDraft(ex.position, e.target.value)}
+                        />
                     )}
-                    </>)}
                 </div>
             )}
         </div>
@@ -120,7 +104,7 @@ function ExerciseRow({ ex, summary, serieRows, feedback, rpeClass, reviewed, onS
 
 // Review box. The draft resets when the log changes (different session or after a save)
 // so a stale comment is never shown against another session.
-function ReviewBox({ log, onReview }) {
+function ReviewBox({ log, onReview, pendingFeedback }) {
     const [draft, setDraft] = useState(log.trainerComment || '');
     const [saving, setSaving] = useState(false);
     useEffect(() => { setDraft(log.trainerComment || ''); }, [log.planId, log.week, log.dayNumber, log.trainerComment]);
@@ -128,9 +112,11 @@ function ReviewBox({ log, onReview }) {
     const unchanged = draft.trim() === (log.trainerComment || '');
     const reviewed = !!log.reviewedAt;
 
-    async function submit() {
+    // `markReviewed` false = "Guardar": store the comments as drafts without marking the session reviewed.
+    async function submit(markReviewed = true) {
         setSaving(true);
-        try { await onReview(log, { comment: draft.trim() }); } finally { setSaving(false); }
+        // The per-exercise feedback edited above travels in the same request.
+        try { await onReview(log, { comment: draft.trim(), ...(markReviewed ? {} : { markReviewed: false }), ...(pendingFeedback.length ? { exerciseFeedback: pendingFeedback } : {}) }); } finally { setSaving(false); }
     }
 
     return (
@@ -145,8 +131,13 @@ function ReviewBox({ log, onReview }) {
                 onChange={e => setDraft(e.target.value)}
             />
             <div className="session-review-actions">
-                <button className="btn btn-primary btn-sm" onClick={submit} disabled={saving || (reviewed && unchanged)}>
-                    {saving ? 'Guardando…' : reviewed ? 'Actualizar comentario' : 'Marcar como revisada'}
+                {!reviewed && (
+                    <button className="btn btn-secondary btn-sm" onClick={() => submit(false)} disabled={saving || (unchanged && !pendingFeedback.length)}>
+                        Guardar
+                    </button>
+                )}
+                <button className="btn btn-primary btn-sm" onClick={() => submit(true)} disabled={saving || (reviewed && unchanged && !pendingFeedback.length)}>
+                    {saving ? 'Guardando…' : reviewed ? 'Actualizar revisión' : 'Marcar como revisada'}
                 </button>
                 {reviewed && <span className="session-review-state">Revisada</span>}
             </div>
@@ -155,9 +146,22 @@ function ReviewBox({ log, onReview }) {
 }
 
 export function SessionLogDetail({ log, plan, onReview }) {
-    const [playing, setPlaying] = useState(null);
+    // Exercise whose clip + comment modal is open (same modal as the "Sesiones del plan" icons).
+    const [noteFor, setNoteFor] = useState(null);
+    // Unsaved per-exercise feedback ({ position: text }); saved with "Marcar como revisada".
+    const [drafts, setDrafts] = useState({});
+    const saved = log.exerciseFeedback || {};
+    // Once a save lands, drop the drafts that now match what is stored (and reset on another session).
+    useEffect(() => {
+        setDrafts(d => Object.fromEntries(Object.entries(d).filter(([pos, text]) => text.trim() !== (saved[pos]?.comment || ''))));
+    }, [log.exerciseFeedback]);
+    useEffect(() => { setDrafts({}); }, [log.planId, log.week, log.dayNumber]);
+    const pendingFeedback = Object.entries(drafts)
+        .filter(([pos, text]) => text.trim() !== (saved[pos]?.comment || ''))
+        .map(([position, text]) => ({ position, comment: text.trim() }));
     const day = plan ? findDay(plan, log.week, log.dayNumber) : null;
-    const exercises = day ? day.blocks.flatMap(b => b.exercises).filter(e => !e.isRest) : [];
+    // Warm-ups (Calentamiento) are not shown to the coach: no row, prescribed or done.
+    const exercises = day ? day.blocks.flatMap(b => b.exercises).filter(e => !e.isRest && e.kind !== 'warmup') : [];
     const rows = summaryRows(log.sessionSummary);
 
     return (
@@ -184,15 +188,16 @@ export function SessionLogDetail({ log, plan, onReview }) {
                                 serieRows={(log.exercises || []).filter(e => e.position === ex.position)}
                                 feedback={log.exerciseFeedback?.[ex.position]}
                                 rpeClass={RPE_CLASSES[summary?.rpe || ''] || ''}
-                                reviewed={!!log.reviewedAt}
-                                onSaveFeedback={onReview ? (position, comment) => onReview(log, { exerciseFeedback: [{ position, comment }] }) : null}
-                                onPlay={(url, name) => setPlaying({ url, name })}
+                                editable={!!onReview}
+                                draft={drafts[ex.position] ?? log.exerciseFeedback?.[ex.position]?.comment ?? ''}
+                                onDraft={(position, text) => setDrafts(d => ({ ...d, [position]: text }))}
+                                onOpenNote={() => setNoteFor({ position: ex.position, name: ex.exerciseName, summary })}
                             />
                         );
                     })}
                 </>
             )}
-            <AthleteVideoModal open={!!playing} url={playing?.url} exerciseName={playing?.name} onClose={() => setPlaying(null)} />
+            <ExerciseNoteModal open={!!noteFor} log={log} position={noteFor?.position} exerciseName={noteFor?.name} summary={noteFor?.summary} onReview={onReview} onClose={() => setNoteFor(null)} />
             {rows.length > 0 && (
                 <div className="session-history-comments">
                     <div className="session-history-comment-name">Resumen de la sesión</div>
@@ -204,7 +209,7 @@ export function SessionLogDetail({ log, plan, onReview }) {
                     ))}
                 </div>
             )}
-            {onReview && <ReviewBox log={log} onReview={onReview} />}
+            {onReview && <ReviewBox log={log} onReview={onReview} pendingFeedback={pendingFeedback} />}
         </div>
     );
 }

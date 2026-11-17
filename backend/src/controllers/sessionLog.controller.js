@@ -97,7 +97,7 @@ export const discardSessionLog = async (req, res, next) => {
 
 const MAX_TRAINER_COMMENT = 1000;
 
-// Trainer-only (enforced in the route). Body: { planId, week, dayNumber, comment? }.
+// Trainer-only (enforced in the route). Body: { planId, week, dayNumber, comment?, exerciseFeedback?, markReviewed? }.
 // Idempotent: calling it again just updates the comment.
 export const reviewSessionLog = async (req, res, next) => {
     try {
@@ -108,6 +108,8 @@ export const reviewSessionLog = async (req, res, next) => {
         // `comment` omitted = keep the stored general comment (a per-exercise save must not wipe it).
         const commentGiven = req.body.comment !== undefined;
         const comment = req.body.comment ?? '';
+        // `markReviewed: false` saves the general comment as a draft without marking the session reviewed.
+        const markReviewed = commentGiven && req.body.markReviewed !== false;
         if (typeof comment !== 'string' || comment.length > MAX_TRAINER_COMMENT) {
             return res.status(400).json({ error: `El comentario no puede superar ${MAX_TRAINER_COMMENT} caracteres` });
         }
@@ -156,14 +158,14 @@ export const reviewSessionLog = async (req, res, next) => {
             comment: trimmed, exerciseFeedback: feedbackChanged ? mergedFeedback : undefined,
             // Only the "Marcar como revisada" action (which sends `comment`) marks the session reviewed;
             // saving a per-exercise comment alone leaves it pending.
-            markReviewed: commentGiven,
+            markReviewed,
         });
         if (!saved) return res.status(404).json({ error: 'Sesión no encontrada' });
         // Notify the athlete when the session is marked reviewed (first time or the general comment
         // changed), or when a comment of an already-reviewed session changes. Per-exercise drafts on
         // a pending session stay silent.
         const commentChanged = (prev.trainerComment ?? '') !== trimmed;
-        if ((commentGiven && (!prev.reviewedAt || commentChanged)) || (prev.reviewedAt && feedbackChanged)) {
+        if ((markReviewed && (!prev.reviewedAt || commentChanged)) || (prev.reviewedAt && (feedbackChanged || commentChanged))) {
             const firstExercise = Object.values(saved.exerciseFeedback ?? {})
                 .sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1))[0]?.comment;
             await notifySessionReviewed({

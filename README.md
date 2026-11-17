@@ -91,6 +91,12 @@ Workflow order: **start-task → investigate → plan → testing → commit →
 
 ## Changelog
 
+### 2026-11-17 (Fase 5: coach history and review workflow)
+- **Evolución por ejercicio across plans**: one list per exercise (grouped by name, so legacy ids don't split it) with every session from every plan, oldest first. Columns: Fecha (DD/MM/YYYY, the athlete's "Fecha y hora"), Sesión (`Plan, SX - DX` tinted by RPE) with comment/clip icons, Realizado, Volumen (KG, or the reps sum when there is no carga). Exercises no longer in an active plan go to an "Archivados" fold.
+- **Sesiones del plan**: a done cell shows a play icon (athlete clip) and a chat icon (that exercise's comment) on its right; both open a modal with the clip, the athlete's comment and a reply box (per-exercise coach feedback). Clicking an exercise name opens its Evolución group.
+- **Historial de sesiones**: ordered by the trained date (shown DD/MM/YYYY on the right, also on the trainer feed); warm-ups are hidden; exercises open only when the athlete commented; the per-exercise feedback has no button of its own. New **Guardar** saves the general comment and every exercise feedback as drafts without marking the session reviewed (`PATCH /api/session-logs/review` with `markReviewed:false`); "Marcar como revisada" saves everything and reviews. A reviewed session of a still-active plan stays in the list with a green header and "Revisada" tag; it archives only with its plan.
+- **Live training backlog**: six new tasks in `TODO.html` (timer in background, minimized next/past series, wake lock, PiP, focus mode).
+
 ### 2026-11-16 (Fase 4: coach adjusts future sessions)
 - **Edit future days of a published plan**: days the athlete already started (any log) are frozen: the API answers 409 if an update alters them, and the editor shows them read-only with "Ya entrenado" (trained days and fully trained weeks start collapsed). Weeks and days per week can't drop below what is trained.
 - **Plan-change notification**: the athlete's bell says which sessions the coach adjusted ("Ajustó: Semana 2, Día 1") and opens that session; saves that change nothing stay silent.

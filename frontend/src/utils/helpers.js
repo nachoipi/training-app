@@ -259,7 +259,7 @@ export function exerciseHistory(plan, sessionLogs) {
         const exs = (day?.blocks ?? []).flatMap(b => b.exercises ?? []).filter(e => !e.isRest && e.kind !== 'warmup');
         for (const ex of collapseUnilateral(exs, log)) {
             const name = ex.exerciseName || '';
-            const key = ex.exerciseId || name.trim().toLowerCase();
+            const key = exerciseKey(ex);
             if (!key) continue;
             const serieRows = (log.exercises || []).filter(r => r.position === ex.position)
                 .sort((a, b) => a.serieIndex - b.serieIndex);
@@ -272,14 +272,65 @@ export function exerciseHistory(plan, sessionLogs) {
             const counted = ex.medida === 'Peso'
                 ? done.map(s => Number(s.reps) * Number(s.carga)).filter(n => Number.isFinite(n) && n > 0)
                 : [];
+            // No carga at all (bodyweight, etc.): the volume is the sum of the reps done.
+            const noCarga = done.every(s => s.carga === '' || s.carga == null || Number(s.carga) === 0);
+            const repsOnly = noCarga ? done.map(s => Number(s.reps)).filter(n => Number.isFinite(n) && n > 0) : [];
             if (!groups.has(key)) groups.set(key, { key, name, entries: [] });
             groups.get(key).entries.push({
+                plan, planName: plan.name,
                 week: log.week, dayNumber: log.dayNumber, log, ex, serieRows,
                 rpe: log.exerciseSummaries?.find(s => s.position === ex.position)?.rpe || '',
                 text: text || '—',
-                volume: counted.length ? counted.reduce((a, b) => a + b, 0) : NaN,
+                volume: counted.length ? counted.reduce((a, b) => a + b, 0) : repsOnly.length ? repsOnly.reduce((a, b) => a + b, 0) : NaN,
+                volumeUnit: counted.length ? 'KG' : 'reps',
             });
         }
     }
     return [...groups.values()];
+}
+
+// When the athlete trained a session: the "Fecha y hora" they filled in the summary, falling back to
+// the time the session was completed. Used to order the history and the exercise progression.
+export function trainedAt(log) {
+    const d = new Date(log?.sessionSummary?.dateTime);
+    return Number.isNaN(d.getTime()) ? new Date(log?.completedAt) : d;
+}
+
+// DD/MM/YYYY (local) for a Date; '' when invalid. Used by the history and the exercise progression.
+export function formatDMY(d) {
+    if (!(d instanceof Date) || Number.isNaN(d.getTime())) return '';
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+// Key that identifies an exercise across plans (exerciseHistory's group key). It is the NAME, not the
+// exerciseId: older plans carry legacy ids (e.g. "e6") for exercises the catalog now has under another
+// id, so the same exercise would otherwise split into two groups. The id is only the fallback.
+export const exerciseKey = ex => (ex?.exerciseName || '').trim().toLowerCase() || ex?.exerciseId || '';
+
+// "Evolución por ejercicio" across ALL the athlete's plans: one group per exercise with every
+// completed session that trained it (whichever plan), oldest first so the progression reads
+// chronologically. A group is `active` while the exercise is still prescribed in one of
+// `activePlans`; the rest are archived by the caller.
+export function athleteExerciseHistory(plans, sessionLogs, activePlans) {
+    const merged = new Map();
+    for (const plan of plans) {
+        if (plan.status === 'draft') continue;
+        for (const g of exerciseHistory(plan, sessionLogs)) {
+            if (!merged.has(g.key)) merged.set(g.key, { key: g.key, name: g.name, entries: [] });
+            merged.get(g.key).entries.push(...g.entries);
+        }
+    }
+    const activeKeys = new Set();
+    for (const plan of activePlans) {
+        if (plan.status === 'draft') continue;
+        const weeks = plan.weekDays ?? [plan.days ?? []];
+        for (const days of weeks) for (const d of days ?? []) for (const b of d.blocks ?? []) {
+            for (const ex of b.exercises ?? []) if (!ex.isRest && ex.kind !== 'warmup') activeKeys.add(exerciseKey(ex));
+        }
+    }
+    return [...merged.values()].map(g => ({
+        ...g,
+        active: activeKeys.has(g.key),
+        entries: g.entries.sort((a, b) => trainedAt(a.log) - trainedAt(b.log)),
+    })).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 }
