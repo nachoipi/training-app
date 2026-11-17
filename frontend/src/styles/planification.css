@@ -1191,3 +1191,12 @@ button.plan-sheet-cell:hover { outline: 1px solid var(--text-muted); }
 .plan-sheet-media:hover { background: rgba(255,255,255,0.12); }
 .plan-sheet-ex-link { background: none; border: none; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .plan-sheet-ex-link:hover { text-decoration: underline; }
+
+/* Focus view (live training): compact rows for blocks/series already done and blocks still to come. */
+.session-past-toggle { display: block; margin: 0 0 12px auto; }
+.session-compact-block { margin-bottom: 8px; padding: 10px 14px; opacity: .75; }
+.session-compact-block.is-next { border-style: dashed; }
+.session-compact-title { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+.session-compact-meta { font-size: 13px; opacity: .8; }
+.session-compact-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin: 6px 0; font-size: 13px; border-radius: 8px; background: var(--surface-2, rgba(0,0,0,.04)); }
+.session-compact-row .session-compact-meta { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

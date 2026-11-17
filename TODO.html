@@ -162,9 +162,9 @@ const DAYS = [
     title: 'Comunicación trainer ↔ atleta',
     tag: 'feature',
     tasks: [
-      { text: 'Hilo de comentarios por sesión completada', detail: 'Tanto el trainer como el atleta pueden responderse sobre una sesión puntual (no es chat libre, es contextual a la sesión).', cats: ['fe','be','db'] },
-      { text: 'Badge de "comentarios sin leer" en ambos lados', detail: 'El atleta ve cuando el trainer le dejó feedback; el trainer ve cuando el atleta respondió.', cats: ['fe','be'] },
-      { text: 'Notificaciones in-app mínimas (sólo para el loop)', detail: 'Eventos: plan asignado, plan modificado, sesión completada, comentario nuevo. Nada más todavía — push y email quedan para extras.', cats: ['db','be','fe'] },
+      { text: 'Hilo de comentarios por sesión completada', detail: 'Tanto el trainer como el atleta pueden responderse sobre una sesión puntual (no es chat libre, es contextual a la sesión).', cats: ['fe','be','db'], done: true },
+      { text: 'Badge de "comentarios sin leer" en ambos lados', detail: 'El atleta ve cuando el trainer le dejó feedback; el trainer ve cuando el atleta respondió.', cats: ['fe','be'], done: true },
+      { text: 'Notificaciones in-app mínimas (sólo para el loop)', detail: 'Eventos: plan asignado, plan modificado, sesión completada, comentario nuevo. Nada más todavía — push y email quedan para extras.', cats: ['db','be','fe'], done: true },
     ]
   },
 
@@ -173,13 +173,12 @@ const DAYS = [
     title: 'Entrenamiento en vivo (atleta en cancha)',
     tag: 'feature',
     tasks: [
-      { text: 'Modal por ejercicio en curso, recorriendo cada bloque', detail: 'Cuando el atleta está en la cancha, un modal sobre el ejercicio que está haciendo, navegando todos los bloques del día (ejercicio actual, siguiente, series restantes).', cats: ['fe'] },
-      { text: 'Campo de descanso por ejercicio/bloque', detail: 'El trainer define el descanso (segundos) en el editor; en vivo el modal muestra un temporizador de descanso entre series.', cats: ['fe','be'] },
-      { text: 'Tipos de bloque (calentamiento / principal / accesorios)', detail: 'Hoy los bloques sólo son A–E. Agregar un tipo por bloque en el editor y mostrarlo como etiqueta en la vista en vivo.', cats: ['fe','be'] },
-      { text: 'El timer debe seguir corriendo al salir del navegador', detail: 'Hoy el reloj total y los cronómetros por serie/descanso cuentan con intervalos en la página. Calcular desde timestamps (Date.now() − inicio) y persistir el inicio, para que al volver a la pestaña o reabrir el navegador el tiempo sea el real.', cats: ['fe'] },
-      { text: 'Ver la próxima serie minimizada (títulos)', detail: 'En la vista focus, mostrar debajo de la serie actual los títulos compactos de lo que viene (próximo ejercicio / serie / bloque).', cats: ['fe'] },
-      { text: 'Opción de ver lo pasado (minimizado)', detail: 'Toggle para desplegar los bloques, series y ejercicios ya terminados en formato compacto, sin salir del modo focus.', cats: ['fe'] },
-      { text: 'Que no se bloquee el navegador / la pantalla', detail: 'Mantener la pantalla encendida durante la sesión (Screen Wake Lock API, re-adquirir al volver a la pestaña) para que el timer y el auto-guardado no se corten.', cats: ['fe'] },
+      { text: 'Modal por ejercicio en curso, recorriendo cada bloque', detail: 'Cuando el atleta está en la cancha, un modal sobre el ejercicio que está haciendo, navegando todos los bloques del día (ejercicio actual, siguiente, series restantes).', cats: ['fe'], done: true },
+      { text: 'Campo de descanso por ejercicio/bloque', detail: 'El trainer define el descanso (segundos) en el editor; en vivo el modal muestra un temporizador de descanso entre series.', cats: ['fe','be'], done: true },
+      { text: 'El timer debe seguir corriendo al salir del navegador', detail: 'Hoy el reloj total y los cronómetros por serie/descanso cuentan con intervalos en la página. Calcular desde timestamps (Date.now() − inicio) y persistir el inicio, para que al volver a la pestaña o reabrir el navegador el tiempo sea el real.', cats: ['fe'], done: true },
+      { text: 'Ver la próxima serie minimizada (títulos)', detail: 'En la vista focus, mostrar debajo de la serie actual los títulos compactos de lo que viene (próximo ejercicio / serie / bloque).', cats: ['fe'], done: true },
+      { text: 'Opción de ver lo pasado (minimizado)', detail: 'Toggle para desplegar los bloques, series y ejercicios ya terminados en formato compacto, sin salir del modo focus.', cats: ['fe'], done: true },
+      { text: 'Que no se bloquee el navegador / la pantalla', detail: 'Mantener la pantalla encendida durante la sesión (Screen Wake Lock API, re-adquirir al volver a la pestaña) para que el timer y el auto-guardado no se corten.', cats: ['fe'], done: true },
       { text: 'Minimizar la ventana (PiP)', detail: 'Picture-in-Picture (Document Picture-in-Picture API donde exista) con el ejercicio actual, timer y botón ▶ para usar otras apps sin perder la sesión.', cats: ['fe'] },
       { text: 'Modo focus (bloquear otras apps, tipo Duolingo)', detail: 'Modo concentración durante la sesión. Una web no puede bloquear otras apps; evaluar alcance real (fullscreen + aviso al salir) o app nativa/PWA instalada.', cats: ['fe'] },
     ]
