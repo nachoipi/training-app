@@ -91,6 +91,12 @@ Workflow order: **start-task → investigate → plan → testing → commit →
 
 ## Changelog
 
+### 2026-11-17 (Fase 6: live training)
+- **Real-time clocks**: the session clock, the exercise stopwatch and the rest countdown count the real elapsed time (wall clock) instead of one second per tick, and catch up when the tab or phone comes back. The saved log also carries `clockSavedAt`, `clockKey` and `restTimer`, so reopening an in-progress session adds the time spent away and restores a running rest (pause is not persisted: time away counts).
+- **Screen stays on**: the session requests a Screen Wake Lock while training (`hooks/useWakeLock.js`), re-acquired when the tab becomes visible; no-op where unsupported.
+- **Focus view**: "Ver lo hecho (n)" toggle shows finished series and blocks as compact rows, and the blocks still to come appear as compact titles under the current one.
+- **Backlog**: "Modal por ejercicio" and "Campo de descanso" were already in place; PiP and focus mode remain open in `TODO.html`. No migration needed.
+
 ### 2026-11-17 (Fase 5: coach history and review workflow)
 - **Evolución por ejercicio across plans**: one list per exercise (grouped by name, so legacy ids don't split it) with every session from every plan, oldest first. Columns: Fecha (DD/MM/YYYY, the athlete's "Fecha y hora"), Sesión (`Plan, SX - DX` tinted by RPE) with comment/clip icons, Realizado, Volumen (KG, or the reps sum when there is no carga). Exercises no longer in an active plan go to an "Archivados" fold.
 - **Sesiones del plan**: a done cell shows a play icon (athlete clip) and a chat icon (that exercise's comment) on its right; both open a modal with the clip, the athlete's comment and a reply box (per-exercise coach feedback). Clicking an exercise name opens its Evolución group.

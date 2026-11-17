@@ -16,6 +16,7 @@ import { Icon } from '../Icon/index.jsx';
 import { DayOverview } from './DayOverview.jsx';
 import { extractYouTubeId, isDirectVideoUrl, extractDriveFileId } from '../../utils/videoUrl.js';
 import { ExerciseVideoModal } from '../Modals/ExerciseVideoModal.jsx';
+import { useWakeLock } from '../../hooks/useWakeLock.js';
 
 const RPE_CLASSES = { '1': 'session-rpe-1', '2': 'session-rpe-2', '3': 'session-rpe-3', '4': 'session-rpe-4' };
 
@@ -369,6 +370,8 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, sess
     // it starts when the athlete hits next on the previous exercise. Saved with the log for the summary.
     const [exerciseTimes, setExerciseTimes] = useState({});
     const [started, setStarted] = useState(false);
+    // Focus view toggle: also list what is already done, in compact form (see compactBlock).
+    const [showPast, setShowPast] = useState(false);
     // Identity of the session the local state was hydrated for. Auto-saves update the
     // `sessionLog` prop; re-hydrating from them would overwrite what the athlete is typing,
     // so hydration runs again only when a different session is opened.
@@ -431,8 +434,23 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, sess
 
         setExerciseData(map);
         setExerciseSummary(summary);
-        setExerciseTimes(sessionLog?.exerciseTimes || {});
-        setElapsed(sessionLog?.elapsedSeconds || 0);
+        // Resuming a session that was running (progress saved, not completed): the clocks kept
+        // going while the app was closed, so add the real time since the last save. Paused state is
+        // not persisted, so time away always counts.
+        const running = !!sessionLog && !sessionLog.completed && sessionLog.exercises?.some(e => e.done);
+        const away = running && sessionLog.clockSavedAt
+            ? Math.max(0, Math.floor((Date.now() - sessionLog.clockSavedAt) / 1000)) : 0;
+        const times = { ...(sessionLog?.exerciseTimes || {}) };
+        const ck = sessionLog?.clockKey;
+        if (away && ck && !ck.startsWith('R_')) times[ck] = (times[ck] || 0) + away;
+        setExerciseTimes(times);
+        setElapsed((sessionLog?.elapsedSeconds || 0) + away);
+        lastTickRef.current = Date.now();
+        const rt = running ? sessionLog.restTimer : null;
+        if (rt?.key) {
+            setTimer({ kind: 'rest', key: rt.key, next: rt.next ?? null, remaining: rt.remaining - away, running: true });
+            setActiveKey(rt.key);
+        }
         const hydratedSummary = { ...EMPTY_SESSION_SUMMARY, ...(sessionLog?.sessionSummary || {}) };
         setSessionSummary(hydratedSummary);
         setBaseline(JSON.stringify({ map, summary, sessionSummary: hydratedSummary }));
@@ -499,6 +517,14 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, sess
             sessionSummary,
             elapsedSeconds: elapsed,
             exerciseTimes,
+            // Wall-clock anchor of the counters above, so reopening the app mid-session can add the
+            // time spent away (see hydration). `clockKey` is the exercise whose stopwatch was running
+            // and `restTimer` the rest countdown in progress, if any.
+            clockSavedAt: Date.now(),
+            clockKey: curKey ?? null,
+            restTimer: timer && timer.kind === 'rest'
+                ? { key: timer.key, next: timer.next ?? null, remaining: timer.remaining }
+                : null,
         };
     }
 
@@ -606,27 +632,45 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, sess
         // Never jump onto a serie that is still locked behind this block's RPEs: stay on the RPE cards.
         goTo(lockedBehindRpe(bi, upcoming) ? null : upcoming);
     }
-    useEffect(() => {
-        if (!timer || !timer.running || paused) return undefined;
-        const id = setInterval(() => setTimer(t => (t && t.running ? { ...t, remaining: t.remaining - 1 } : t)), 1000);
-        return () => clearInterval(id);
-    }, [timer?.running, timer?.key, timer?.kind, paused]);
-    // Session clock: ticks only once the training list is showing (not on the overview).
-    // It runs from "Empezar sesión" until the last exercise is done, and stops while paused.
     const allSeriesDone = orderedKeys.length > 0 && orderedKeys.every(isDone);
+    // One ticker drives the session clock, the exercise stopwatch and the rest countdown. Browsers
+    // throttle or freeze setInterval in hidden tabs / locked phones, so ticks are never counted one
+    // by one: each tick adds the whole seconds that really elapsed since the last counted instant
+    // (`lastTickRef`, wall clock). Returning to the tab (visibilitychange / focus / pageshow) runs an
+    // immediate catch-up tick, so the time shown is the real one. While paused the reference is
+    // refreshed (and reset on resume, via the effect re-running) so paused time is never counted.
+    // The overview (before "Empezar sesión") counts nothing either.
+    const lastTickRef = useRef(Date.now());
+    const liveRef = useRef({ curKey: null, counting: false });
+    liveRef.current = { curKey, counting: !completed && !allSeriesDone };
     useEffect(() => {
-        if (paused || completed || allSeriesDone) return undefined;
-        const id = setInterval(() => { if (!showOverviewRef.current) setElapsed(e => e + 1); }, 1000);
-        return () => clearInterval(id);
-    }, [paused, completed, allSeriesDone]);
-    // Stopwatch of the exercise being trained (rests and locked states do not count).
-    useEffect(() => {
-        if (paused || completed || allSeriesDone || !curKey || curKey.startsWith('R_')) return undefined;
-        const id = setInterval(() => {
-            if (!showOverviewRef.current) setExerciseTimes(t => ({ ...t, [curKey]: (t[curKey] || 0) + 1 }));
-        }, 1000);
-        return () => clearInterval(id);
-    }, [curKey, paused, completed, allSeriesDone]);
+        lastTickRef.current = Date.now();
+        if (paused) return undefined;
+        function tick() {
+            const now = Date.now();
+            const whole = Math.floor((now - lastTickRef.current) / 1000);
+            if (whole < 1) return;
+            lastTickRef.current += whole * 1000;
+            if (showOverviewRef.current) return;
+            const { curKey: k, counting } = liveRef.current;
+            if (counting) {
+                setElapsed(e => e + whole);
+                // The stopwatch belongs to the exercise being trained (rests and locked states do not count).
+                if (k && !k.startsWith('R_')) setExerciseTimes(t => ({ ...t, [k]: (t[k] || 0) + whole }));
+            }
+            setTimer(t => (t && t.running ? { ...t, remaining: t.remaining - whole } : t));
+        }
+        const id = setInterval(tick, 1000);
+        document.addEventListener('visibilitychange', tick);
+        window.addEventListener('focus', tick);
+        window.addEventListener('pageshow', tick);
+        return () => {
+            clearInterval(id);
+            document.removeEventListener('visibilitychange', tick);
+            window.removeEventListener('focus', tick);
+            window.removeEventListener('pageshow', tick);
+        };
+    }, [paused]);
     // A rest never advances by itself: at 0:00 the clock turns red and keeps counting (+m:ss) until
     // the athlete hits next. Its block stays on screen until then (see firstOpenBi), even when the
     // block has no RPEs to rate (warm-ups) or they were already rated during the rest.
@@ -723,6 +767,8 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, sess
     // Training in progress = the list is showing and the session is not completed: the only exits
     // are finishing or discarding it, so the back arrow is disabled and Dashboard blocks navigation.
     const trainingLocked = !completed && !showOverview;
+    // Keep the screen on while training so the clocks and auto-save are not interrupted by sleep.
+    useWakeLock(trainingLocked);
     useEffect(() => {
         onTrainingLock?.(trainingLocked);
         return () => onTrainingLock?.(false);
@@ -738,6 +784,24 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, sess
 
     // Warm-up blocks read "Calentamiento"; the rest are Bloque A, B… among themselves.
     const sessionBlockTitles = blockTitles(day.blocks);
+    // Compact rows for the focus view: finished blocks (opt-in, `showPast`) and the blocks still to
+    // come. Read-only; they carry no controls so the ordered-completion rules are untouched.
+    const pastEndBi = firstOpenBi === -1 ? day.blocks.length : firstOpenBi;
+    const doneSeriesCount = orderedKeys.filter(isDone).length;
+    function compactBlock(bi, kind) {
+        const block = day.blocks[bi];
+        return (
+            <div key={`${kind}_${block.label}`} className={`plan-session-block session-compact-block is-${kind}`}>
+                <div className="session-compact-title">
+                    <span>{sessionBlockTitles[bi]}</span>
+                    {kind === 'past' && <Icon name="check" size={14} />}
+                </div>
+                <div className="session-compact-meta">
+                    {block.exercises.map(ex => `${ex.exerciseName || ex.position} (${ex.series || 1}×${ex.reps})`).join(' + ')}
+                </div>
+            </div>
+        );
+    }
 
     const summaryFields = (
         <>
@@ -833,6 +897,13 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, sess
                         <DayOverview feedbackFor={feedbackFor} blocks={fullDay.blocks.map(b => ({ ...b, exercises: visibleInPlan(b.exercises) }))} />
                     </div>
                 )}
+                {started_or_progress && !completed && doneSeriesCount > 0 && (
+                    <button type="button" className="btn btn-light btn-sm session-past-toggle"
+                        aria-pressed={showPast} onClick={() => setShowPast(v => !v)}>
+                        {showPast ? 'Ocultar lo hecho' : `Ver lo hecho (${doneSeriesCount})`}
+                    </button>
+                )}
+                {started_or_progress && !completed && showPast && day.blocks.slice(0, pastEndBi).map((block, bi) => compactBlock(bi, 'past'))}
                 {started_or_progress && day.blocks.map((block, bIdx) => {
                     // Only the block in progress is shown: finished ones and the ones still to come are hidden.
                     if (!completed && bIdx !== firstOpenBi) return null;
@@ -884,7 +955,18 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, sess
                                 const isOpen = serieOpen[serieKey] ?? (curLoc != null && curLoc.bi === bIdxG && curLoc.n === serieNum);
                                 const isSerieDone = serieDone(serieNum);
                                 // While training, series already finished (and not the one still open for its rest) are hidden.
-                                if (!completed && isSerieDone && !isOpen) return null;
+                                if (!completed && isSerieDone && !isOpen) {
+                                    if (!showPast) return null;
+                                    return (
+                                        <div key={serieNum} className="session-compact-row is-past">
+                                            <span>Serie {serieNum} de {maxSeries}</span>
+                                            <span className="session-compact-meta">
+                                                {block.exercises.filter(ex => serieNum <= (ex.series || 1)).map(ex => ex.exerciseName || ex.position).join(' + ')}
+                                            </span>
+                                            <Icon name="check" size={14} />
+                                        </div>
+                                    );
+                                }
                                 return (
                                     <div key={serieNum} className={`session-serie-group${isOpen ? ' is-open' : ''}`}>
                                         <button
@@ -1157,6 +1239,9 @@ export function AthleteMySession({ plan, week, day: fullDayRaw, sessionLog, sess
                         </div>
                     );
                 })}
+
+                {/* Focus view: the blocks still to come, as compact titles under the current one. */}
+                {started_or_progress && !completed && firstOpenBi >= 0 && day.blocks.slice(firstOpenBi + 1).map((block, i) => compactBlock(firstOpenBi + 1 + i, 'next'))}
 
                 {allClosed && !showOverview && (
                     <div className="plan-session-block session-summary-card">
