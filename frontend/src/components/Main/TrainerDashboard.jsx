@@ -5,7 +5,7 @@
 // Clicking a card opens the plan-vs-actual detail (TrainerSessionDetail, same file,
 // section `session-detail`) via onOpenSessionDetail.
 import React, { useState, useEffect } from 'react';
-import { formatDate } from '../../utils/helpers.js';
+import { formatDMY, trainedAt } from '../../utils/helpers.js';
 import { StatCard } from '../Common/index.jsx';
 import { Icon } from '../Icon/index.jsx';
 import { SessionLogDetail } from './SessionLogDetail.jsx';
@@ -88,7 +88,7 @@ export function TrainerDashboard({ user, planifications = [], sessionLogs = [], 
                                             {!log.reviewedAt && <span className="trainer-feed-badge">Nuevo</span>}
                                         </div>
                                         <div className="trainer-feed-meta">
-                                            {plan?.name || '—'} · Semana {log.week} · Día {log.dayNumber} · {formatDate(log.completedAt.slice(0, 10))}
+                                            {plan?.name || '—'} · Semana {log.week} · Día {log.dayNumber} · {formatDMY(trainedAt(log))}
                                         </div>
                                         {(videos > 0 || feedbacks > 0) && (
                                             <div className="trainer-feed-meta">
@@ -136,7 +136,7 @@ export function TrainerSessionDetail({ log, plan, onBack, onReview, onShowToast 
                         <div className="athlete-name athlete-profile-name">{athlete?.name || 'Alumno'}</div>
                         <div className="athlete-email">
                             {plan?.name || '—'} · Semana {log.week} · Día {log.dayNumber}
-                            {log.completedAt ? ` · ${formatDate(log.completedAt.slice(0, 10))}` : ''}
+                            {log.completedAt ? ` · ${formatDMY(trainedAt(log))}` : ''}
                         </div>
                     </div>
                 </div>

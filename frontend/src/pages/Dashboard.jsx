@@ -229,7 +229,7 @@ export default function Dashboard() {
             });
             setSessionLogs(prev => prev.map(l =>
                 l.planId === saved.planId && l.week === saved.week && l.dayNumber === saved.dayNumber ? saved : l));
-            showToast(review.comment === undefined ? 'Feedback guardado' : 'Sesión revisada');
+            showToast(review.comment === undefined || review.markReviewed === false ? 'Cambios guardados' : 'Sesión revisada');
         } catch (err) { showToast(err.message, 'error'); }
     }
 

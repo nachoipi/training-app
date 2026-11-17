@@ -4,10 +4,13 @@
 // empty in the weeks before. A cell shows the prescription (series - reps × carga / reps × carga…),
 // tinted by the RPE of the completed session (grey = still pending). Clicking a completed
 // cell opens that session. Replaces the old week-by-week cards that repeated the same
-// exercise names once per week.
+// exercise names once per week. A done cell whose exercise has an athlete clip and/or comment gets small icons
+// to its right; both open a modal with the clip + comment and the coach's reply box, and the exercise name links to its "Evolución por ejercicio"
+// (onOpenExercise).
 import React from 'react';
 import { formatCarga, collapseUnilateral, visibleInPlan, prescribedSeries, blockPrefixes, displayPosition } from '../../utils/helpers.js';
 import { RPE_CLASSES } from './SessionLogDetail.jsx';
+import { ExerciseCellButton } from './ExerciseCellButton.jsx';
 
 // Exercises of a day for one week, rests/hidden kinds removed and unilateral twins collapsed,
 // keyed `<position>|<exercise id>` so a slot lines up across weeks only while it holds the same exercise.
@@ -50,7 +53,7 @@ function cellText(ex) {
     return `${ex.series || '—'} - ${shown.join(' / ')}${unit ? ` ${unit}` : ''}`;
 }
 
-export function PlanSessionsSheet({ plan, sessionLogs, onOpenLog }) {
+export function PlanSessionsSheet({ plan, sessionLogs, onOpenLog, onOpenExercise, onReview }) {
     const weekDays = Array.from({ length: plan.weeks }, (_, w) => plan.weekDays?.[w] ?? plan.days ?? []);
     const logOf = (w, dayNumber) => sessionLogs.find(
         l => l.planId === plan.id && l.week === w + 1 && l.dayNumber === dayNumber && l.completed);
@@ -83,18 +86,23 @@ export function PlanSessionsSheet({ plan, sessionLogs, onOpenLog }) {
                                     return (
                                         <tr key={key}>
                                             <td className="plan-sheet-pos">{head.pos || '—'}</td>
-                                            <td className="plan-sheet-ex">{first.exerciseName || '—'}</td>
+                                            <td className="plan-sheet-ex">
+                                                {onOpenExercise && first.exerciseName ? (
+                                                    <button type="button" className="plan-sheet-ex-link" title="Ver evolución por ejercicio" onClick={() => onOpenExercise(plan, first)}>{first.exerciseName}</button>
+                                                ) : (first.exerciseName || '—')}
+                                            </td>
                                             {perWeek.map((list, w) => {
                                                 const item = list.find(r => r.key === key);
                                                 if (!item) return <td key={w}><span className="plan-sheet-cell is-empty">-</span></td>;
                                                 const log = logOf(w, dn);
-                                                const rpe = log?.exerciseSummaries?.find(s => s.position === item.ex.position)?.rpe || '';
+                                                const summary = log?.exerciseSummaries?.find(s => s.position === item.ex.position);
+                                                const rpe = summary?.rpe || '';
                                                 const cls = log ? `is-done ${RPE_CLASSES[rpe] || ''}` : '';
                                                 const text = cellText(item.ex);
                                                 return (
                                                     <td key={w}>
                                                         {log ? (
-                                                            <button type="button" className={`plan-sheet-cell ${cls}`} title={`${text} — abrir sesión`} onClick={() => onOpenLog(log)}>{text}</button>
+                                                            <ExerciseCellButton log={log} ex={item.ex} sessionLogs={sessionLogs} className={cls} title={`${text} — abrir sesión`} onOpen={() => onOpenLog(log)} onReview={onReview}>{text}</ExerciseCellButton>
                                                         ) : (
                                                             <span className="plan-sheet-cell" title={text}>{text}</span>
                                                         )}

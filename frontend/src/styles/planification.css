@@ -1171,5 +1171,23 @@ button.plan-sheet-cell:hover { outline: 1px solid var(--text-muted); }
 .planification-day-locked { font-size: .72rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-muted); margin-left: 8px; }
 .profile-subsection-title { font-size: .85rem; font-weight: 700; margin: 18px 0 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
 .exercise-progress-table { width: 100%; margin: 6px 0 12px; }
+/* Fecha only needs DD/MM/YYYY; the session name is left-aligned (icons stay on the right). */
+.exercise-progress-table th:nth-child(1), .exercise-progress-table td:nth-child(1) { width: 84px; white-space: nowrap; }
+.exercise-progress-table th:nth-child(2) { width: 32%; }
+.exercise-progress-table .plan-sheet-cell { text-align: left; }
 
 .planification-input.is-invalid { border-color: var(--danger, #e5534b); box-shadow: 0 0 0 1px var(--danger, #e5534b); }
+
+/* "Sesiones del plan": done cell + small media icon on its right, and the exercise-name link. */
+.plan-sheet-cell-wrap { position: relative; }
+.plan-sheet-cell.has-media { padding-right: 26px; }
+.plan-sheet-cell.has-media-2 { padding-right: 48px; }
+.plan-sheet-media-group { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 2px; }
+.plan-sheet-media {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; padding: 0; border: none; border-radius: 50%;
+    background: transparent; color: var(--accent); cursor: pointer;
+}
+.plan-sheet-media:hover { background: rgba(255,255,255,0.12); }
+.plan-sheet-ex-link { background: none; border: none; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.plan-sheet-ex-link:hover { text-decoration: underline; }

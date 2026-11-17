@@ -52,9 +52,10 @@ export const sessionLogService = {
     list: () => apiFetch(SESSION_LOGS),
     // Trainer only: marks a completed session as reviewed and stores a comment.
     // Keyed by plan/week/day because the log `id` the UI sees is the payload's uid.
-    review: ({ planId, week, dayNumber, comment, exerciseFeedback }) => apiFetch(`${SESSION_LOGS}/review`, {
+    // `markReviewed: false` saves the comments as drafts without marking the session reviewed.
+    review: ({ planId, week, dayNumber, comment, exerciseFeedback, markReviewed }) => apiFetch(`${SESSION_LOGS}/review`, {
         method: 'PATCH',
-        body: JSON.stringify({ planId, week, dayNumber, comment, exerciseFeedback }),
+        body: JSON.stringify({ planId, week, dayNumber, comment, exerciseFeedback, markReviewed }),
     }),
     save: (log) => apiFetch(SESSION_LOGS, { method: 'POST', body: JSON.stringify(log) }),
     // Athlete discards a session still in progress (deletes its saved log; completed ones are refused).
